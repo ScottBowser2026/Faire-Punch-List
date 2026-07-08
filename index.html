@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Faire Punch List — Progress Tracker</title>
+<style>
+  :root {
+    --bg: #f7f6f2;
+    --surface: #ffffff;
+    --surface-1: #f1efe8;
+    --border: #ddd9cd;
+    --text-primary: #1e1e1c;
+    --text-secondary: #5f5e5a;
+    --text-muted: #888780;
+    --teal-bg: #E1F5EE; --teal-fg: #085041; --teal-bar: #1D9E75;
+    --blue-bg: #E6F1FB; --blue-fg: #0C447C; --blue-bar: #378ADD;
+    --gray-bg: #F1EFE8; --gray-fg: #444441; --gray-bar: #B4B2A9;
+    --red-fg: #A32D2D;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text-primary);
+    margin: 0;
+    padding: 32px 20px 60px;
+  }
+  .wrap { max-width: 780px; margin: 0 auto; }
+  h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px; }
+  .subtitle { font-size: 13px; color: var(--text-secondary); margin: 0 0 24px; }
+  h2.section-title { font-size: 15px; font-weight: 600; margin: 28px 0 10px; }
+  .stats {
+    display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px;
+  }
+  .stat {
+    flex: 1; min-width: 110px;
+    background: var(--surface-1); border-radius: 10px; padding: 14px 16px;
+  }
+  .stat .label { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
+  .stat .value { font-size: 22px; font-weight: 600; }
+  .toolbar {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 14px; flex-wrap: wrap; gap: 10px;
+  }
+  .toolbar .hint { font-size: 13px; color: var(--text-muted); }
+  .toolbar .btns { display: flex; gap: 8px; }
+  button.ui {
+    font-size: 13px; padding: 7px 14px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--surface);
+    cursor: pointer; color: var(--text-primary);
+  }
+  button.ui:hover { background: var(--surface-1); }
+  .dept {
+    border: 1px solid var(--border); border-radius: 12px;
+    margin-bottom: 10px; overflow: hidden; background: var(--surface);
+  }
+  .dept-header {
+    width: 100%; display: flex; align-items: center; justify-content: space-between;
+    padding: 13px 16px; background: var(--surface-1); border: none; cursor: pointer;
+    text-align: left; font: inherit; color: inherit;
+  }
+  .dept-header .left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .chev { font-size: 13px; transition: transform .15s; flex-shrink: 0; width: 14px; display: inline-block; }
+  .dept-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dept-owner { font-size: 12px; color: var(--text-secondary); }
+  .dept-header .right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  .dept-bar-track { width: 80px; height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; }
+  .dept-bar-fill { height: 100%; background: var(--blue-bar); width: 0%; }
+  .dept-pct { font-size: 13px; font-weight: 600; min-width: 34px; text-align: right; }
+  .dept-body { display: none; padding: 4px 16px 12px; }
+  .job-row { padding: 10px 0; border-top: 1px solid var(--border); }
+  .job-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+  .job-name { font-size: 13px; line-height: 1.4; }
+  .job-dept-tag { font-size: 11px; color: var(--text-muted); }
+  .due-tag { font-size: 11px; color: var(--text-muted); }
+  .due-tag.overdue { color: var(--red-fg); font-weight: 600; }
+  .due-tag.overdue::before { content: "\26A0 "; }
+  .badge { font-size: 11px; padding: 2px 8px; border-radius: 6px; white-space: nowrap; flex-shrink: 0; font-weight: 500; }
+  .job-slider-row { display: flex; align-items: center; gap: 10px; }
+  input[type=range] { flex: 1; accent-color: var(--blue-bar); height: 4px; }
+  .pct-out { font-size: 13px; font-weight: 600; min-width: 34px; text-align: right; }
+  .job-actions { margin-top: 8px; display: flex; justify-content: flex-end; gap: 8px; }
+  button.mark-btn {
+    font-size: 12px; padding: 5px 12px; border-radius: 7px;
+    border: 1px solid var(--border); background: var(--surface);
+    cursor: pointer; color: var(--text-primary);
+  }
+  button.mark-btn:hover { background: var(--surface-1); }
+  button.mark-btn.done { border-color: var(--teal-bar); color: var(--teal-fg); }
+  button.mark-btn.reopen { border-color: var(--gray-bar); color: var(--gray-fg); }
+  button.mark-btn.edit { border-color: var(--blue-bar); color: var(--blue-fg); }
+  button.mark-btn.save { border-color: var(--teal-bar); color: var(--teal-fg); }
+  button.mark-btn.delete { border-color: var(--red-fg); color: var(--red-fg); }
+  button.mark-btn.delete:hover { background: var(--red-fg); color: #fff; }
+  .edit-form { margin-top: 8px; padding-top: 10px; border-top: 1px dashed var(--border); }
+  .edit-form .add-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+  .edit-form label { font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 4px; }
+  .edit-form input[type=text], .edit-form input[type=date], .edit-form select {
+    font-size: 13px; padding: 6px 9px; border-radius: 7px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text-primary); width: 100%;
+  }
+  .edit-form .field { flex: 1; min-width: 150px; }
+  .edit-form .field.grow { flex: 2 1 240px; }
+  .edit-form .field.narrow { flex: 0 1 150px; min-width: 130px; }
+  #master { border: 1px solid var(--border); border-radius: 12px; background: var(--surface); overflow: hidden; }
+  #master-body { padding: 4px 16px 12px; }
+  #master-body .job-row:first-child { border-top: none; }
+  .empty-note { font-size: 13px; color: var(--text-muted); padding: 14px 0; }
+  #add-job { border: 1px solid var(--border); border-radius: 12px; background: var(--surface); padding: 14px 16px; margin-bottom: 16px; }
+  #add-job .add-title { font-size: 14px; font-weight: 600; margin-bottom: 10px; }
+  #add-job .add-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+  #add-job .add-row:last-of-type { margin-bottom: 0; }
+  #add-job label { font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 4px; }
+  #add-job select, #add-job input[type=text], #add-job input[type=date] {
+    font-size: 13px; padding: 7px 10px; border-radius: 7px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text-primary); width: 100%;
+  }
+  #add-job .field { flex: 1; min-width: 160px; }
+  #add-job .field.grow { flex: 2 1 260px; }
+  #add-job .field.narrow { flex: 0 1 160px; min-width: 140px; }
+  #add-job .add-actions { display: flex; justify-content: flex-end; }
+  button.add-btn {
+    font-size: 13px; padding: 8px 16px; border-radius: 8px;
+    border: 1px solid var(--blue-bar); background: var(--blue-bg); color: var(--blue-fg);
+    cursor: pointer; font-weight: 500;
+  }
+  button.add-btn:hover { background: var(--blue-bar); color: #fff; }
+  #add-job .hint-small { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+  footer { text-align: center; font-size: 12px; color: var(--text-muted); margin-top: 24px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Faire punch list — progress tracker</h1>
+  <p class="subtitle">Last updated 7/3/2026 &middot; grouped by crew &middot; drag a slider or hit "Mark complete" to move a job into the master completed list below &middot; use "Add a job" to assign new work to a person responsible</p>
+
+  <div id="save-bar" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--surface-1);border-radius:10px;padding:12px 16px;margin-bottom:20px">
+    <div style="font-size:13px;color:var(--text-secondary)"><span style="color:var(--teal-fg);font-weight:600">&#9679; Live</span> — changes save automatically and sync to everyone with this link instantly.</div>
+    <div style="display:flex;gap:8px;flex-shrink:0">
+      <button class="ui" id="refresh-now-btn">Refresh now</button>
+      <button class="ui" id="save-progress-btn">Download backup</button>
+      <button class="ui" id="load-progress-btn">Restore backup</button>
+      <input type="file" id="load-progress-input" accept=".json" style="display:none" />
+    </div>
+  </div>
+  <div id="save-msg" style="font-size:13px;color:var(--teal-fg);margin:-14px 0 16px;display:none"></div>
+  <div id="sync-msg" style="font-size:13px;color:var(--blue-fg);margin:-14px 0 16px;display:none"></div>
+
+  <div class="stats">
+    <div class="stat"><div class="label">Total jobs</div><div class="value" id="stat-total">0</div></div>
+    <div class="stat"><div class="label">Completed</div><div class="value" id="stat-completed" style="color:var(--teal-fg)">0</div></div>
+    <div class="stat"><div class="label">In progress</div><div class="value" id="stat-current" style="color:var(--blue-fg)">0</div></div>
+    <div class="stat"><div class="label">Queued</div><div class="value" id="stat-next">0</div></div>
+    <div class="stat"><div class="label">Overall complete</div><div class="value" id="stat-overall">0%</div></div>
+    <div class="stat"><div class="label">Long-range</div><div class="value" id="stat-longrange" style="color:var(--text-secondary)">0</div></div>
+  </div>
+
+  <div class="toolbar">
+    <span class="hint">Click a crew to expand its jobs</span>
+    <div class="btns">
+      <button class="ui" id="expand-all">Expand all</button>
+      <button class="ui" id="collapse-all">Collapse all</button>
+    </div>
+  </div>
+
+  <div id="add-job">
+    <div class="add-title">Add a job</div>
+    <div class="add-row">
+      <div class="field">
+        <label for="owner-select">Person responsible</label>
+        <select id="owner-select"></select>
+      </div>
+      <div class="field" id="new-owner-field" style="display:none">
+        <label for="new-owner-name">New person's name</label>
+        <input type="text" id="new-owner-name" placeholder="e.g. Rachel Ford" />
+      </div>
+      <div class="field" id="new-crew-field" style="display:none">
+        <label for="new-crew-name">Crew / area name</label>
+        <input type="text" id="new-crew-name" placeholder="e.g. Signage" />
+      </div>
+    </div>
+    <div class="add-row">
+      <div class="field grow">
+        <label for="new-job-name">Job description</label>
+        <input type="text" id="new-job-name" placeholder="e.g. Replace broken bench at Joust" />
+      </div>
+      <div class="field narrow">
+        <label for="new-job-start">Start date</label>
+        <input type="date" id="new-job-start" />
+      </div>
+      <div class="field narrow">
+        <label for="new-job-due">Due date</label>
+        <input type="date" id="new-job-due" />
+      </div>
+    </div>
+    <div class="add-row" style="align-items:center">
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-primary);margin:0">
+        <input type="checkbox" id="new-job-longrange" style="width:auto" />
+        Long-range project (not scheduled yet — park it for later)
+      </label>
+    </div>
+    <div class="add-actions">
+      <button class="add-btn" id="add-job-btn">Add job</button>
+    </div>
+    <div class="hint-small" id="add-job-msg"></div>
+  </div>
+
+  <div id="depts"></div>
+
+  <h2 class="section-title">Long-range projects</h2>
+  <p class="subtitle" style="margin:0 0 10px">Future work that isn't scheduled yet &middot; "Make active" will ask for a start and end date before it joins the crew's list</p>
+  <div id="longrange"></div>
+
+  <div id="master">
+    <button class="dept-header" id="master-header" style="border-radius:12px 12px 0 0">
+      <div class="left">
+        <span class="chev" id="master-chev">&#9656;</span>
+        <div>
+          <div class="dept-name">Completed projects (master list)</div>
+          <div class="dept-owner" id="master-subtitle">0 jobs</div>
+        </div>
+      </div>
+    </button>
+    <div id="master-body"></div>
+  </div>
+
+  <footer>Faire_Punch_List_07032026.xlsx &middot; sheet 06242026</footer>
+</div>
+
+<!--
+=====================================================================
+  LIVE SYNC SETUP — read this before sharing the link with your team
+=====================================================================
+  This page uses a free Firebase Realtime Database so every viewer's
+  changes sync to everyone else instantly. Until you plug in your own
+  Firebase project below, the page still works, but each person's
+  edits only stay in their own browser tab (same as before).
+
+  ONE-TIME SETUP (about 10 minutes, no coding, all done at
+  https://console.firebase.google.com):
+    1. Click "Add project," name it anything (e.g. "faire-punch-list"),
+       and finish the setup wizard (you can turn off Google Analytics).
+    2. In the left sidebar, click "Build" > "Realtime Database."
+       Click "Create Database." Choose any location. When asked about
+       rules, choose "Start in test mode" (see the security note below).
+    3. In the left sidebar, click the gear icon > "Project settings."
+       Scroll to "Your apps" and click the "</>" (web) icon to register
+       a new web app. Name it anything and click "Register app."
+    4. Firebase shows you a code block that includes a line like:
+       const firebaseConfig = { apiKey: "...", authDomain: "...", ... };
+       Copy that whole object.
+    5. Paste it below, replacing the entire placeholder object
+       (the one that starts with "apiKey: 'YOUR-API-KEY'").
+    6. Save this file and re-upload it wherever you're hosting it
+       (e.g. re-upload to your GitHub Pages repo). Done — the green
+       "Live" indicator at the top of the page confirms it's connected.
+
+  SECURITY NOTE: "Test mode" rules make the database open to anyone
+  who has your project's web config (which is visible in this file's
+  source code, so effectively anyone with the page link). That's fine
+  for an internal punch-list tool, but don't put anything sensitive in
+  it. Test mode rules also expire after 30 days — when that happens,
+  go back to Realtime Database > Rules and set:
+    { "rules": { ".read": true, ".write": true } }
+  and click "Publish" to keep it open indefinitely.
+=====================================================================
+-->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script>
+// PASTE YOUR FIREBASE CONFIG OBJECT HERE (see instructions above) —
+// replace this entire placeholder object with the one Firebase gives you.
+const firebaseConfig = {
+  apiKey: "YOUR-API-KEY",
+  authDomain: "YOUR-PROJECT.firebaseapp.com",
+  databaseURL: "https://YOUR-PROJECT-default-rtdb.firebaseio.com",
+  projectId: "YOUR-PROJECT",
+  storageBucket: "YOUR-PROJECT.appspot.com",
+  messagingSenderId: "YOUR-SENDER-ID",
+  appId: "YOUR-APP-ID"
+};
+</script>
+
+<script>
+const SEED_TASKS = [{"id": 1, "dept": "Carpentry", "owner": "Michael Hess", "name": "5x5 mint booths- 1 behind chess & 1 placed near Maseoleum - 1 finished & placed (needs sign) - 1 in progress", "status": "completed", "pct": 100}, {"id": 2, "dept": "Carpentry", "owner": "Michael Hess", "name": "Roof leaks in Bread & Broth Walk-In", "status": "completed", "pct": 100}, {"id": 3, "dept": "Carpentry", "owner": "Michael Hess", "name": "Built streaming & closed off cider house", "status": "completed", "pct": 100}, {"id": 4, "dept": "Carpentry", "owner": "Michael Hess", "name": "A/C unit in pirate ship", "status": "completed", "pct": 100}, {"id": 5, "dept": "Carpentry", "owner": "Michael Hess", "name": "Cantina 1 and 1 Bar Per Drawing - roof & finish interior", "status": "current", "pct": 50}, {"id": 6, "dept": "Carpentry", "owner": "Michael Hess", "name": "FRONT GATE-- Cut counter for cooler, keyboard/money tray slides, 1/4 hole at each C/S window", "status": "current", "pct": 50}, {"id": 7, "dept": "Carpentry", "owner": "Michael Hess", "name": "Repurpose Bacchus with side counters & center storage Per Design - Moon Stage 2x12 countertop (painted)", "status": "current", "pct": 50}, {"id": 8, "dept": "Carpentry", "owner": "Michael Hess", "name": "Joust roof- repitch with 1/8 per foot - asphalt on top - done by temps - materials ordered - tearing off deck roof now", "status": "current", "pct": 50}, {"id": 9, "dept": "Carpentry", "owner": "Michael Hess", "name": "Roof at Yuletide photo booth needs repaired - in progress", "status": "current", "pct": 50}, {"id": 10, "dept": "Carpentry", "owner": "Michael Hess", "name": "Barrel tables (like Cantina) for Bacchus area - no more barrels", "status": "current", "pct": 50}, {"id": 11, "dept": "Carpentry", "owner": "Michael Hess", "name": "Remove program box at info & move it to c/s door (see Rachel or Tammy)", "status": "current", "pct": 50}, {"id": 12, "dept": "Carpentry", "owner": "Michael Hess", "name": "finish shade tarp at Ball & Chain", "status": "current", "pct": 50}, {"id": 13, "dept": "Carpentry", "owner": "Michael Hess", "name": "McManley *July project", "status": "current", "pct": 50}, {"id": 14, "dept": "Carpentry", "owner": "Michael Hess", "name": "A/C unit covers- new ones are smaller so needs reframed *needs done by Friday", "status": "current", "pct": 50}, {"id": 15, "dept": "Carpentry", "owner": "Michael Hess", "name": "Front porch", "status": "current", "pct": 50}, {"id": 16, "dept": "Carpentry", "owner": "Michael Hess", "name": "Find out start date from Craig", "status": "current", "pct": 50}, {"id": 17, "dept": "Carpentry", "owner": "Michael Hess", "name": "level chess stage mint booth", "status": "current", "pct": 50}, {"id": 18, "dept": "Carpentry", "owner": "Michael Hess", "name": "fix swash & wharf deck boards", "status": "current", "pct": 50}, {"id": 19, "dept": "Carpentry", "owner": "Michael Hess", "name": "Feasting Glen Buffet Tables- doors, paint, plastic, etc (For Faire & getting with Carrie)", "status": "next", "pct": 0}, {"id": 20, "dept": "Carpentry", "owner": "Michael Hess", "name": "Close off flying dutchman for Independent", "status": "next", "pct": 0}, {"id": 21, "dept": "Carpentry", "owner": "Michael Hess", "name": "Closing of Bird Area for show - add shade covering", "status": "next", "pct": 0}, {"id": 22, "dept": "Carpentry", "owner": "Michael Hess", "name": "Barrel at Hart", "status": "next", "pct": 0}, {"id": 23, "dept": "Carpentry", "owner": "Michael Hess", "name": "One SIded Picnic tables at Hart", "status": "next", "pct": 0}, {"id": 24, "dept": "Excavator/Petitbone", "owner": "Michael Hess / Tony Miller", "name": "red stone by front porch of mansion - in progress", "status": "completed", "pct": 100}, {"id": 25, "dept": "Excavator/Petitbone", "owner": "Michael Hess / Tony Miller", "name": "Gating system needs done before Celtic-- fixing asphalt - in progress", "status": "completed", "pct": 100}, {"id": 26, "dept": "Excavator/Petitbone", "owner": "Michael Hess / Tony Miller", "name": "Exit E-ticket (gate next to vault) - should be done by end of week", "status": "completed", "pct": 100}, {"id": 27, "dept": "Excavator/Petitbone", "owner": "Michael Hess / Tony Miller", "name": "Create new lane form Old E-ticket", "status": "completed", "pct": 100}, {"id": 28, "dept": "Excavator/Petitbone", "owner": "Michael Hess / Tony Miller", "name": "Tony Miller - Back 80 new parking area", "status": "current", "pct": 50}, {"id": 29, "dept": "Excavator/Petitbone", "owner": "Michael Hess / Tony Miller", "name": "Back Door- Brewery", "status": "next", "pct": 0}, {"id": 30, "dept": "Excavator/Petitbone", "owner": "Michael Hess / Tony Miller", "name": "Rebuild wharf deck", "status": "next", "pct": 0}, {"id": 31, "dept": "Excavator/Petitbone", "owner": "Michael Hess / Tony Miller", "name": "Argyle/Fry By Knight Roof- get quote", "status": "next", "pct": 0}, {"id": 32, "dept": "Paint", "owner": "Michael Hess", "name": "Wreck Room", "status": "current", "pct": 50}, {"id": 33, "dept": "Paint", "owner": "Michael Hess", "name": "Tudor side panels- getting painted either today or tomorrow", "status": "current", "pct": 50}, {"id": 34, "dept": "Paint", "owner": "Michael Hess", "name": "Brewery Ceiling", "status": "next", "pct": 0}, {"id": 35, "dept": "Electrical", "owner": "Dave Wallace", "name": "Electric at Cantina", "status": "completed", "pct": 100}, {"id": 36, "dept": "Electrical", "owner": "Dave Wallace", "name": "Add circuit to cinnamon booth 90% done", "status": "completed", "pct": 100}, {"id": 37, "dept": "Electrical", "owner": "Dave Wallace", "name": "Hang wine barrel chandeliers at moon stage", "status": "completed", "pct": 100}, {"id": 38, "dept": "Electrical", "owner": "Dave Wallace", "name": "LED lighting above info & check power supply for small appliances", "status": "completed", "pct": 100}, {"id": 39, "dept": "Electrical", "owner": "Dave Wallace", "name": "Install outlets in mint booth at Chess", "status": "completed", "pct": 100}, {"id": 40, "dept": "Electrical", "owner": "Dave Wallace", "name": "Wire new hvac system on the first floor of mansion - will be completed 6/24", "status": "completed", "pct": 100}, {"id": 41, "dept": "Electrical", "owner": "Dave Wallace", "name": "Install Cameras at Lower Commons", "status": "completed", "pct": 100}, {"id": 42, "dept": "Electrical", "owner": "Dave Wallace", "name": "Moon Stage Electric 75% done", "status": "current", "pct": 50}, {"id": 43, "dept": "Electrical", "owner": "Dave Wallace", "name": "Cool Bot and Ac at Cantina 1 &1", "status": "current", "pct": 50}, {"id": 44, "dept": "Electrical", "owner": "Dave Wallace", "name": "Add wire to McManley booth (when construction is completed)", "status": "current", "pct": 50}, {"id": 45, "dept": "Electrical", "owner": "Dave Wallace", "name": "Wrap up at the Manheim Shop", "status": "current", "pct": 50}, {"id": 46, "dept": "Electrical", "owner": "Dave Wallace", "name": "Change out high bay light in brewery", "status": "current", "pct": 50}, {"id": 47, "dept": "Electrical", "owner": "Dave Wallace", "name": "Install Cameras at First Aide", "status": "current", "pct": 50}, {"id": 48, "dept": "Production", "owner": "Sadie Bossons", "name": "Rum Bar Signs at Pyrate Ship", "status": "completed", "pct": 100}, {"id": 49, "dept": "Production", "owner": "Sadie Bossons", "name": "Tread on stairs to get to the top of Info booth", "status": "completed", "pct": 100}, {"id": 50, "dept": "Production", "owner": "Sadie Bossons", "name": "Update/fix bee photo op by Honey shop", "status": "completed", "pct": 100}, {"id": 51, "dept": "Production", "owner": "Sadie Bossons", "name": "Hang exit/fare thee well sign", "status": "completed", "pct": 100}, {"id": 52, "dept": "Production", "owner": "Sadie Bossons", "name": "Sign for the Maseoleum & Chess mint booths", "status": "completed", "pct": 100}, {"id": 53, "dept": "Production", "owner": "Sadie Bossons", "name": "Fix Feasting Glen sign", "status": "current", "pct": 50}, {"id": 54, "dept": "Production", "owner": "Sadie Bossons", "name": "Wooden Shoe 3D sign - in progress", "status": "current", "pct": 50}, {"id": 55, "dept": "Production", "owner": "Sadie Bossons", "name": "Post Pyrate Ship Marquee Toppers", "status": "current", "pct": 50}, {"id": 56, "dept": "Production", "owner": "Sadie Bossons", "name": "Paint Cantina- in progress", "status": "current", "pct": 50}, {"id": 57, "dept": "Production", "owner": "Sadie Bossons", "name": "Find McManley Sign - Searched high & low, unsuccessfully", "status": "current", "pct": 50}, {"id": 58, "dept": "Production", "owner": "Sadie Bossons", "name": "Inspect the Main Cannon for cracks", "status": "next", "pct": 0}, {"id": 59, "dept": "Production", "owner": "Sadie Bossons", "name": "Fix Scratchy", "status": "next", "pct": 0}, {"id": 60, "dept": "Production", "owner": "Sadie Bossons", "name": "King Lou photo op", "status": "next", "pct": 0}, {"id": 61, "dept": "Production", "owner": "Sadie Bossons", "name": "Endgame Stage re-theme", "status": "next", "pct": 0}, {"id": 62, "dept": "Production", "owner": "Sadie Bossons", "name": "Re-paint Kettle Craic back wall", "status": "next", "pct": 0}, {"id": 63, "dept": "Production", "owner": "Sadie Bossons", "name": "Joust Banner Post (arriving 6/26)", "status": "next", "pct": 0}, {"id": 64, "dept": "Graphics", "owner": "Gabbi", "name": "5x5 mint booth signs (posted for approval)", "status": "completed", "pct": 100}, {"id": 65, "dept": "Graphics", "owner": "Gabbi", "name": "Pyrate Ship Marquee Topper", "status": "completed", "pct": 100}, {"id": 66, "dept": "Graphics", "owner": "Gabbi", "name": "New Exit/Entrance Signage", "status": "completed", "pct": 100}, {"id": 67, "dept": "Graphics", "owner": "Gabbi", "name": "Cantina Wall Mural", "status": "completed", "pct": 100}, {"id": 68, "dept": "Graphics", "owner": "Gabbi", "name": "Joust Banner Reorder", "status": "completed", "pct": 100}, {"id": 69, "dept": "Graphics", "owner": "Gabbi", "name": "Moon Stage (\"Proof\") Building Sign is approved (will print once materials arrive)", "status": "current", "pct": 50}, {"id": 70, "dept": "Graphics", "owner": "Gabbi", "name": "Cantina building sign (need dimensions)", "status": "current", "pct": 50}, {"id": 71, "dept": "Graphics", "owner": "Gabbi", "name": "Get with Michael & Barb for flying dutchman design", "status": "current", "pct": 50}, {"id": 72, "dept": "Graphics", "owner": "Gabbi", "name": "Barrel Aged coffee graphics", "status": "next", "pct": 0}, {"id": 73, "dept": "Landscaping", "owner": "Seth", "name": "Majesty Cup Island (Firepit Redesign)", "status": "current", "pct": 50}, {"id": 74, "dept": "Welding/Props", "owner": "Sadie via Drew L", "name": "Digging around Mansion", "status": "completed", "pct": 100}, {"id": 75, "dept": "Welding/Props", "owner": "Sadie via Drew L", "name": "New exit gate", "status": "completed", "pct": 100}, {"id": 76, "dept": "Welding/Props", "owner": "Sadie via Drew L", "name": "Bars for Mint Booth Windows - design done", "status": "completed", "pct": 100}, {"id": 77, "dept": "Welding/Props", "owner": "Sadie via Drew L", "name": "Zombie Knight", "status": "current", "pct": 50}, {"id": 78, "dept": "Welding/Props", "owner": "Sadie via Drew L", "name": "Stanchions- need inventory/location as to where they are going-- make sure hardware matches, add cleats to shorten ropes", "status": "current", "pct": 50}, {"id": 79, "dept": "Welding/Props", "owner": "Sadie via Drew L", "name": "Moveable Planters - finished 3 barrels", "status": "current", "pct": 50}, {"id": 80, "dept": "Welding/Props", "owner": "Sadie via Drew L", "name": "Bread & Broth Walk-In -- Metal Plates", "status": "current", "pct": 50}, {"id": 81, "dept": "Welding/Props", "owner": "Sadie via Drew L", "name": "AC brackets for Mansion- need to get specs from Rufus Brubaker", "status": "next", "pct": 0}, {"id": 82, "dept": "Welding/Props", "owner": "Sadie via Drew L", "name": "Decorative Fire Box", "status": "next", "pct": 0}, {"id": 83, "dept": "Welding/Props", "owner": "Sadie via Drew L", "name": "Fix CNC Machine", "status": "next", "pct": 0}, {"id": 84, "dept": "Tony's Crew", "owner": "Tony Miller", "name": "added new misters to troll bridge", "status": "completed", "pct": 100}, {"id": 85, "dept": "Tony's Crew", "owner": "Tony Miller", "name": "Tree on Avalon needs attention", "status": "completed", "pct": 100}, {"id": 86, "dept": "Tony's Crew", "owner": "Tony Miller", "name": "Propane at McManleys- After Celtic", "status": "current", "pct": 50}, {"id": 87, "dept": "Tony's Crew", "owner": "Tony Miller", "name": "Regrade the Back 80 to include paid trailer storage - new lanes - gated access", "status": "current", "pct": 50}, {"id": 88, "dept": "Tony's Crew", "owner": "Tony Miller", "name": "Cut & red stone around Cantina", "status": "current", "pct": 50}, {"id": 89, "dept": "Tony's Crew", "owner": "Tony Miller", "name": "Replace Hot Water Heater @ Bowser House - 40 gal is fine", "status": "current", "pct": 50}, {"id": 90, "dept": "Tony's Crew", "owner": "Tony Miller", "name": "Replace Refrigerator at DKR Apartment", "status": "current", "pct": 50}, {"id": 91, "dept": "Tony's Crew", "owner": "Tony Miller", "name": "Powerwash actor commons siding near entrance of St. James. Covered in algae.", "status": "current", "pct": 50}, {"id": 92, "dept": "F&B Equipment", "owner": "Daniel", "name": "Inpsections to Begin 4/6/2026 to generate work lists", "status": "current", "pct": 50}, {"id": 93, "dept": "F&B Equipment", "owner": "Daniel", "name": "Get McManley booth blue-taped & get soda/undercounter", "status": "current", "pct": 50}, {"id": 94, "dept": "Creative Design", "owner": "Carrie Wallace", "name": "Decorative Barrels for Umbrella 4-6 more", "status": "current", "pct": 50}, {"id": 95, "dept": "Creative Design", "owner": "Carrie Wallace", "name": "Wooden Shoe Design- meeting with Drew to secure shoes", "status": "current", "pct": 50}];
+
+const statusMeta = {
+  completed: { label: 'Done', bg: 'var(--teal-bg)', fg: 'var(--teal-fg)' },
+  current: { label: 'In progress', bg: 'var(--blue-bg)', fg: 'var(--blue-fg)' },
+  next: { label: 'Queued', bg: 'var(--gray-bg)', fg: 'var(--gray-fg)' }
+};
+
+let TASKS = [];
+let deptOrder = [];
+const deptsEl = document.getElementById('depts');
+const masterBody = document.getElementById('master-body');
+const longRangeEl = document.getElementById('longrange');
+const openDepts = new Set();
+let masterOpen = false;
+document.getElementById('master-header').addEventListener('click', () => {
+  masterOpen = !masterOpen;
+  renderAll();
+});
+
+function activeStatusFor(t) {
+  if (t.pct >= 100) return 'completed';
+  if (t.pct > 0) return 'current';
+  return 'next';
+}
+
+function renderStats() {
+  const scheduled = TASKS.filter(t => !t.longRange);
+  const total = scheduled.length;
+  const completed = scheduled.filter(t => t.pct >= 100).length;
+  const current = scheduled.filter(t => t.pct > 0 && t.pct < 100).length;
+  const next = scheduled.filter(t => t.pct === 0).length;
+  const longRange = TASKS.filter(t => t.longRange).length;
+  const overall = total ? Math.round(scheduled.reduce((s, t) => s + t.pct, 0) / total) : 0;
+  document.getElementById('stat-total').textContent = total;
+  document.getElementById('stat-completed').textContent = completed;
+  document.getElementById('stat-current').textContent = current;
+  document.getElementById('stat-next').textContent = next;
+  document.getElementById('stat-overall').textContent = overall + '%';
+  document.getElementById('stat-longrange').textContent = longRange;
+}
+
+function formatDue(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+const editingIds = new Set();
+
+function makeSliderRow(t, showDeptTag) {
+  const meta = statusMeta[activeStatusFor(t)];
+  const isDone = t.pct >= 100;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const isOverdue = t.due && !isDone && new Date(t.due + 'T00:00:00') < today;
+  const startHtml = t.start
+    ? `<span class="due-tag"> &middot; Start ${formatDue(t.start)}</span>`
+    : '';
+  const dueHtml = t.due
+    ? `<span class="due-tag${isOverdue ? ' overdue' : ''}"> &middot; Due ${formatDue(t.due)}</span>`
+    : '';
+  const isEditing = editingIds.has(t.id);
+  const row = document.createElement('div');
+  row.className = 'job-row';
+  row.innerHTML = `
+    <div class="job-top">
+      <span>
+        <span class="job-name">${t.name}</span>
+        ${showDeptTag ? `<span class="job-dept-tag"> &middot; ${t.dept}</span>` : ''}
+        ${startHtml}
+        ${dueHtml}
+      </span>
+      <span class="badge" style="background:${meta.bg};color:${meta.fg}">${meta.label}</span>
+    </div>
+    <div class="job-slider-row">
+      <input type="range" min="0" max="100" step="5" value="${t.pct}" />
+      <span class="pct-out">${t.pct}%</span>
+    </div>
+    <div class="job-actions">
+      <button class="mark-btn edit">${isEditing ? 'Cancel' : 'Edit'}</button>
+      <button class="mark-btn ${isDone ? 'reopen' : 'done'}">${isDone ? 'Reopen job' : 'Mark complete'}</button>
+      <button class="mark-btn delete">Delete</button>
+    </div>
+    ${isEditing ? `
+    <div class="edit-form">
+      <div class="add-row">
+        <div class="field grow">
+          <label>Job description</label>
+          <input type="text" class="edit-name" value="${t.name.replace(/"/g, '&quot;')}" />
+        </div>
+      </div>
+      <div class="add-row">
+        <div class="field">
+          <label>Person responsible</label>
+          <input type="text" class="edit-owner" value="${t.owner.replace(/"/g, '&quot;')}" />
+        </div>
+        <div class="field">
+          <label>Crew / area</label>
+          <input type="text" class="edit-dept" value="${t.dept.replace(/"/g, '&quot;')}" />
+        </div>
+      </div>
+      <div class="add-row">
+        <div class="field narrow">
+          <label>Start date</label>
+          <input type="date" class="edit-start" value="${t.start || ''}" />
+        </div>
+        <div class="field narrow">
+          <label>Due date</label>
+          <input type="date" class="edit-due" value="${t.due || ''}" />
+        </div>
+      </div>
+      <div class="job-actions">
+        <button class="mark-btn save">Save changes</button>
+      </div>
+    </div>` : ''}
+  `;
+  const input = row.querySelector('input[type=range]');
+  const out = row.querySelector('.pct-out');
+  input.addEventListener('input', () => {
+    const v = parseInt(input.value, 10);
+    out.textContent = v + '%';
+    t.pct = v;
+    renderStats();
+    renderAll();
+  });
+  row.querySelector('.mark-btn.edit').addEventListener('click', () => {
+    if (editingIds.has(t.id)) editingIds.delete(t.id); else editingIds.add(t.id);
+    renderAll();
+  });
+  row.querySelector(`.mark-btn.${isDone ? 'reopen' : 'done'}`).addEventListener('click', () => {
+    t.pct = isDone ? (t.prevPct ?? 50) : 100;
+    if (!isDone) t.prevPct = input.value < 100 ? parseInt(input.value, 10) : 50;
+    renderStats();
+    renderAll();
+  });
+  const saveBtn = row.querySelector('.mark-btn.save');
+  if (saveBtn) {
+    saveBtn.addEventListener('click', () => {
+      const newName = row.querySelector('.edit-name').value.trim();
+      const newOwner = row.querySelector('.edit-owner').value.trim();
+      const newDept = row.querySelector('.edit-dept').value.trim();
+      const newStart = row.querySelector('.edit-start').value || null;
+      const newDue = row.querySelector('.edit-due').value || null;
+      if (newName) t.name = newName;
+      if (newOwner) t.owner = newOwner;
+      if (newDept) {
+        t.dept = newDept;
+        if (!deptOrder.includes(newDept)) deptOrder.push(newDept);
+      }
+      t.start = newStart;
+      t.due = newDue;
+      editingIds.delete(t.id);
+      if (t.dept) openDepts.add(t.dept);
+      populateOwnerSelect();
+      renderStats();
+      renderAll();
+    });
+  }
+  row.querySelector('.mark-btn.delete').addEventListener('click', () => {
+    if (!confirm(`Delete "${t.name}"? This can't be undone.`)) return;
+    const idx = TASKS.indexOf(t);
+    if (idx > -1) TASKS.splice(idx, 1);
+    editingIds.delete(t.id);
+    renderStats();
+    renderAll();
+  });
+  return row;
+}
+
+function deptAvg(dept) {
+  const items = TASKS.filter(t => t.dept === dept && !t.longRange);
+  return items.length ? Math.round(items.reduce((s, t) => s + t.pct, 0) / items.length) : 0;
+}
+
+function renderAll() {
+  deptsEl.innerHTML = '';
+  deptOrder.forEach(dept => {
+    const items = TASKS.filter(t => t.dept === dept && !t.longRange);
+    if (items.length === 0) return;
+    const uniqueOwners = [...new Set(items.map(i => i.owner))];
+    const owner = uniqueOwners.length === 1 ? uniqueOwners[0] : `${uniqueOwners.length} people`;
+    const active = items.filter(t => t.pct < 100);
+    const wrap = document.createElement('div');
+    wrap.className = 'dept';
+    const isOpen = openDepts.has(dept);
+
+    const header = document.createElement('button');
+    header.className = 'dept-header';
+    header.innerHTML = `
+      <div class="left">
+        <span class="chev" style="transform:${isOpen ? 'rotate(90deg)' : 'rotate(0deg)'}">&#9656;</span>
+        <div>
+          <div class="dept-name">${dept}</div>
+          <div class="dept-owner">${owner || 'Unassigned'} &middot; ${active.length} open of ${items.length}</div>
+        </div>
+      </div>
+      <div class="right">
+        <div class="dept-bar-track"><div class="dept-bar-fill" style="width:${deptAvg(dept)}%"></div></div>
+        <span class="dept-pct">${deptAvg(dept)}%</span>
+      </div>
+    `;
+    header.addEventListener('click', () => {
+      if (openDepts.has(dept)) openDepts.delete(dept); else openDepts.add(dept);
+      renderAll();
+    });
+
+    const body = document.createElement('div');
+    body.className = 'dept-body';
+    body.style.display = isOpen ? 'block' : 'none';
+    if (active.length === 0) {
+      body.innerHTML = '<div class="empty-note">All jobs for this crew are complete — see the master list below.</div>';
+    } else {
+      active.forEach(t => body.appendChild(makeSliderRow(t, false)));
+    }
+
+    wrap.appendChild(header);
+    wrap.appendChild(body);
+    deptsEl.appendChild(wrap);
+  });
+
+  const done = TASKS.filter(t => t.pct >= 100 && !t.longRange).sort((a, b) => a.dept.localeCompare(b.dept) || a.name.localeCompare(b.name));
+  masterBody.innerHTML = '';
+  if (done.length === 0) {
+    masterBody.innerHTML = '<div class="empty-note">No jobs marked complete yet.</div>';
+  } else {
+    done.forEach(t => masterBody.appendChild(makeSliderRow(t, true)));
+  }
+  masterBody.style.display = masterOpen ? 'block' : 'none';
+  document.getElementById('master-chev').style.transform = masterOpen ? 'rotate(90deg)' : 'rotate(0deg)';
+  document.getElementById('master-subtitle').textContent = `${done.length} job${done.length === 1 ? '' : 's'} completed`;
+
+  renderLongRange();
+  persist();
+}
+
+const activatingIds = new Set();
+
+function renderLongRange() {
+  const items = TASKS.filter(t => t.longRange).sort((a, b) => a.dept.localeCompare(b.dept) || a.name.localeCompare(b.name));
+  longRangeEl.innerHTML = '';
+  if (items.length === 0) {
+    longRangeEl.innerHTML = '<div class="empty-note">No long-range projects parked right now.</div>';
+    return;
+  }
+  items.forEach(t => {
+    const startHtml = t.start ? `<span class="due-tag"> &middot; Start ${formatDue(t.start)}</span>` : '';
+    const dueHtml = t.due ? `<span class="due-tag"> &middot; Due ${formatDue(t.due)}</span>` : '';
+    const isActivating = activatingIds.has(t.id);
+    const row = document.createElement('div');
+    row.className = 'job-row';
+    row.innerHTML = `
+      <div class="job-top">
+        <span>
+          <span class="job-name">${t.name}</span>
+          <span class="job-dept-tag"> &middot; ${t.dept} &middot; ${t.owner}</span>
+          ${startHtml}
+          ${dueHtml}
+        </span>
+        <span class="badge" style="background:var(--gray-bg);color:var(--gray-fg)">Long-range</span>
+      </div>
+      <div class="job-actions">
+        <button class="mark-btn done">${isActivating ? 'Cancel' : 'Make active'}</button>
+        <button class="mark-btn delete">Delete</button>
+      </div>
+      ${isActivating ? `
+      <div class="edit-form">
+        <div class="add-row">
+          <div class="field narrow">
+            <label>Start date <span style="color:var(--red-fg)">*</span></label>
+            <input type="date" class="activate-start" value="${t.start || ''}" />
+          </div>
+          <div class="field narrow">
+            <label>End date <span style="color:var(--red-fg)">*</span></label>
+            <input type="date" class="activate-due" value="${t.due || ''}" />
+          </div>
+        </div>
+        <div class="hint-small activate-msg"></div>
+        <div class="job-actions">
+          <button class="mark-btn save">Confirm activate</button>
+        </div>
+      </div>` : ''}
+    `;
+    row.querySelector('.mark-btn.done').addEventListener('click', () => {
+      if (activatingIds.has(t.id)) activatingIds.delete(t.id); else activatingIds.add(t.id);
+      renderAll();
+    });
+    row.querySelector('.mark-btn.delete').addEventListener('click', () => {
+      if (!confirm(`Delete "${t.name}"? This can't be undone.`)) return;
+      const idx = TASKS.indexOf(t);
+      if (idx > -1) TASKS.splice(idx, 1);
+      activatingIds.delete(t.id);
+      renderStats();
+      renderAll();
+    });
+    const saveBtn = row.querySelector('.mark-btn.save');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', () => {
+        const newStart = row.querySelector('.activate-start').value;
+        const newDue = row.querySelector('.activate-due').value;
+        const msg = row.querySelector('.activate-msg');
+        if (!newStart || !newDue) {
+          msg.style.color = 'var(--red-fg)';
+          msg.textContent = 'Both a start date and an end date are required to activate a project.';
+          return;
+        }
+        if (newDue < newStart) {
+          msg.style.color = 'var(--red-fg)';
+          msg.textContent = 'End date needs to be on or after the start date.';
+          return;
+        }
+        t.start = newStart;
+        t.due = newDue;
+        t.longRange = false;
+        activatingIds.delete(t.id);
+        if (!deptOrder.includes(t.dept)) deptOrder.push(t.dept);
+        openDepts.add(t.dept);
+        renderStats();
+        renderAll();
+      });
+    }
+    longRangeEl.appendChild(row);
+  });
+}
+
+document.getElementById('expand-all').addEventListener('click', () => {
+  deptOrder.forEach(d => openDepts.add(d));
+  renderAll();
+});
+document.getElementById('collapse-all').addEventListener('click', () => {
+  openDepts.clear();
+  renderAll();
+});
+
+const ownerSelect = document.getElementById('owner-select');
+const newOwnerField = document.getElementById('new-owner-field');
+const newCrewField = document.getElementById('new-crew-field');
+const addMsg = document.getElementById('add-job-msg');
+let nextId = 1;
+
+function ownerToDept() {
+  const map = {};
+  TASKS.forEach(t => { if (!map[t.owner]) map[t.owner] = t.dept; });
+  return map;
+}
+
+function populateOwnerSelect() {
+  const map = ownerToDept();
+  const owners = Object.keys(map).sort((a, b) => a.localeCompare(b));
+  ownerSelect.innerHTML = '';
+  owners.forEach(o => {
+    const opt = document.createElement('option');
+    opt.value = o;
+    opt.textContent = `${o} (${map[o]})`;
+    ownerSelect.appendChild(opt);
+  });
+  const newOpt = document.createElement('option');
+  newOpt.value = '__new__';
+  newOpt.textContent = 'New person...';
+  ownerSelect.appendChild(newOpt);
+}
+
+ownerSelect.addEventListener('change', () => {
+  const isNew = ownerSelect.value === '__new__';
+  newOwnerField.style.display = isNew ? 'block' : 'none';
+  newCrewField.style.display = isNew ? 'block' : 'none';
+});
+
+document.getElementById('add-job-btn').addEventListener('click', () => {
+  const jobName = document.getElementById('new-job-name').value.trim();
+  addMsg.style.color = 'var(--text-muted)';
+  if (!jobName) {
+    addMsg.textContent = 'Enter a job description first.';
+    return;
+  }
+  let owner, dept;
+  const map = ownerToDept();
+  if (ownerSelect.value === '__new__') {
+    owner = document.getElementById('new-owner-name').value.trim();
+    dept = document.getElementById('new-crew-name').value.trim();
+    if (!owner || !dept) {
+      addMsg.textContent = 'Enter both a name and a crew for the new person.';
+      return;
+    }
+  } else {
+    owner = ownerSelect.value;
+    dept = map[owner];
+  }
+  const isNewDept = !deptOrder.includes(dept);
+  const start = document.getElementById('new-job-start').value || null;
+  const due = document.getElementById('new-job-due').value || null;
+  const longRange = document.getElementById('new-job-longrange').checked;
+  TASKS.push({ id: nextId++, dept, owner, name: jobName, status: 'next', pct: 0, start, due, longRange });
+  if (isNewDept && !longRange) deptOrder.push(dept);
+  if (!longRange) openDepts.add(dept);
+  document.getElementById('new-job-name').value = '';
+  document.getElementById('new-owner-name').value = '';
+  document.getElementById('new-crew-name').value = '';
+  document.getElementById('new-job-start').value = '';
+  document.getElementById('new-job-due').value = '';
+  document.getElementById('new-job-longrange').checked = false;
+  populateOwnerSelect();
+  renderStats();
+  renderAll();
+  addMsg.style.color = 'var(--teal-fg)';
+  addMsg.textContent = longRange
+    ? `Parked "${jobName}" under long-range projects for ${owner}.`
+    : `Added to ${dept} (${owner}).`;
+});
+
+let applyingRemote = false;
+let dbRef = null;
+
+function rebuildDerivedState() {
+  deptOrder.length = 0;
+  TASKS.forEach(t => { if (!deptOrder.includes(t.dept)) deptOrder.push(t.dept); });
+  nextId = Math.max(0, ...TASKS.map(t => t.id)) + 1;
+}
+
+function persist() {
+  if (applyingRemote || !dbRef) return;
+  dbRef.set(JSON.stringify(TASKS)).catch(err => console.error('Save failed', err));
+}
+
+function applyRemoteTasks(remote) {
+  const remoteStr = JSON.stringify(remote);
+  const localStr = JSON.stringify(TASKS);
+  if (remoteStr === localStr) return;
+  if (editingIds.size || activatingIds.size) return; // don't clobber someone mid-edit
+  applyingRemote = true;
+  TASKS.length = 0;
+  TASKS.push(...remote);
+  rebuildDerivedState();
+  populateOwnerSelect();
+  renderStats();
+  renderAll();
+  applyingRemote = false;
+  flashSyncMsg('Updated with the latest changes from the team.');
+}
+
+const syncMsg = document.getElementById('sync-msg');
+function flashSyncMsg(text) {
+  if (!syncMsg) return;
+  syncMsg.style.display = 'block';
+  syncMsg.textContent = text;
+  clearTimeout(flashSyncMsg._t);
+  flashSyncMsg._t = setTimeout(() => { syncMsg.style.display = 'none'; }, 4000);
+}
+
+function init() {
+  if (!window.firebase || !firebaseConfig.databaseURL || firebaseConfig.databaseURL.includes('YOUR-')) {
+    // No Firebase configured yet — run locally so the page still works while you set things up.
+    TASKS.push(...SEED_TASKS);
+    rebuildDerivedState();
+    populateOwnerSelect();
+    renderStats();
+    renderAll();
+    const bar = document.getElementById('save-bar');
+    if (bar) bar.innerHTML = '<div style="font-size:13px;color:var(--red-fg);font-weight:600">&#9679; Not connected — this copy only saves in this browser tab. Add your Firebase config (see comments at the top of the file) to turn on live sync.</div>';
+    return;
+  }
+  firebase.initializeApp(firebaseConfig);
+  dbRef = firebase.database().ref('faire-punch-list-tasks');
+  dbRef.once('value').then(snapshot => {
+    const val = snapshot.val();
+    let loaded = null;
+    try { loaded = val ? JSON.parse(val) : null; } catch (e) { loaded = null; }
+    if (Array.isArray(loaded) && loaded.length) {
+      TASKS.push(...loaded);
+    } else {
+      TASKS.push(...SEED_TASKS);
+      persist();
+    }
+    rebuildDerivedState();
+    populateOwnerSelect();
+    renderStats();
+    renderAll();
+    // Live listener: any change anyone makes anywhere shows up here automatically.
+    dbRef.on('value', (snap) => {
+      const v = snap.val();
+      if (!v) return;
+      try {
+        const remote = JSON.parse(v);
+        applyRemoteTasks(remote);
+      } catch (e) { /* ignore malformed writes */ }
+    });
+  }).catch(err => {
+    console.error('Could not connect to Firebase', err);
+    TASKS.push(...SEED_TASKS);
+    rebuildDerivedState();
+    populateOwnerSelect();
+    renderStats();
+    renderAll();
+  });
+}
+
+init();
+
+const saveMsg = document.getElementById('save-msg');
+function flashSaveMsg(text, isError) {
+  saveMsg.style.display = 'block';
+  saveMsg.style.color = isError ? 'var(--red-fg)' : 'var(--teal-fg)';
+  saveMsg.textContent = text;
+}
+
+document.getElementById('save-progress-btn').addEventListener('click', () => {
+  const payload = { savedAt: new Date().toISOString(), tasks: TASKS };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const stamp = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `Faire_Punch_List_progress_${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  flashSaveMsg('Downloaded a backup copy of the current data.');
+});
+
+document.getElementById('refresh-now-btn').addEventListener('click', async () => {
+  if (!dbRef) {
+    flashSaveMsg("Not connected to live sync yet — see the notice above.", true);
+    return;
+  }
+  try {
+    const snapshot = await dbRef.once('value');
+    const val = snapshot.val();
+    if (val) {
+      const remote = JSON.parse(val);
+      applyingRemote = true;
+      TASKS.length = 0;
+      TASKS.push(...remote);
+      rebuildDerivedState();
+      populateOwnerSelect();
+      renderStats();
+      renderAll();
+      applyingRemote = false;
+    }
+    flashSaveMsg('Refreshed with the latest data.');
+  } catch (err) {
+    flashSaveMsg("Couldn't refresh right now — try again in a moment.", true);
+  }
+});
+
+document.getElementById('load-progress-btn').addEventListener('click', () => {
+  document.getElementById('load-progress-input').click();
+});
+
+document.getElementById('load-progress-input').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const parsed = JSON.parse(reader.result);
+      const loadedTasks = Array.isArray(parsed) ? parsed : parsed.tasks;
+      if (!Array.isArray(loadedTasks)) throw new Error('bad format');
+      TASKS.length = 0;
+      loadedTasks.forEach(t => TASKS.push(t));
+      rebuildDerivedState();
+      openDepts.clear();
+      editingIds.clear();
+      activatingIds.clear();
+      populateOwnerSelect();
+      renderStats();
+      renderAll();
+      flashSaveMsg('Loaded — your saved progress is back.');
+    } catch (err) {
+      flashSaveMsg("Couldn't read that file. Make sure it's a progress file saved from this tracker.", true);
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+</script>
+</body>
+</html>
