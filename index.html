@@ -822,20 +822,31 @@ function notifyChange(ownerName, changeText) {
   if (!emailReady()) return;
   const ownerEmail = DIRECTORY[ownerName];
   if (ownerEmail) {
-    const open = TASKS.filter(t => t.owner === ownerName && !t.longRange && t.pct < 100);
     const today = new Date(); today.setHours(0, 0, 0, 0);
-    const lines = open.length
-      ? open.map(t => {
-          const overdue = t.due && new Date(t.due + 'T00:00:00') < today ? '  [OVERDUE]' : '';
-          const due = t.due ? ` (due ${t.due})` : '';
-          return `- ${t.name}${due} — ${t.pct}% done${overdue}`;
-        }).join('\n')
-      : 'No open jobs right now — nice work!';
+    const formatLine = (t) => {
+      const overdue = t.due && !t.longRange && new Date(t.due + 'T00:00:00') < today ? '  [OVERDUE]' : '';
+      const startPart = t.start ? `start ${t.start}` : '';
+      const duePart = t.due ? `due ${t.due}` : '';
+      const dates = [startPart, duePart].filter(Boolean).join(', ');
+      const datesText = dates ? ` (${dates})` : '';
+      return t.longRange
+        ? `- ${t.name}${datesText}`
+        : `- ${t.name}${datesText} — ${t.pct}% done${overdue}`;
+    };
+
+    const open = TASKS.filter(t => t.owner === ownerName && !t.longRange && t.pct < 100);
+    const longRangeJobs = TASKS.filter(t => t.owner === ownerName && t.longRange);
+
+    const openLines = open.length ? open.map(formatLine).join('\n') : 'No open jobs right now — nice work!';
+    const longRangeSection = longRangeJobs.length
+      ? `\n\nYour long-range (not yet scheduled) projects:\n${longRangeJobs.map(formatLine).join('\n')}`
+      : '';
+
     emailjs.send(emailjsConfig.serviceId, emailjsConfig.templateId, {
       to_email: ownerEmail,
       to_name: ownerName,
       subject: `Faire Punch List: ${changeText}`,
-      message: `${changeText}\n\nYour current open jobs:\n${lines}`
+      message: `${changeText}\n\nYour current open jobs:\n${openLines}${longRangeSection}`
     }).catch(err => console.error('Email to owner failed', err));
   }
   if (CHANNEL_EMAIL) {
