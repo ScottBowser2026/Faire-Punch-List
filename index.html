@@ -852,9 +852,9 @@ function notifyChange(ownerName, changeText) {
   if (CHANNEL_EMAIL) {
     emailjs.send(emailjsConfig.serviceId, emailjsConfig.templateId, {
       to_email: CHANNEL_EMAIL,
-      to_name: 'Faire 2026',
+      to_name: ownerName,
       subject: `Faire Punch List: ${changeText}`,
-      message: changeText
+      message: `${changeText}\n\nAssigned to: ${ownerName}`
     }).catch(err => console.error('Email to channel failed', err));
   }
 }
