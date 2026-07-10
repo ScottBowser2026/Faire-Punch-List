@@ -818,9 +818,16 @@ function emailReady() {
 // Sends: (1) the job's owner their current open/overdue jobs, (2) the Teams
 // channel a one-line notice of what just happened. Silently does nothing if
 // EmailJS hasn't been configured yet.
+function findDirectoryEmail(ownerName) {
+  if (!ownerName) return null;
+  const target = ownerName.trim().toLowerCase();
+  const key = Object.keys(DIRECTORY).find(k => k.trim().toLowerCase() === target);
+  return key ? DIRECTORY[key] : null;
+}
+
 function notifyChange(ownerName, changeText) {
   if (!emailReady()) return;
-  const ownerEmail = DIRECTORY[ownerName];
+  const ownerEmail = findDirectoryEmail(ownerName);
   if (ownerEmail) {
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const formatLine = (t) => {
