@@ -174,14 +174,6 @@
       </div>
     </button>
     <div class="dept-body" id="email-body">
-      <div style="padding:10px 0">
-        <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px">Faire 2026 Teams channel email</label>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <input type="text" id="channel-email-input" placeholder="e.g. faire2026.abc123@yourcompany.onmicrosoft.com channel email" style="flex:1;min-width:220px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
-          <button class="ui" id="channel-email-save">Save</button>
-        </div>
-        <div class="hint-small" style="margin-top:4px">Find this in Teams: open the channel &middot; "&middot;&middot;&middot;" menu &middot; "Get email address."</div>
-      </div>
       <div style="padding:10px 0;border-top:1px solid var(--border)">
         <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">Team directory — add an email for each person so they get notified about their own jobs</div>
         <div id="directory-list"></div>
@@ -776,7 +768,6 @@ document.getElementById('add-job-btn').addEventListener('click', () => {
 let applyingRemote = false;
 let dbRef = null;
 let directoryRef = null;
-let channelEmailRef = null;
 let DIRECTORY = {};      // owner name -> email
 const SEED_DIRECTORY = {
   "Michael Hess": "ConstructionForeman@parenfaire.com",
@@ -789,7 +780,6 @@ const SEED_DIRECTORY = {
   "Tony Miller": "tony@parenfaire.com",
   "Carrie Wallace": "carrie@parenfaire.com"
 };
-let CHANNEL_EMAIL = '';
 let directoryOpen = false;
 
 function rebuildDerivedState() {
@@ -807,9 +797,6 @@ function persistDirectory() {
   if (directoryRef) directoryRef.set(JSON.stringify(DIRECTORY)).catch(err => console.error('Directory save failed', err));
 }
 
-function persistChannelEmail() {
-  if (channelEmailRef) channelEmailRef.set(CHANNEL_EMAIL).catch(err => console.error('Channel email save failed', err));
-}
 
 function emailReady() {
   return window.emailjs && emailjsConfig.publicKey && !emailjsConfig.publicKey.includes('YOUR-');
@@ -856,14 +843,6 @@ function notifyChange(ownerName, changeText) {
       message: `${changeText}\n\nYour current open jobs:\n${openLines}${longRangeSection}`
     }).catch(err => console.error('Email to owner failed', err));
   }
-  if (CHANNEL_EMAIL) {
-    emailjs.send(emailjsConfig.serviceId, emailjsConfig.templateId, {
-      to_email: CHANNEL_EMAIL,
-      to_name: ownerName,
-      subject: `Faire Punch List: ${changeText}`,
-      message: `${changeText}\n\nAssigned to: ${ownerName}`
-    }).catch(err => console.error('Email to channel failed', err));
-  }
 }
 
 function renderDirectory() {
@@ -893,12 +872,6 @@ document.getElementById('email-header').addEventListener('click', () => {
   directoryOpen = !directoryOpen;
   document.getElementById('email-body').style.display = directoryOpen ? 'block' : 'none';
   document.getElementById('email-chev').style.transform = directoryOpen ? 'rotate(90deg)' : 'rotate(0deg)';
-});
-
-document.getElementById('channel-email-save').addEventListener('click', () => {
-  CHANNEL_EMAIL = document.getElementById('channel-email-input').value.trim();
-  persistChannelEmail();
-  flashSaveMsg('Saved the Faire 2026 channel email.');
 });
 
 document.getElementById('new-person-add').addEventListener('click', () => {
@@ -966,7 +939,6 @@ function init() {
   firebase.initializeApp(firebaseConfig);
   dbRef = firebase.database().ref('faire-punch-list-tasks');
   directoryRef = firebase.database().ref('faire-punch-list-directory');
-  channelEmailRef = firebase.database().ref('faire-punch-list-channel-email');
 
   directoryRef.on('value', snap => {
     const v = snap.val();
@@ -977,11 +949,6 @@ function init() {
       try { DIRECTORY = JSON.parse(v); } catch (e) { DIRECTORY = {}; }
     }
     renderDirectory();
-  });
-  channelEmailRef.on('value', snap => {
-    CHANNEL_EMAIL = snap.val() || '';
-    const input = document.getElementById('channel-email-input');
-    if (input && document.activeElement !== input) input.value = CHANNEL_EMAIL;
   });
 
   dbRef.once('value').then(snapshot => {
