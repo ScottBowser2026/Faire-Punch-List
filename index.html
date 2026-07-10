@@ -163,6 +163,32 @@
     </div>
   </div>
 
+  <div id="email-panel" class="dept" style="margin-bottom:16px">
+    <button class="dept-header" id="email-header">
+      <div class="left">
+        <span class="chev" id="email-chev">&#9656;</span>
+        <div>
+          <div class="dept-name">Email notifications</div>
+          <div class="dept-owner" id="email-subtitle">Set up who gets emailed automatically</div>
+        </div>
+      </div>
+    </button>
+    <div class="dept-body" id="email-body">
+      <div style="padding:10px 0">
+        <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px">Faire 2026 Teams channel email</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <input type="text" id="channel-email-input" placeholder="e.g. faire2026.abc123@yourcompany.onmicrosoft.com channel email" style="flex:1;min-width:220px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
+          <button class="ui" id="channel-email-save">Save</button>
+        </div>
+        <div class="hint-small" style="margin-top:4px">Find this in Teams: open the channel &middot; "&middot;&middot;&middot;" menu &middot; "Get email address."</div>
+      </div>
+      <div style="padding:10px 0;border-top:1px solid var(--border)">
+        <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">Team directory — add an email for each person so they get notified about their own jobs</div>
+        <div id="directory-list"></div>
+      </div>
+    </div>
+  </div>
+
   <div id="add-job">
     <div class="add-title">Add a job</div>
     <div class="add-row">
@@ -278,6 +304,47 @@ const firebaseConfig = {
   storageBucket: "faire-builder-tracker.firebasestorage.app",
   messagingSenderId: "205329117340",
   appId: "1:205329117340:web:a969bdfb00529f84c6bd59"
+};
+</script>
+
+<!--
+=====================================================================
+  EMAIL NOTIFICATIONS SETUP (optional) — read this before using
+=====================================================================
+  This page can email each job's owner (their open/overdue jobs) and
+  notify the Faire 2026 Teams channel automatically whenever a job is
+  added, completed, reopened, edited, deleted, or activated. It uses
+  EmailJS (the same free tool used for the Faire-QC-Tracker).
+
+  ONE-TIME SETUP (about 10 minutes, no coding, all at
+  https://dashboard.emailjs.com):
+    1. Sign up for a free account (200 emails/month free).
+    2. "Email Services" > "Add New Service" > connect the Outlook,
+       Gmail, or other account you want emails to send FROM.
+       Copy the Service ID it gives you.
+    3. "Email Templates" > "Create New Template." Use these variable
+       names in the template body so this page can fill them in:
+         {{to_email}}   — recipient's email
+         {{to_name}}    — recipient's name
+         {{subject}}    — email subject line
+         {{message}}    — the job list / notice text
+       A simple template body works fine: just print {{message}}.
+       Copy the Template ID.
+    4. "Account" > "General" — copy your Public Key.
+    5. Paste all three values below, replacing the placeholders.
+    6. Save this file and re-upload it wherever you're hosting it.
+
+  Until you fill these in, the page still works fine — it just won't
+  send any emails (no errors, it silently skips sending).
+=====================================================================
+-->
+<script src="emailjs.min.js"></script>
+<script>
+// PASTE YOUR EMAILJS VALUES HERE (see instructions above)
+const emailjsConfig = {
+  publicKey: "sB7w0MyBj_u6ayu_0",
+  serviceId: "service_yutnnpk",
+  templateId: "template_d39wd5a"
 };
 </script>
 
@@ -406,6 +473,9 @@ function makeSliderRow(t, showDeptTag) {
     renderStats();
     renderAll();
   });
+  input.addEventListener('change', () => {
+    notifyChange(t.owner, `"${t.name}" updated to ${t.pct}%`);
+  });
   row.querySelector('.mark-btn.edit').addEventListener('click', () => {
     if (editingIds.has(t.id)) editingIds.delete(t.id); else editingIds.add(t.id);
     renderAll();
@@ -415,6 +485,7 @@ function makeSliderRow(t, showDeptTag) {
     if (!isDone) t.prevPct = input.value < 100 ? parseInt(input.value, 10) : 50;
     renderStats();
     renderAll();
+    notifyChange(t.owner, isDone ? `"${t.name}" reopened` : `"${t.name}" marked complete`);
   });
   const saveBtn = row.querySelector('.mark-btn.save');
   if (saveBtn) {
@@ -437,6 +508,7 @@ function makeSliderRow(t, showDeptTag) {
       populateOwnerSelect();
       renderStats();
       renderAll();
+      notifyChange(t.owner, `"${t.name}" was edited`);
     });
   }
   row.querySelector('.mark-btn.delete').addEventListener('click', () => {
@@ -446,6 +518,7 @@ function makeSliderRow(t, showDeptTag) {
     editingIds.delete(t.id);
     renderStats();
     renderAll();
+    notifyChange(t.owner, `"${t.name}" was deleted`);
   });
   return row;
 }
@@ -513,6 +586,7 @@ function renderAll() {
   document.getElementById('master-subtitle').textContent = `${done.length} job${done.length === 1 ? '' : 's'} completed`;
 
   renderLongRange();
+  renderDirectory();
   persist();
 }
 
@@ -574,6 +648,7 @@ function renderLongRange() {
       activatingIds.delete(t.id);
       renderStats();
       renderAll();
+      notifyChange(t.owner, `Long-range job "${t.name}" was deleted`);
     });
     const saveBtn = row.querySelector('.mark-btn.save');
     if (saveBtn) {
@@ -599,6 +674,7 @@ function renderLongRange() {
         openDepts.add(t.dept);
         renderStats();
         renderAll();
+        notifyChange(t.owner, `"${t.name}" is now active (was long-range)`);
       });
     }
     longRangeEl.appendChild(row);
@@ -688,10 +764,27 @@ document.getElementById('add-job-btn').addEventListener('click', () => {
   addMsg.textContent = longRange
     ? `Parked "${jobName}" under long-range projects for ${owner}.`
     : `Added to ${dept} (${owner}).`;
+  notifyChange(owner, longRange ? `New long-range job added: "${jobName}"` : `New job added: "${jobName}"`);
 });
 
 let applyingRemote = false;
 let dbRef = null;
+let directoryRef = null;
+let channelEmailRef = null;
+let DIRECTORY = {};      // owner name -> email
+const SEED_DIRECTORY = {
+  "Michael Hess": "ConstructionForeman@parenfaire.com",
+  "Dave Wallace": "DaveW@parenfaire.com",
+  "Sadie Bossons": "Sadie.B@parenfaire.com",
+  "Gabbi": "Gabrielle@parenfaire.com",
+  "Seth": "S.Ulrich@parenfaire.com",
+  "Sadie via Drew L": "Drewlipkowski@gmail.com",
+  "Daniel": "Daniel@parenfaire.com",
+  "Tony Miller": "tony@parenfaire.com",
+  "Carrie Wallace": "carrie@parenfaire.com"
+};
+let CHANNEL_EMAIL = '';
+let directoryOpen = false;
 
 function rebuildDerivedState() {
   deptOrder.length = 0;
@@ -703,6 +796,86 @@ function persist() {
   if (applyingRemote || !dbRef) return;
   dbRef.set(JSON.stringify(TASKS)).catch(err => console.error('Save failed', err));
 }
+
+function persistDirectory() {
+  if (directoryRef) directoryRef.set(JSON.stringify(DIRECTORY)).catch(err => console.error('Directory save failed', err));
+}
+
+function persistChannelEmail() {
+  if (channelEmailRef) channelEmailRef.set(CHANNEL_EMAIL).catch(err => console.error('Channel email save failed', err));
+}
+
+function emailReady() {
+  return window.emailjs && emailjsConfig.publicKey && !emailjsConfig.publicKey.includes('YOUR-');
+}
+
+// Sends: (1) the job's owner their current open/overdue jobs, (2) the Teams
+// channel a one-line notice of what just happened. Silently does nothing if
+// EmailJS hasn't been configured yet.
+function notifyChange(ownerName, changeText) {
+  if (!emailReady()) return;
+  const ownerEmail = DIRECTORY[ownerName];
+  if (ownerEmail) {
+    const open = TASKS.filter(t => t.owner === ownerName && !t.longRange && t.pct < 100);
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const lines = open.length
+      ? open.map(t => {
+          const overdue = t.due && new Date(t.due + 'T00:00:00') < today ? '  [OVERDUE]' : '';
+          const due = t.due ? ` (due ${t.due})` : '';
+          return `- ${t.name}${due} — ${t.pct}% done${overdue}`;
+        }).join('\n')
+      : 'No open jobs right now — nice work!';
+    emailjs.send(emailjsConfig.serviceId, emailjsConfig.templateId, {
+      to_email: ownerEmail,
+      to_name: ownerName,
+      subject: `Faire Punch List: ${changeText}`,
+      message: `${changeText}\n\nYour current open jobs:\n${lines}`
+    }).catch(err => console.error('Email to owner failed', err));
+  }
+  if (CHANNEL_EMAIL) {
+    emailjs.send(emailjsConfig.serviceId, emailjsConfig.templateId, {
+      to_email: CHANNEL_EMAIL,
+      to_name: 'Faire 2026',
+      subject: `Faire Punch List: ${changeText}`,
+      message: changeText
+    }).catch(err => console.error('Email to channel failed', err));
+  }
+}
+
+function renderDirectory() {
+  const owners = [...new Set(TASKS.map(t => t.owner))].sort((a, b) => a.localeCompare(b));
+  const list = document.getElementById('directory-list');
+  if (!list) return;
+  list.innerHTML = '';
+  owners.forEach(owner => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:8px;align-items:center;padding:6px 0;flex-wrap:wrap';
+    row.innerHTML = `
+      <span style="font-size:13px;min-width:150px">${owner}</span>
+      <input type="text" class="dir-email" placeholder="email address" value="${DIRECTORY[owner] || ''}" style="flex:1;min-width:200px;font-size:13px;padding:6px 9px;border-radius:7px;border:1px solid var(--border)" />
+      <button class="ui dir-save" style="font-size:12px;padding:5px 10px">Save</button>
+    `;
+    row.querySelector('.dir-save').addEventListener('click', () => {
+      const val = row.querySelector('.dir-email').value.trim();
+      if (val) DIRECTORY[owner] = val; else delete DIRECTORY[owner];
+      persistDirectory();
+      flashSaveMsg(`Saved email for ${owner}.`);
+    });
+    list.appendChild(row);
+  });
+}
+
+document.getElementById('email-header').addEventListener('click', () => {
+  directoryOpen = !directoryOpen;
+  document.getElementById('email-body').style.display = directoryOpen ? 'block' : 'none';
+  document.getElementById('email-chev').style.transform = directoryOpen ? 'rotate(90deg)' : 'rotate(0deg)';
+});
+
+document.getElementById('channel-email-save').addEventListener('click', () => {
+  CHANNEL_EMAIL = document.getElementById('channel-email-input').value.trim();
+  persistChannelEmail();
+  flashSaveMsg('Saved the Faire 2026 channel email.');
+});
 
 function applyRemoteTasks(remote) {
   const remoteStr = JSON.stringify(remote);
@@ -730,19 +903,43 @@ function flashSyncMsg(text) {
 }
 
 function init() {
+  if (window.emailjs && emailjsConfig.publicKey && !emailjsConfig.publicKey.includes('YOUR-')) {
+    emailjs.init(emailjsConfig.publicKey);
+  }
   if (!window.firebase || !firebaseConfig.databaseURL || firebaseConfig.databaseURL.includes('YOUR-')) {
     // No Firebase configured yet — run locally so the page still works while you set things up.
     TASKS.push(...SEED_TASKS);
+    DIRECTORY = { ...SEED_DIRECTORY };
     rebuildDerivedState();
     populateOwnerSelect();
     renderStats();
     renderAll();
+    renderDirectory();
     const bar = document.getElementById('save-bar');
     if (bar) bar.innerHTML = '<div style="font-size:13px;color:var(--red-fg);font-weight:600">&#9679; Not connected — this copy only saves in this browser tab. Add your Firebase config (see comments at the top of the file) to turn on live sync.</div>';
     return;
   }
   firebase.initializeApp(firebaseConfig);
   dbRef = firebase.database().ref('faire-punch-list-tasks');
+  directoryRef = firebase.database().ref('faire-punch-list-directory');
+  channelEmailRef = firebase.database().ref('faire-punch-list-channel-email');
+
+  directoryRef.on('value', snap => {
+    const v = snap.val();
+    if (!v) {
+      DIRECTORY = { ...SEED_DIRECTORY };
+      persistDirectory();
+    } else {
+      try { DIRECTORY = JSON.parse(v); } catch (e) { DIRECTORY = {}; }
+    }
+    renderDirectory();
+  });
+  channelEmailRef.on('value', snap => {
+    CHANNEL_EMAIL = snap.val() || '';
+    const input = document.getElementById('channel-email-input');
+    if (input && document.activeElement !== input) input.value = CHANNEL_EMAIL;
+  });
+
   dbRef.once('value').then(snapshot => {
     const val = snapshot.val();
     let loaded = null;
