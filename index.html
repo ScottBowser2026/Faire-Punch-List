@@ -185,6 +185,12 @@
       <div style="padding:10px 0;border-top:1px solid var(--border)">
         <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">Team directory — add an email for each person so they get notified about their own jobs</div>
         <div id="directory-list"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px dashed var(--border)">
+          <input type="text" id="new-person-name" placeholder="Name" style="flex:1;min-width:150px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
+          <input type="text" id="new-person-email" placeholder="Email address" style="flex:1;min-width:200px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
+          <button class="ui" id="new-person-add">Add person</button>
+        </div>
+        <div class="hint-small" id="new-person-msg"></div>
       </div>
     </div>
   </div>
@@ -875,6 +881,26 @@ document.getElementById('channel-email-save').addEventListener('click', () => {
   CHANNEL_EMAIL = document.getElementById('channel-email-input').value.trim();
   persistChannelEmail();
   flashSaveMsg('Saved the Faire 2026 channel email.');
+});
+
+document.getElementById('new-person-add').addEventListener('click', () => {
+  const nameInput = document.getElementById('new-person-name');
+  const emailInput = document.getElementById('new-person-email');
+  const msg = document.getElementById('new-person-msg');
+  const name = nameInput.value.trim();
+  const email = emailInput.value.trim();
+  if (!name || !email) {
+    msg.style.color = 'var(--red-fg)';
+    msg.textContent = 'Enter both a name and an email address.';
+    return;
+  }
+  DIRECTORY[name] = email;
+  persistDirectory();
+  renderDirectory();
+  nameInput.value = '';
+  emailInput.value = '';
+  msg.style.color = 'var(--teal-fg)';
+  msg.textContent = `Added ${name} to the directory. To assign them a job, use "Add a job" below and pick "New person..." with their exact name.`;
 });
 
 function applyRemoteTasks(remote) {
