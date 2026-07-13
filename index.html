@@ -92,6 +92,7 @@
   button.mark-btn.save { border-color: var(--teal-bar); color: var(--teal-fg); }
   button.mark-btn.delete { border-color: var(--red-fg); color: var(--red-fg); }
   button.mark-btn.delete:hover { background: var(--red-fg); color: #fff; }
+  button.mark-btn.park { border-color: var(--gray-bar); color: var(--gray-fg); }
   .edit-form { margin-top: 8px; padding-top: 10px; border-top: 1px dashed var(--border); }
   .edit-form .add-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
   .edit-form label { font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 4px; }
@@ -563,6 +564,7 @@ function makeSliderRow(t, showDeptTag) {
     <div class="job-actions">
       <button class="mark-btn edit">${isEditing ? 'Cancel' : 'Edit'}</button>
       <button class="mark-btn ${isDone ? 'reopen' : 'done'}">${isDone ? 'Reopen job' : 'Mark complete'}</button>
+      ${currentUser && currentUser.role === 'admin' ? `<button class="mark-btn park">Park (long-range)</button>` : ''}
       <button class="mark-btn delete">Delete</button>
     </div>` : `<div class="locked-note">&#128274; View only — this job belongs to a different crew</div>`}
     ${isEditing ? `
@@ -677,6 +679,17 @@ function makeSliderRow(t, showDeptTag) {
     renderAll();
     notifyChange(t.owner, `"${t.name}" was deleted`);
   });
+  const parkBtn = row.querySelector('.mark-btn.park');
+  if (parkBtn) {
+    parkBtn.addEventListener('click', () => {
+      if (!confirm(`Park "${t.name}" as a long-range project? It'll move out of the active list until it's made active again.`)) return;
+      t.longRange = true;
+      editingIds.delete(t.id);
+      renderStats();
+      renderAll();
+      notifyChange(t.owner, `"${t.name}" was parked as a long-range project`);
+    });
+  }
   return row;
 }
 
