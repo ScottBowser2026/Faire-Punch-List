@@ -159,13 +159,31 @@
     <input type="password" id="pin-input" inputmode="numeric" maxlength="6" placeholder="&bull;&bull;&bull;&bull;" />
     <button id="pin-submit">Enter</button>
     <div id="pin-error"></div>
+    <div style="margin-top:14px">
+      <a href="#" id="forgot-pin-link" style="font-size:12px;color:var(--text-secondary);text-decoration:underline">Forgot your PIN?</a>
+    </div>
+    <div id="forgot-pin-row" style="display:none;margin-top:12px;text-align:left">
+      <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px">Your name (as it appears in the tracker)</label>
+      <input type="text" id="forgot-pin-name" placeholder="e.g. Dave Wallace" style="width:100%;font-size:13px;padding:8px 10px;border-radius:7px;border:1px solid var(--border);margin-bottom:8px;box-sizing:border-box" />
+      <button id="forgot-pin-send" style="width:100%;padding:9px;border-radius:8px;border:none;background:var(--teal-bar);color:#fff;font-weight:600;font-size:13px;cursor:pointer">Email me a new PIN</button>
+      <div id="forgot-pin-msg" style="font-size:12px;margin-top:8px"></div>
+    </div>
   </div>
 </div>
 <div id="photo-lightbox"><img id="photo-lightbox-img" src="" /></div>
 <div class="wrap">
   <div id="user-bar">
     <span id="user-bar-label"></span>
-    <button class="ui" id="logout-btn">Log out</button>
+    <div style="display:flex;gap:8px">
+      <button class="ui" id="change-pin-btn">Change my PIN</button>
+      <button class="ui" id="logout-btn">Log out</button>
+    </div>
+  </div>
+  <div id="change-pin-row" style="display:none;margin:-4px 0 12px;gap:8px;flex-wrap:wrap;align-items:center;background:var(--surface-1);border-radius:10px;padding:10px 14px">
+    <span style="font-size:13px;color:var(--text-secondary)">New PIN:</span>
+    <input type="text" id="change-pin-input" inputmode="numeric" maxlength="6" placeholder="4-6 digits" style="width:110px;font-size:13px;padding:6px 9px;border-radius:7px;border:1px solid var(--border)" />
+    <button class="ui" id="change-pin-save">Save new PIN</button>
+    <span class="hint-small" id="change-pin-msg"></span>
   </div>
   <h1>Faire punch list — progress tracker</h1>
   <p class="subtitle">Last updated 7/3/2026 &middot; grouped by crew &middot; drag a slider or hit "Mark complete" to move a job into the master completed list below &middot; use "Add a job" to assign new work to a person responsible</p>
@@ -1031,6 +1049,7 @@ const SEED_PIN_DIRECTORY = {
 let PIN_DIRECTORY = {};
 let pinDirectoryRef = null;
 let currentUser = null;
+let currentPin = null;
 let pinOpen = false;
 
 function canEdit(task) {
@@ -1066,6 +1085,7 @@ function tryLogin(pin) {
     return;
   }
   currentUser = match;
+  currentPin = pin.trim();
   try { localStorage.setItem('punchlist_pin', pin.trim()); } catch (e) {}
   hidePinGate();
   applyUserBar();
@@ -1080,6 +1100,7 @@ document.getElementById('pin-input').addEventListener('keydown', (e) => {
 });
 document.getElementById('logout-btn').addEventListener('click', () => {
   currentUser = null;
+  currentPin = null;
   try { localStorage.removeItem('punchlist_pin'); } catch (e) {}
   document.getElementById('pin-input').value = '';
   document.getElementById('pin-error').textContent = '';
@@ -1141,11 +1162,104 @@ function attemptAutoLogin() {
   try { savedPin = localStorage.getItem('punchlist_pin'); } catch (e) { savedPin = null; }
   if (savedPin && PIN_DIRECTORY[savedPin]) {
     currentUser = PIN_DIRECTORY[savedPin];
+    currentPin = savedPin;
     hidePinGate();
     applyUserBar();
     renderAll();
   }
 }
+
+document.getElementById('change-pin-btn').addEventListener('click', () => {
+  const row = document.getElementById('change-pin-row');
+  const isOpen = row.style.display === 'flex';
+  row.style.display = isOpen ? 'none' : 'flex';
+});
+
+document.getElementById('change-pin-save').addEventListener('click', () => {
+  const msg = document.getElementById('change-pin-msg');
+  const newPin = document.getElementById('change-pin-input').value.trim();
+  if (!currentUser) return;
+  if (!/^\d{4,6}$/.test(newPin)) {
+    msg.style.color = 'var(--red-fg)';
+    msg.textContent = 'PIN must be 4-6 digits.';
+    return;
+  }
+  if (PIN_DIRECTORY[newPin]) {
+    msg.style.color = 'var(--red-fg)';
+    msg.textContent = 'That PIN is already taken — pick a different one.';
+    return;
+  }
+  // remove the old PIN key and re-add the same user record under the new PIN
+  if (currentPin) delete PIN_DIRECTORY[currentPin];
+  PIN_DIRECTORY[newPin] = currentUser;
+  currentPin = newPin;
+  persistPinDirectory();
+  renderPinList();
+  try { localStorage.setItem('punchlist_pin', newPin); } catch (e) {}
+  document.getElementById('change-pin-input').value = '';
+  msg.style.color = 'var(--teal-fg)';
+  msg.textContent = `Your PIN is now ${newPin}. Remember it — you'll need it next time you log in on a new device.`;
+});
+
+document.getElementById('forgot-pin-link').addEventListener('click', (e) => {
+  e.preventDefault();
+  const row = document.getElementById('forgot-pin-row');
+  row.style.display = row.style.display === 'block' ? 'none' : 'block';
+});
+
+function findPinEntryByName(name) {
+  const target = name.trim().toLowerCase();
+  const key = Object.keys(PIN_DIRECTORY).find(p => PIN_DIRECTORY[p].name.trim().toLowerCase() === target);
+  return key ? { pin: key, entry: PIN_DIRECTORY[key] } : null;
+}
+
+function generateNewPin() {
+  let pin;
+  do {
+    pin = String(Math.floor(1000 + Math.random() * 9000));
+  } while (PIN_DIRECTORY[pin]);
+  return pin;
+}
+
+document.getElementById('forgot-pin-send').addEventListener('click', () => {
+  const msg = document.getElementById('forgot-pin-msg');
+  const name = document.getElementById('forgot-pin-name').value.trim();
+  if (!name) {
+    msg.style.color = 'var(--red-fg)';
+    msg.textContent = 'Enter your name first.';
+    return;
+  }
+  const found = findPinEntryByName(name);
+  if (!found) {
+    msg.style.color = 'var(--red-fg)';
+    msg.textContent = "That name isn't set up yet — ask your admin to add you.";
+    return;
+  }
+  const email = findDirectoryEmail(found.entry.name);
+  if (!email) {
+    msg.style.color = 'var(--red-fg)';
+    msg.textContent = "No email on file for that name — ask your admin to add one in the Team Directory.";
+    return;
+  }
+  if (!emailReady()) {
+    msg.style.color = 'var(--red-fg)';
+    msg.textContent = "Email isn't set up on this tracker yet — ask your admin directly.";
+    return;
+  }
+  const newPin = generateNewPin();
+  delete PIN_DIRECTORY[found.pin];
+  PIN_DIRECTORY[newPin] = found.entry;
+  persistPinDirectory();
+  renderPinList();
+  emailjs.send(emailjsConfig.serviceId, emailjsConfig.templateId, {
+    to_email: email,
+    to_name: found.entry.name,
+    subject: 'Faire Punch List: your PIN was reset',
+    message: `Your new PIN to log into the Faire Punch List tracker is: ${newPin}\n\nUse it at the login screen. Once you're in, you can change it to something memorable using "Change my PIN" at the top of the page.`
+  }).catch(err => console.error('Forgot-pin email failed', err));
+  msg.style.color = 'var(--teal-fg)';
+  msg.textContent = `A new PIN was emailed to ${found.entry.name}. Check your inbox.`;
+});
 // =================== END PIN LOGIN & PERMISSIONS ===================
 
 // ===================== DAILY SUMMARY EMAIL =====================
