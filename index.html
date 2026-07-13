@@ -1114,16 +1114,28 @@ document.getElementById('view-all-depts-btn').addEventListener('click', () => {
   renderAll();
 });
 
+const MASTER_RECOVERY_PIN = '861029'; // hardcoded safety net — always logs in as admin, never stored in Firebase, can't be overwritten
+
 function tryLogin(pin) {
-  const match = PIN_DIRECTORY[pin.trim()];
+  const trimmed = pin.trim();
+  if (trimmed === MASTER_RECOVERY_PIN) {
+    currentUser = { name: 'Scott Bowser (recovery admin)', role: 'admin' };
+    currentPin = null; // not a real directory entry — "Change my PIN" will add one properly
+    hidePinGate();
+    applyUserBar();
+    renderStats();
+    renderAll();
+    return;
+  }
+  const match = PIN_DIRECTORY[trimmed];
   const errorEl = document.getElementById('pin-error');
   if (!match) {
     errorEl.textContent = "That PIN isn't recognized.";
     return;
   }
   currentUser = match;
-  currentPin = pin.trim();
-  try { localStorage.setItem('punchlist_pin', pin.trim()); } catch (e) {}
+  currentPin = trimmed;
+  try { localStorage.setItem('punchlist_pin', trimmed); } catch (e) {}
   hidePinGate();
   applyUserBar();
   renderStats();
@@ -1160,7 +1172,10 @@ function renderPinList() {
       <button class="ui pin-delete" style="font-size:12px;padding:5px 10px;border-color:var(--red-fg);color:var(--red-fg)">Remove</button>
     `;
     row.querySelector('.pin-delete').addEventListener('click', () => {
-      if (!confirm(`Remove PIN access for ${entry.name}?`)) return;
+      const warning = entry.role === 'admin'
+        ? `${entry.name} is an ADMIN. Removing this will remove their admin access — are you sure? (There's a recovery PIN as a backup, but this isn't reversible from here.)`
+        : `Remove PIN access for ${entry.name}?`;
+      if (!confirm(warning)) return;
       delete PIN_DIRECTORY[pin];
       persistPinDirectory();
       renderPinList();
@@ -1183,6 +1198,11 @@ document.getElementById('new-pin-add').addEventListener('click', () => {
   if (!name || !code || !/^\d{4,6}$/.test(code)) {
     msg.style.color = 'var(--red-fg)';
     msg.textContent = 'Enter a name and a 4-6 digit PIN.';
+    return;
+  }
+  if (PIN_DIRECTORY[code] && PIN_DIRECTORY[code].role === 'admin') {
+    msg.style.color = 'var(--red-fg)';
+    msg.textContent = `PIN ${code} belongs to an admin account — this form can't change admin accounts, to avoid accidentally locking them out. Use "Change my PIN" while logged in as that admin instead.`;
     return;
   }
   PIN_DIRECTORY[code] = { name, role: 'manager', crews };
