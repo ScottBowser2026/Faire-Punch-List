@@ -218,7 +218,7 @@
     </div>
   </div>
 
-  <div id="email-panel" class="dept" style="margin-bottom:16px">
+  <div id="email-panel" class="dept" style="margin-bottom:16px;display:none">
     <button class="dept-header" id="email-header">
       <div class="left">
         <span class="chev" id="email-chev">&#9656;</span>
@@ -463,12 +463,14 @@ function activeStatusFor(t) {
 }
 
 function renderStats() {
-  const scheduled = TASKS.filter(t => !t.longRange);
+  const showOnlyOwnCrews = currentUser && currentUser.role !== 'admin' && !viewAllDepts;
+  const visibleTasks = showOnlyOwnCrews ? TASKS.filter(t => (currentUser.crews || []).includes(t.dept)) : TASKS;
+  const scheduled = visibleTasks.filter(t => !t.longRange);
   const total = scheduled.length;
   const completed = scheduled.filter(t => t.pct >= 100).length;
   const current = scheduled.filter(t => t.pct > 0 && t.pct < 100).length;
   const next = scheduled.filter(t => t.pct === 0).length;
-  const longRange = TASKS.filter(t => t.longRange).length;
+  const longRange = visibleTasks.filter(t => t.longRange).length;
   const overall = total ? Math.round(scheduled.reduce((s, t) => s + t.pct, 0) / total) : 0;
   document.getElementById('stat-total').textContent = total;
   document.getElementById('stat-completed').textContent = completed;
@@ -1077,10 +1079,12 @@ function hidePinGate() {
 function applyUserBar() {
   const label = document.getElementById('user-bar-label');
   const pinPanel = document.getElementById('pin-panel');
+  const emailPanel = document.getElementById('email-panel');
   const viewAllBtn = document.getElementById('view-all-depts-btn');
   if (!currentUser) return;
   label.textContent = `Logged in as ${currentUser.name} (${currentUser.role === 'admin' ? 'Admin — full access' : 'Manager — ' + (currentUser.crews || []).join(', ')})`;
   pinPanel.style.display = currentUser.role === 'admin' ? 'block' : 'none';
+  emailPanel.style.display = currentUser.role === 'admin' ? 'block' : 'none';
   viewAllBtn.style.display = currentUser.role === 'admin' ? 'none' : 'inline-block';
   updateViewAllBtnLabel();
 }
@@ -1093,6 +1097,7 @@ function updateViewAllBtnLabel() {
 document.getElementById('view-all-depts-btn').addEventListener('click', () => {
   viewAllDepts = !viewAllDepts;
   updateViewAllBtnLabel();
+  renderStats();
   renderAll();
 });
 
@@ -1108,6 +1113,7 @@ function tryLogin(pin) {
   try { localStorage.setItem('punchlist_pin', pin.trim()); } catch (e) {}
   hidePinGate();
   applyUserBar();
+  renderStats();
   renderAll();
 }
 
@@ -1184,6 +1190,7 @@ function attemptAutoLogin() {
     currentPin = savedPin;
     hidePinGate();
     applyUserBar();
+    renderStats();
     renderAll();
   }
 }
