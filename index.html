@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Faire Punch List — Progress Tracker</title>
 <style>
   :root {
@@ -79,7 +80,7 @@
   .job-slider-row { display: flex; align-items: center; gap: 10px; }
   input[type=range] { flex: 1; accent-color: var(--blue-bar); height: 4px; }
   .pct-out { font-size: 13px; font-weight: 600; min-width: 34px; text-align: right; }
-  .job-actions { margin-top: 8px; display: flex; justify-content: flex-end; gap: 8px; }
+  .job-actions { margin-top: 8px; display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
   button.mark-btn {
     font-size: 12px; padding: 5px 12px; border-radius: 7px;
     border: 1px solid var(--border); background: var(--surface);
@@ -132,7 +133,7 @@
     position: fixed; inset: 0; background: var(--bg); z-index: 1000;
     display: flex; align-items: center; justify-content: center; flex-direction: column;
   }
-  #pin-gate .pin-card { background: var(--surface); border-radius: 14px; padding: 32px; width: 280px; text-align: center; border: 1px solid var(--border); }
+  #pin-gate .pin-card { background: var(--surface); border-radius: 14px; padding: 32px 24px; width: 280px; max-width: calc(100vw - 40px); text-align: center; border: 1px solid var(--border); box-sizing: border-box; }
   #pin-gate h2 { font-size: 18px; margin: 0 0 6px; }
   #pin-gate p { font-size: 13px; color: var(--text-secondary); margin: 0 0 18px; }
   #pin-input {
@@ -150,6 +151,27 @@
   .photo-upload-row input[type=file] { font-size: 12px; }
   #photo-lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.85); z-index: 2000; display: none; align-items: center; justify-content: center; cursor: zoom-out; }
   #photo-lightbox img { max-width: 90vw; max-height: 90vh; border-radius: 8px; }
+@media (max-width: 640px) {
+  body { padding: 16px 12px 40px; }
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat { min-width: 0; }
+  .toolbar { flex-direction: column; align-items: stretch; gap: 10px; }
+  .toolbar .btns { flex-direction: column; }
+  .toolbar .btns button.ui { width: 100%; }
+  #user-bar { flex-direction: column; align-items: stretch; gap: 8px; }
+  #user-bar > div { display: flex; gap: 8px; }
+  #user-bar > div button.ui { flex: 1; }
+  #add-job .add-row { flex-direction: column; }
+  #add-job .field, #add-job .field.narrow, #add-job .field.grow { min-width: 0; width: 100%; }
+  .job-actions { justify-content: stretch; }
+  .job-actions button.mark-btn { flex: 1 1 auto; min-width: 0; padding: 9px 8px; }
+  .dept-header { padding: 12px; }
+  .dept-owner { font-size: 11px; }
+  .job-name { font-size: 14px; }
+  input[type=range] { height: 24px; }
+  button.mark-btn, button.ui, button.add-btn { min-height: 38px; }
+  .photo-gallery img { width: 56px; height: 56px; }
+}
 </style>
 </head>
 <body>
