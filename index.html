@@ -127,10 +127,46 @@
   button.add-btn:hover { background: var(--blue-bar); color: #fff; }
   #add-job .hint-small { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
   footer { text-align: center; font-size: 12px; color: var(--text-muted); margin-top: 24px; }
+  #pin-gate {
+    position: fixed; inset: 0; background: var(--bg); z-index: 1000;
+    display: flex; align-items: center; justify-content: center; flex-direction: column;
+  }
+  #pin-gate .pin-card { background: var(--surface); border-radius: 14px; padding: 32px; width: 280px; text-align: center; border: 1px solid var(--border); }
+  #pin-gate h2 { font-size: 18px; margin: 0 0 6px; }
+  #pin-gate p { font-size: 13px; color: var(--text-secondary); margin: 0 0 18px; }
+  #pin-input {
+    width: 100%; font-size: 22px; text-align: center; letter-spacing: 6px;
+    padding: 10px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 12px;
+  }
+  #pin-submit { width: 100%; padding: 10px; border-radius: 8px; border: none; background: var(--blue-bar); color: #fff; font-weight: 600; font-size: 14px; cursor: pointer; }
+  #pin-error { font-size: 13px; color: var(--red-fg); margin-top: 10px; min-height: 16px; }
+  #user-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size: 13px; color: var(--text-secondary); margin-bottom: 12px; }
+  #user-bar button.ui { font-size: 12px; padding: 5px 10px; }
+  .locked-note { font-size: 12px; color: var(--text-muted); font-style: italic; padding: 6px 0; }
+  .photo-gallery { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
+  .photo-gallery img { width: 64px; height: 64px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); cursor: pointer; }
+  .photo-upload-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+  .photo-upload-row input[type=file] { font-size: 12px; }
+  #photo-lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.85); z-index: 2000; display: none; align-items: center; justify-content: center; cursor: zoom-out; }
+  #photo-lightbox img { max-width: 90vw; max-height: 90vh; border-radius: 8px; }
 </style>
 </head>
 <body>
+<div id="pin-gate">
+  <div class="pin-card">
+    <h2>Faire Punch List</h2>
+    <p>Enter your PIN to continue</p>
+    <input type="password" id="pin-input" inputmode="numeric" maxlength="6" placeholder="&bull;&bull;&bull;&bull;" />
+    <button id="pin-submit">Enter</button>
+    <div id="pin-error"></div>
+  </div>
+</div>
+<div id="photo-lightbox"><img id="photo-lightbox-img" src="" /></div>
 <div class="wrap">
+  <div id="user-bar">
+    <span id="user-bar-label"></span>
+    <button class="ui" id="logout-btn">Log out</button>
+  </div>
   <h1>Faire punch list — progress tracker</h1>
   <p class="subtitle">Last updated 7/3/2026 &middot; grouped by crew &middot; drag a slider or hit "Mark complete" to move a job into the master completed list below &middot; use "Add a job" to assign new work to a person responsible</p>
 
@@ -183,6 +219,38 @@
           <button class="ui" id="new-person-add">Add person</button>
         </div>
         <div class="hint-small" id="new-person-msg"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="pin-panel" class="dept" style="margin-bottom:16px;display:none">
+    <button class="dept-header" id="pin-header">
+      <div class="left">
+        <span class="chev" id="pin-chev">&#9656;</span>
+        <div>
+          <div class="dept-name">Manager PINs &amp; permissions</div>
+          <div class="dept-owner">Admin only &middot; set who can edit which crew</div>
+        </div>
+      </div>
+    </button>
+    <div class="dept-body" id="pin-body">
+      <div style="padding:10px 0;border-bottom:1px solid var(--border);margin-bottom:10px">
+        <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px">Daily summary email (sent once per day to the Faire 2026 Teams channel)</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <input type="text" id="daily-summary-input" placeholder="e.g. f78b9b28.parenfaire.com@amer.teams.ms" style="flex:1;min-width:220px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
+          <button class="ui" id="daily-summary-save">Save</button>
+        </div>
+        <div class="hint-small">Fires the first time anyone opens this page after midnight — not at a fixed clock time, since this page has no server running in the background.</div>
+      </div>
+      <div style="padding:10px 0">
+        <div id="pin-list"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px dashed var(--border)">
+          <input type="text" id="new-pin-name" placeholder="Name" style="flex:1;min-width:130px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
+          <input type="text" id="new-pin-code" placeholder="PIN (4-6 digits)" inputmode="numeric" style="flex:0 1 130px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
+          <input type="text" id="new-pin-crews" placeholder="Crews (comma separated)" style="flex:1;min-width:180px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
+          <button class="ui" id="new-pin-add">Add / Update</button>
+        </div>
+        <div class="hint-small" id="pin-msg"></div>
       </div>
     </div>
   </div>
@@ -291,6 +359,7 @@
 -->
 <script src="firebase-app-compat.js"></script>
 <script src="firebase-database-compat.js"></script>
+<script src="firebase-storage-compat.js"></script>
 <script>
 // PASTE YOUR FIREBASE CONFIG OBJECT HERE (see instructions above) —
 // replace this entire placeholder object with the one Firebase gives you.
@@ -396,6 +465,47 @@ function formatDue(dateStr) {
 
 const editingIds = new Set();
 
+function photoGalleryHtml(task, editable) {
+  const photos = task.photos || [];
+  if (!photos.length) return '';
+  return `<div class="photo-gallery">${photos.map((p, i) => `
+    <div style="position:relative">
+      <img src="${p.url}" data-idx="${i}" class="photo-thumb" />
+      ${editable ? `<button class="photo-remove" data-idx="${i}" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:var(--red-fg);color:#fff;border:none;font-size:11px;line-height:1;cursor:pointer">&times;</button>` : ''}
+    </div>`).join('')}</div>`;
+}
+
+async function uploadPhotos(task, files) {
+  if (!window.firebase || !firebase.storage) {
+    alert("Photo storage isn't connected yet.");
+    return;
+  }
+  const storageRef = firebase.storage().ref();
+  for (const file of files) {
+    try {
+      const path = `punch-list-photos/${task.id}/${Date.now()}_${file.name}`;
+      const ref = storageRef.child(path);
+      await ref.put(file);
+      const url = await ref.getDownloadURL();
+      if (!task.photos) task.photos = [];
+      task.photos.push({ url, path });
+    } catch (err) {
+      console.error('Photo upload failed', err);
+    }
+  }
+  renderStats();
+  renderAll();
+}
+
+function deletePhoto(task, photo) {
+  if (!confirm('Delete this photo?')) return;
+  if (window.firebase && firebase.storage && photo.path) {
+    firebase.storage().ref().child(photo.path).delete().catch(() => {});
+  }
+  task.photos = (task.photos || []).filter(p => p.url !== photo.url);
+  renderAll();
+}
+
 function makeSliderRow(t, showDeptTag) {
   const meta = statusMeta[activeStatusFor(t)];
   const isDone = t.pct >= 100;
@@ -408,6 +518,7 @@ function makeSliderRow(t, showDeptTag) {
     ? `<span class="due-tag${isOverdue ? ' overdue' : ''}"> &middot; Due ${formatDue(t.due)}</span>`
     : '';
   const isEditing = editingIds.has(t.id);
+  const editable = canEdit(t);
   const row = document.createElement('div');
   row.className = 'job-row';
   row.innerHTML = `
@@ -421,14 +532,17 @@ function makeSliderRow(t, showDeptTag) {
       <span class="badge" style="background:${meta.bg};color:${meta.fg}">${meta.label}</span>
     </div>
     <div class="job-slider-row">
-      <input type="range" min="0" max="100" step="5" value="${t.pct}" />
+      <input type="range" min="0" max="100" step="5" value="${t.pct}" ${editable ? '' : 'disabled'} />
       <span class="pct-out">${t.pct}%</span>
     </div>
+    ${photoGalleryHtml(t, editable)}
+    ${editable ? `<div class="photo-upload-row"><input type="file" class="photo-input" accept="image/*" multiple /></div>` : ''}
+    ${editable ? `
     <div class="job-actions">
       <button class="mark-btn edit">${isEditing ? 'Cancel' : 'Edit'}</button>
       <button class="mark-btn ${isDone ? 'reopen' : 'done'}">${isDone ? 'Reopen job' : 'Mark complete'}</button>
       <button class="mark-btn delete">Delete</button>
-    </div>
+    </div>` : `<div class="locked-note">&#128274; View only — this job belongs to a different crew</div>`}
     ${isEditing ? `
     <div class="edit-form">
       <div class="add-row">
@@ -462,6 +576,29 @@ function makeSliderRow(t, showDeptTag) {
       </div>
     </div>` : ''}
   `;
+  row.querySelectorAll('.photo-thumb').forEach(img => {
+    img.addEventListener('click', () => {
+      document.getElementById('photo-lightbox-img').src = img.src;
+      document.getElementById('photo-lightbox').style.display = 'flex';
+    });
+  });
+  row.querySelectorAll('.photo-remove').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const idx = parseInt(btn.dataset.idx, 10);
+      const photo = (t.photos || [])[idx];
+      if (photo) deletePhoto(t, photo);
+    });
+  });
+  const photoInput = row.querySelector('.photo-input');
+  if (photoInput) {
+    photoInput.addEventListener('change', async () => {
+      if (photoInput.files.length) {
+        await uploadPhotos(t, Array.from(photoInput.files));
+      }
+    });
+  }
+  if (!editable) return row;
   const input = row.querySelector('input[type=range]');
   const out = row.querySelector('.pct-out');
   input.addEventListener('input', () => {
@@ -601,6 +738,7 @@ function renderLongRange() {
     const startHtml = t.start ? `<span class="due-tag"> &middot; Start ${formatDue(t.start)}</span>` : '';
     const dueHtml = t.due ? `<span class="due-tag"> &middot; Due ${formatDue(t.due)}</span>` : '';
     const isActivating = activatingIds.has(t.id);
+    const editable = canEdit(t);
     const row = document.createElement('div');
     row.className = 'job-row';
     row.innerHTML = `
@@ -613,10 +751,11 @@ function renderLongRange() {
         </span>
         <span class="badge" style="background:var(--gray-bg);color:var(--gray-fg)">Long-range</span>
       </div>
+      ${editable ? `
       <div class="job-actions">
         <button class="mark-btn done">${isActivating ? 'Cancel' : 'Make active'}</button>
         <button class="mark-btn delete">Delete</button>
-      </div>
+      </div>` : `<div class="locked-note">&#128274; View only — this job belongs to a different crew</div>`}
       ${isActivating ? `
       <div class="edit-form">
         <div class="add-row">
@@ -635,45 +774,47 @@ function renderLongRange() {
         </div>
       </div>` : ''}
     `;
-    row.querySelector('.mark-btn.done').addEventListener('click', () => {
-      if (activatingIds.has(t.id)) activatingIds.delete(t.id); else activatingIds.add(t.id);
-      renderAll();
-    });
-    row.querySelector('.mark-btn.delete').addEventListener('click', () => {
-      if (!confirm(`Delete "${t.name}"? This can't be undone.`)) return;
-      const idx = TASKS.indexOf(t);
-      if (idx > -1) TASKS.splice(idx, 1);
-      activatingIds.delete(t.id);
-      renderStats();
-      renderAll();
-      notifyChange(t.owner, `Long-range job "${t.name}" was deleted`);
-    });
-    const saveBtn = row.querySelector('.mark-btn.save');
-    if (saveBtn) {
-      saveBtn.addEventListener('click', () => {
-        const newStart = row.querySelector('.activate-start').value;
-        const newDue = row.querySelector('.activate-due').value;
-        const msg = row.querySelector('.activate-msg');
-        if (!newStart || !newDue) {
-          msg.style.color = 'var(--red-fg)';
-          msg.textContent = 'Both a start date and an end date are required to activate a project.';
-          return;
-        }
-        if (newDue < newStart) {
-          msg.style.color = 'var(--red-fg)';
-          msg.textContent = 'End date needs to be on or after the start date.';
-          return;
-        }
-        t.start = newStart;
-        t.due = newDue;
-        t.longRange = false;
+    if (editable) {
+      row.querySelector('.mark-btn.done').addEventListener('click', () => {
+        if (activatingIds.has(t.id)) activatingIds.delete(t.id); else activatingIds.add(t.id);
+        renderAll();
+      });
+      row.querySelector('.mark-btn.delete').addEventListener('click', () => {
+        if (!confirm(`Delete "${t.name}"? This can't be undone.`)) return;
+        const idx = TASKS.indexOf(t);
+        if (idx > -1) TASKS.splice(idx, 1);
         activatingIds.delete(t.id);
-        if (!deptOrder.includes(t.dept)) deptOrder.push(t.dept);
-        openDepts.add(t.dept);
         renderStats();
         renderAll();
-        notifyChange(t.owner, `"${t.name}" is now active (was long-range)`);
+        notifyChange(t.owner, `Long-range job "${t.name}" was deleted`);
       });
+      const saveBtn = row.querySelector('.mark-btn.save');
+      if (saveBtn) {
+        saveBtn.addEventListener('click', () => {
+          const newStart = row.querySelector('.activate-start').value;
+          const newDue = row.querySelector('.activate-due').value;
+          const msg = row.querySelector('.activate-msg');
+          if (!newStart || !newDue) {
+            msg.style.color = 'var(--red-fg)';
+            msg.textContent = 'Both a start date and an end date are required to activate a project.';
+            return;
+          }
+          if (newDue < newStart) {
+            msg.style.color = 'var(--red-fg)';
+            msg.textContent = 'End date needs to be on or after the start date.';
+            return;
+          }
+          t.start = newStart;
+          t.due = newDue;
+          t.longRange = false;
+          activatingIds.delete(t.id);
+          if (!deptOrder.includes(t.dept)) deptOrder.push(t.dept);
+          openDepts.add(t.dept);
+          renderStats();
+          renderAll();
+          notifyChange(t.owner, `"${t.name}" is now active (was long-range)`);
+        });
+      }
     }
     longRangeEl.appendChild(row);
   });
@@ -874,6 +1015,194 @@ document.getElementById('email-header').addEventListener('click', () => {
   document.getElementById('email-chev').style.transform = directoryOpen ? 'rotate(90deg)' : 'rotate(0deg)';
 });
 
+// ===================== PIN LOGIN & PERMISSIONS =====================
+const SEED_PIN_DIRECTORY = {
+  "2468": { name: "Scott Bowser", role: "admin" },
+  "1001": { name: "Michael Hess", role: "manager", crews: ["Carpentry", "Excavator/Petitbone", "Paint"] },
+  "1002": { name: "Dave Wallace", role: "manager", crews: ["Electrical"] },
+  "1003": { name: "Sadie Bossons", role: "manager", crews: ["Production"] },
+  "1004": { name: "Gabbi", role: "manager", crews: ["Graphics"] },
+  "1005": { name: "Seth", role: "manager", crews: ["Landscaping"] },
+  "1006": { name: "Sadie via Drew L", role: "manager", crews: ["Welding/Props"] },
+  "1007": { name: "Daniel", role: "manager", crews: ["F&B Equipment"] },
+  "1008": { name: "Tony Miller", role: "manager", crews: ["Tony's Crew"] },
+  "1009": { name: "Carrie Wallace", role: "manager", crews: ["Creative Design"] }
+};
+let PIN_DIRECTORY = {};
+let pinDirectoryRef = null;
+let currentUser = null;
+let pinOpen = false;
+
+function canEdit(task) {
+  if (!currentUser) return false;
+  if (currentUser.role === 'admin') return true;
+  return (currentUser.crews || []).includes(task.dept);
+}
+
+function persistPinDirectory() {
+  if (pinDirectoryRef) pinDirectoryRef.set(JSON.stringify(PIN_DIRECTORY)).catch(err => console.error('PIN save failed', err));
+}
+
+function showPinGate() {
+  document.getElementById('pin-gate').style.display = 'flex';
+}
+function hidePinGate() {
+  document.getElementById('pin-gate').style.display = 'none';
+}
+
+function applyUserBar() {
+  const label = document.getElementById('user-bar-label');
+  const pinPanel = document.getElementById('pin-panel');
+  if (!currentUser) return;
+  label.textContent = `Logged in as ${currentUser.name} (${currentUser.role === 'admin' ? 'Admin — full access' : 'Manager — ' + (currentUser.crews || []).join(', ')})`;
+  pinPanel.style.display = currentUser.role === 'admin' ? 'block' : 'none';
+}
+
+function tryLogin(pin) {
+  const match = PIN_DIRECTORY[pin.trim()];
+  const errorEl = document.getElementById('pin-error');
+  if (!match) {
+    errorEl.textContent = "That PIN isn't recognized.";
+    return;
+  }
+  currentUser = match;
+  try { localStorage.setItem('punchlist_pin', pin.trim()); } catch (e) {}
+  hidePinGate();
+  applyUserBar();
+  renderAll();
+}
+
+document.getElementById('pin-submit').addEventListener('click', () => {
+  tryLogin(document.getElementById('pin-input').value);
+});
+document.getElementById('pin-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') tryLogin(document.getElementById('pin-input').value);
+});
+document.getElementById('logout-btn').addEventListener('click', () => {
+  currentUser = null;
+  try { localStorage.removeItem('punchlist_pin'); } catch (e) {}
+  document.getElementById('pin-input').value = '';
+  document.getElementById('pin-error').textContent = '';
+  showPinGate();
+});
+
+function renderPinList() {
+  const list = document.getElementById('pin-list');
+  if (!list) return;
+  list.innerHTML = '';
+  Object.keys(PIN_DIRECTORY).sort((a, b) => a.localeCompare(b)).forEach(pin => {
+    const entry = PIN_DIRECTORY[pin];
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:8px;align-items:center;padding:6px 0;flex-wrap:wrap;border-top:1px solid var(--border)';
+    row.innerHTML = `
+      <span style="font-size:12px;font-family:monospace;background:var(--surface-1);padding:2px 8px;border-radius:6px;min-width:60px;text-align:center">${pin}</span>
+      <span style="font-size:13px;min-width:130px">${entry.name}</span>
+      <span style="font-size:12px;color:var(--text-muted);flex:1">${entry.role === 'admin' ? 'Admin (full access)' : (entry.crews || []).join(', ')}</span>
+      <button class="ui pin-delete" style="font-size:12px;padding:5px 10px;border-color:var(--red-fg);color:var(--red-fg)">Remove</button>
+    `;
+    row.querySelector('.pin-delete').addEventListener('click', () => {
+      if (!confirm(`Remove PIN access for ${entry.name}?`)) return;
+      delete PIN_DIRECTORY[pin];
+      persistPinDirectory();
+      renderPinList();
+    });
+    list.appendChild(row);
+  });
+}
+
+document.getElementById('pin-header').addEventListener('click', () => {
+  pinOpen = !pinOpen;
+  document.getElementById('pin-body').style.display = pinOpen ? 'block' : 'none';
+  document.getElementById('pin-chev').style.transform = pinOpen ? 'rotate(90deg)' : 'rotate(0deg)';
+});
+
+document.getElementById('new-pin-add').addEventListener('click', () => {
+  const name = document.getElementById('new-pin-name').value.trim();
+  const code = document.getElementById('new-pin-code').value.trim();
+  const crews = document.getElementById('new-pin-crews').value.split(',').map(s => s.trim()).filter(Boolean);
+  const msg = document.getElementById('pin-msg');
+  if (!name || !code || !/^\d{4,6}$/.test(code)) {
+    msg.style.color = 'var(--red-fg)';
+    msg.textContent = 'Enter a name and a 4-6 digit PIN.';
+    return;
+  }
+  PIN_DIRECTORY[code] = { name, role: 'manager', crews };
+  persistPinDirectory();
+  renderPinList();
+  document.getElementById('new-pin-name').value = '';
+  document.getElementById('new-pin-code').value = '';
+  document.getElementById('new-pin-crews').value = '';
+  msg.style.color = 'var(--teal-fg)';
+  msg.textContent = `Saved PIN for ${name}.`;
+});
+function attemptAutoLogin() {
+  if (currentUser) return; // already logged in this session
+  let savedPin = null;
+  try { savedPin = localStorage.getItem('punchlist_pin'); } catch (e) { savedPin = null; }
+  if (savedPin && PIN_DIRECTORY[savedPin]) {
+    currentUser = PIN_DIRECTORY[savedPin];
+    hidePinGate();
+    applyUserBar();
+    renderAll();
+  }
+}
+// =================== END PIN LOGIN & PERMISSIONS ===================
+
+// ===================== DAILY SUMMARY EMAIL =====================
+let DAILY_SUMMARY_EMAIL = '';
+let dailySummaryEmailRef = null;
+let lastSummaryDateRef = null;
+
+function persistDailySummaryEmail() {
+  if (dailySummaryEmailRef) dailySummaryEmailRef.set(DAILY_SUMMARY_EMAIL).catch(err => console.error('Daily summary email save failed', err));
+}
+
+document.getElementById('daily-summary-save').addEventListener('click', () => {
+  DAILY_SUMMARY_EMAIL = document.getElementById('daily-summary-input').value.trim();
+  persistDailySummaryEmail();
+  flashSaveMsg('Saved the daily summary recipient.');
+});
+
+function buildDailySummaryText() {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const scheduled = TASKS.filter(t => !t.longRange);
+  const overall = scheduled.length ? Math.round(scheduled.reduce((s, t) => s + t.pct, 0) / scheduled.length) : 0;
+  const overdue = scheduled.filter(t => t.due && t.pct < 100 && new Date(t.due + 'T00:00:00') < today);
+  const lines = [`Faire Punch List — Daily Summary — ${new Date().toLocaleDateString()}`, ''];
+  lines.push(`Overall: ${overall}% complete across ${scheduled.length} jobs.`);
+  lines.push('');
+  deptOrder.forEach(dept => {
+    const items = TASKS.filter(t => t.dept === dept && !t.longRange);
+    if (!items.length) return;
+    const avg = Math.round(items.reduce((s, t) => s + t.pct, 0) / items.length);
+    const open = items.filter(t => t.pct < 100).length;
+    lines.push(`${dept}: ${avg}% complete, ${open} job${open === 1 ? '' : 's'} open`);
+  });
+  if (overdue.length) {
+    lines.push('', `OVERDUE (${overdue.length}):`);
+    overdue.forEach(t => lines.push(`- ${t.name} (${t.dept}, due ${t.due})`));
+  }
+  return lines.join('\n');
+}
+
+function maybeSendDailySummary() {
+  if (!emailReady() || !DAILY_SUMMARY_EMAIL || !lastSummaryDateRef) return;
+  const todayStr = new Date().toISOString().slice(0, 10);
+  lastSummaryDateRef.once('value').then(snap => {
+    const lastSent = snap.val();
+    if (lastSent === todayStr) return; // already sent today
+    lastSummaryDateRef.set(todayStr).then(() => {
+      emailjs.send(emailjsConfig.serviceId, emailjsConfig.templateId, {
+        to_email: DAILY_SUMMARY_EMAIL,
+        to_name: 'Faire 2026',
+        subject: `Faire Punch List: Daily Summary — ${new Date().toLocaleDateString()}`,
+        message: buildDailySummaryText()
+      }).catch(err => console.error('Daily summary send failed', err));
+    });
+  }).catch(err => console.error('Could not check last summary date', err));
+}
+// =================== END DAILY SUMMARY EMAIL ===================
+
 document.getElementById('new-person-add').addEventListener('click', () => {
   const nameInput = document.getElementById('new-person-name');
   const emailInput = document.getElementById('new-person-email');
@@ -927,11 +1256,14 @@ function init() {
     // No Firebase configured yet — run locally so the page still works while you set things up.
     TASKS.push(...SEED_TASKS);
     DIRECTORY = { ...SEED_DIRECTORY };
+    PIN_DIRECTORY = { ...SEED_PIN_DIRECTORY };
     rebuildDerivedState();
     populateOwnerSelect();
     renderStats();
     renderAll();
     renderDirectory();
+    renderPinList();
+    attemptAutoLogin();
     const bar = document.getElementById('save-bar');
     if (bar) bar.innerHTML = '<div style="font-size:13px;color:var(--red-fg);font-weight:600">&#9679; Not connected — this copy only saves in this browser tab. Add your Firebase config (see comments at the top of the file) to turn on live sync.</div>';
     return;
@@ -939,6 +1271,15 @@ function init() {
   firebase.initializeApp(firebaseConfig);
   dbRef = firebase.database().ref('faire-punch-list-tasks');
   directoryRef = firebase.database().ref('faire-punch-list-directory');
+  pinDirectoryRef = firebase.database().ref('faire-punch-list-pins');
+  dailySummaryEmailRef = firebase.database().ref('faire-punch-list-daily-summary-email');
+  lastSummaryDateRef = firebase.database().ref('faire-punch-list-last-summary-date');
+
+  dailySummaryEmailRef.on('value', snap => {
+    DAILY_SUMMARY_EMAIL = snap.val() || '';
+    const input = document.getElementById('daily-summary-input');
+    if (input && document.activeElement !== input) input.value = DAILY_SUMMARY_EMAIL;
+  });
 
   directoryRef.on('value', snap => {
     const v = snap.val();
@@ -949,6 +1290,18 @@ function init() {
       try { DIRECTORY = JSON.parse(v); } catch (e) { DIRECTORY = {}; }
     }
     renderDirectory();
+  });
+
+  pinDirectoryRef.on('value', snap => {
+    const v = snap.val();
+    if (!v) {
+      PIN_DIRECTORY = { ...SEED_PIN_DIRECTORY };
+      persistPinDirectory();
+    } else {
+      try { PIN_DIRECTORY = JSON.parse(v); } catch (e) { PIN_DIRECTORY = {}; }
+    }
+    renderPinList();
+    attemptAutoLogin();
   });
 
   dbRef.once('value').then(snapshot => {
@@ -974,15 +1327,23 @@ function init() {
         applyRemoteTasks(remote);
       } catch (e) { /* ignore malformed writes */ }
     });
+    setTimeout(maybeSendDailySummary, 3000); // small delay so directory/config finish loading first
   }).catch(err => {
     console.error('Could not connect to Firebase', err);
     TASKS.push(...SEED_TASKS);
+    PIN_DIRECTORY = { ...SEED_PIN_DIRECTORY };
     rebuildDerivedState();
     populateOwnerSelect();
     renderStats();
     renderAll();
+    renderPinList();
+    attemptAutoLogin();
   });
 }
+
+document.getElementById('photo-lightbox').addEventListener('click', () => {
+  document.getElementById('photo-lightbox').style.display = 'none';
+});
 
 init();
 
