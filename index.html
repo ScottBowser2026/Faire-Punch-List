@@ -212,6 +212,7 @@
   <div class="toolbar">
     <span class="hint">Click a crew to expand its jobs</span>
     <div class="btns">
+      <button class="ui" id="view-all-depts-btn" style="display:none">View all department tasks</button>
       <button class="ui" id="expand-all">Expand all</button>
       <button class="ui" id="collapse-all">Collapse all</button>
     </div>
@@ -449,6 +450,7 @@ const masterBody = document.getElementById('master-body');
 const longRangeEl = document.getElementById('longrange');
 const openDepts = new Set();
 let masterOpen = false;
+let viewAllDepts = false;
 document.getElementById('master-header').addEventListener('click', () => {
   masterOpen = !masterOpen;
   renderAll();
@@ -683,7 +685,9 @@ function deptAvg(dept) {
 
 function renderAll() {
   deptsEl.innerHTML = '';
+  const showOnlyOwnCrews = currentUser && currentUser.role !== 'admin' && !viewAllDepts;
   deptOrder.forEach(dept => {
+    if (showOnlyOwnCrews && !(currentUser.crews || []).includes(dept)) return;
     const items = TASKS.filter(t => t.dept === dept && !t.longRange);
     if (items.length === 0) return;
     const uniqueOwners = [...new Set(items.map(i => i.owner))];
@@ -727,7 +731,7 @@ function renderAll() {
     deptsEl.appendChild(wrap);
   });
 
-  const done = TASKS.filter(t => t.pct >= 100 && !t.longRange).sort((a, b) => a.dept.localeCompare(b.dept) || a.name.localeCompare(b.name));
+  const done = TASKS.filter(t => t.pct >= 100 && !t.longRange && (!showOnlyOwnCrews || (currentUser.crews || []).includes(t.dept))).sort((a, b) => a.dept.localeCompare(b.dept) || a.name.localeCompare(b.name));
   masterBody.innerHTML = '';
   if (done.length === 0) {
     masterBody.innerHTML = '<div class="empty-note">No jobs marked complete yet.</div>';
@@ -746,7 +750,8 @@ function renderAll() {
 const activatingIds = new Set();
 
 function renderLongRange() {
-  const items = TASKS.filter(t => t.longRange).sort((a, b) => a.dept.localeCompare(b.dept) || a.name.localeCompare(b.name));
+  const showOnlyOwnCrews = currentUser && currentUser.role !== 'admin' && !viewAllDepts;
+  const items = TASKS.filter(t => t.longRange && (!showOnlyOwnCrews || (currentUser.crews || []).includes(t.dept))).sort((a, b) => a.dept.localeCompare(b.dept) || a.name.localeCompare(b.name));
   longRangeEl.innerHTML = '';
   if (items.length === 0) {
     longRangeEl.innerHTML = '<div class="empty-note">No long-range projects parked right now.</div>';
@@ -1072,10 +1077,24 @@ function hidePinGate() {
 function applyUserBar() {
   const label = document.getElementById('user-bar-label');
   const pinPanel = document.getElementById('pin-panel');
+  const viewAllBtn = document.getElementById('view-all-depts-btn');
   if (!currentUser) return;
   label.textContent = `Logged in as ${currentUser.name} (${currentUser.role === 'admin' ? 'Admin — full access' : 'Manager — ' + (currentUser.crews || []).join(', ')})`;
   pinPanel.style.display = currentUser.role === 'admin' ? 'block' : 'none';
+  viewAllBtn.style.display = currentUser.role === 'admin' ? 'none' : 'inline-block';
+  updateViewAllBtnLabel();
 }
+
+function updateViewAllBtnLabel() {
+  const btn = document.getElementById('view-all-depts-btn');
+  btn.textContent = viewAllDepts ? 'View my crew only' : 'View all department tasks';
+}
+
+document.getElementById('view-all-depts-btn').addEventListener('click', () => {
+  viewAllDepts = !viewAllDepts;
+  updateViewAllBtnLabel();
+  renderAll();
+});
 
 function tryLogin(pin) {
   const match = PIN_DIRECTORY[pin.trim()];
