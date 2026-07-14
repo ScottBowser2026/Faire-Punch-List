@@ -1041,7 +1041,8 @@ function notifyChange(ownerName, changeText) {
       to_email: ownerEmail,
       to_name: ownerName,
       subject: `Faire Punch List: ${changeText}`,
-      message: `${changeText}\n\nYour current open jobs:\n${openLines}${longRangeSection}`
+      message: `${changeText}\n\nYour current open jobs:\n${openLines}${longRangeSection}`,
+      cc_email: DAILY_SUMMARY_EMAIL || ''
     }).catch(err => console.error('Email to owner failed', err));
   }
 }
@@ -1336,7 +1337,8 @@ document.getElementById('forgot-pin-send').addEventListener('click', () => {
     to_email: email,
     to_name: found.entry.name,
     subject: 'Faire Punch List: your PIN was reset',
-    message: `Your new PIN to log into the Faire Punch List tracker is: ${newPin}\n\nUse it at the login screen. Once you're in, you can change it to something memorable using "Change my PIN" at the top of the page.`
+    message: `Your new PIN to log into the Faire Punch List tracker is: ${newPin}\n\nUse it at the login screen. Once you're in, you can change it to something memorable using "Change my PIN" at the top of the page.`,
+    cc_email: ''
   }).catch(err => console.error('Forgot-pin email failed', err));
   msg.style.color = 'var(--teal-fg)';
   msg.textContent = `A new PIN was emailed to ${found.entry.name}. Check your inbox.`;
@@ -1391,7 +1393,8 @@ function maybeSendDailySummary() {
         to_email: DAILY_SUMMARY_EMAIL,
         to_name: 'Faire 2026',
         subject: `Faire Punch List: Daily Summary — ${new Date().toLocaleDateString()}`,
-        message: buildDailySummaryText()
+        message: buildDailySummaryText(),
+        cc_email: ''
       }).catch(err => console.error('Daily summary send failed', err));
     });
   }).catch(err => console.error('Could not check last summary date', err));
