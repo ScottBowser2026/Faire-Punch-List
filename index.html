@@ -682,9 +682,13 @@ function makeSliderRow(t, showDeptTag) {
     renderStats();
     renderAll();
   });
+  input.addEventListener('change', () => {
+    persistTask(t);
+  });
   const saveProgressBtn = row.querySelector('.mark-btn.save-progress');
   if (saveProgressBtn) {
     saveProgressBtn.addEventListener('click', () => {
+      persistTask(t);
       notifyChange(t.owner, `"${t.name}" updated to ${t.pct}%`);
       flashSaveMsg(`Saved "${t.name}" at ${t.pct}%.`);
     });
@@ -696,6 +700,7 @@ function makeSliderRow(t, showDeptTag) {
   row.querySelector(`.mark-btn.${isDone ? 'reopen' : 'done'}`).addEventListener('click', () => {
     t.pct = isDone ? (t.prevPct ?? 50) : 100;
     if (!isDone) t.prevPct = input.value < 100 ? parseInt(input.value, 10) : 50;
+    persistTask(t);
     renderStats();
     renderAll();
     notifyChange(t.owner, isDone ? `"${t.name}" reopened` : `"${t.name}" marked complete`);
@@ -718,6 +723,7 @@ function makeSliderRow(t, showDeptTag) {
       t.due = newDue;
       editingIds.delete(t.id);
       if (t.dept) openDepts.add(t.dept);
+      persistTask(t);
       populateOwnerSelect();
       renderStats();
       renderAll();
@@ -746,12 +752,14 @@ function makeSliderRow(t, showDeptTag) {
         const idx = TASKS.indexOf(t);
         if (idx > -1) TASKS.splice(idx, 1);
         editingIds.delete(t.id);
+        persistDeleteTask(t.id);
         renderStats();
         renderAll();
         notifyChange(t.owner, `"${t.name}" was deleted`);
         notifyAdmins(`Job deleted by ${currentUser.name}`, `"${t.name}" (${t.dept}, assigned to ${t.owner}) was deleted by ${currentUser.name}.\n\nReason: ${reason}`);
       } else {
         t.pendingDelete = { requestedBy: currentUser.name, reason, requestedAt: new Date().toISOString() };
+        persistTask(t);
         renderStats();
         renderAll();
         notifyAdmins(`Delete approval needed — requested by ${currentUser.name}`, `${currentUser.name} wants to delete "${t.name}" (${t.dept}, assigned to ${t.owner}).\n\nReason: ${reason}\n\nOpen the tracker and use the Approve/Deny buttons on that job to decide.`);
@@ -766,6 +774,7 @@ function makeSliderRow(t, showDeptTag) {
       const reason = t.pendingDelete ? t.pendingDelete.reason : '';
       const idx = TASKS.indexOf(t);
       if (idx > -1) TASKS.splice(idx, 1);
+      persistDeleteTask(t.id);
       renderStats();
       renderAll();
       notifyChange(t.owner, `"${t.name}" was deleted`);
@@ -778,6 +787,7 @@ function makeSliderRow(t, showDeptTag) {
     deleteDenyBtn.addEventListener('click', () => {
       const requester = t.pendingDelete ? t.pendingDelete.requestedBy : null;
       delete t.pendingDelete;
+      persistTask(t);
       renderStats();
       renderAll();
       if (requester) notifyChange(requester, `Your delete request for "${t.name}" was denied`);
@@ -790,12 +800,14 @@ function makeSliderRow(t, showDeptTag) {
         if (!confirm(`Park "${t.name}" as a long-range project? It'll move out of the active list until it's made active again.`)) return;
         t.longRange = true;
         editingIds.delete(t.id);
+        persistTask(t);
         renderStats();
         renderAll();
         notifyChange(t.owner, `"${t.name}" was parked as a long-range project`);
       } else {
         if (!confirm(`Ask admin to park "${t.name}" as a long-range project?`)) return;
         t.pendingPark = { requestedBy: currentUser.name, requestedAt: new Date().toISOString() };
+        persistTask(t);
         renderStats();
         renderAll();
         notifyAdmins(`Park approval needed — requested by ${currentUser.name}`, `${currentUser.name} wants to park "${t.name}" (${t.dept}, assigned to ${t.owner}) as long-range.\n\nOpen the tracker and use the Approve/Deny buttons on that job to decide.`);
@@ -809,6 +821,7 @@ function makeSliderRow(t, showDeptTag) {
       delete t.pendingPark;
       t.longRange = true;
       editingIds.delete(t.id);
+      persistTask(t);
       renderStats();
       renderAll();
       notifyChange(t.owner, `"${t.name}" was parked as a long-range project`);
@@ -820,6 +833,7 @@ function makeSliderRow(t, showDeptTag) {
     parkDenyBtn.addEventListener('click', () => {
       const requester = t.pendingPark ? t.pendingPark.requestedBy : null;
       delete t.pendingPark;
+      persistTask(t);
       renderStats();
       renderAll();
       if (requester) notifyChange(requester, `Your request to park "${t.name}" was denied`);
@@ -895,7 +909,6 @@ function renderAll() {
   renderLongRange();
   renderTeamList();
   renderRenameSelect();
-  persist();
 }
 
 const activatingIds = new Set();
@@ -958,6 +971,7 @@ function renderLongRange() {
         const idx = TASKS.indexOf(t);
         if (idx > -1) TASKS.splice(idx, 1);
         activatingIds.delete(t.id);
+        persistDeleteTask(t.id);
         renderStats();
         renderAll();
         notifyChange(t.owner, `Long-range job "${t.name}" was deleted`);
@@ -982,6 +996,7 @@ function renderLongRange() {
           t.due = newDue;
           t.longRange = false;
           activatingIds.delete(t.id);
+          persistTask(t);
           if (!deptOrder.includes(t.dept)) deptOrder.push(t.dept);
           openDepts.add(t.dept);
           renderStats();
@@ -1076,7 +1091,9 @@ document.getElementById('add-job-btn').addEventListener('click', () => {
   const start = document.getElementById('new-job-start').value || null;
   const due = document.getElementById('new-job-due').value || null;
   const longRange = document.getElementById('new-job-longrange').checked;
-  TASKS.push({ id: nextId++, dept, owner, name: jobName, status: 'next', pct: 0, start, due, longRange });
+  const newTask = { id: nextId++, dept, owner, name: jobName, status: 'next', pct: 0, start, due, longRange };
+  TASKS.push(newTask);
+  persistTask(newTask);
   if (isNewDept && !longRange) deptOrder.push(dept);
   if (!longRange) openDepts.add(dept);
   document.getElementById('new-job-name').value = '';
@@ -1118,9 +1135,27 @@ function rebuildDerivedState() {
   nextId = Math.max(0, ...TASKS.map(t => t.id)) + 1;
 }
 
-function persist() {
+function sanitizeTask(t) {
+  // Firebase rejects `undefined` values — strip them via a JSON round-trip.
+  return JSON.parse(JSON.stringify(t));
+}
+
+function persistTask(t) {
   if (applyingRemote || !dbRef) return;
-  dbRef.set(JSON.stringify(TASKS)).catch(err => console.error('Save failed', err));
+  dbRef.child(String(t.id)).set(sanitizeTask(t)).catch(err => console.error('Save failed', err));
+}
+
+function persistDeleteTask(id) {
+  if (applyingRemote || !dbRef) return;
+  dbRef.child(String(id)).remove().catch(err => console.error('Delete failed', err));
+}
+
+function persistAllTasksBulk() {
+  // Only for explicit full-replace actions (e.g. restoring a backup) — not for routine edits.
+  if (applyingRemote || !dbRef) return;
+  const obj = {};
+  TASKS.forEach(t => { obj[String(t.id)] = sanitizeTask(t); });
+  dbRef.set(obj).catch(err => console.error('Bulk save failed', err));
 }
 
 function persistDirectory() {
@@ -1236,7 +1271,7 @@ function renderTeamList() {
         return;
       }
       const openJobs = TASKS.filter(t => t.owner === name && !t.longRange && t.pct < 100);
-      openJobs.forEach(t => { t.longRange = true; });
+      openJobs.forEach(t => { t.longRange = true; persistTask(t); });
       delete DIRECTORY[name];
       if (existingPin) delete PIN_DIRECTORY[existingPin];
       persistDirectory();
@@ -1407,7 +1442,7 @@ document.getElementById('rename-person-btn').addEventListener('click', () => {
     return;
   }
   let jobsUpdated = 0;
-  TASKS.forEach(t => { if (t.owner === fromName) { t.owner = toName; jobsUpdated++; } });
+  TASKS.forEach(t => { if (t.owner === fromName) { t.owner = toName; jobsUpdated++; persistTask(t); } });
   if (DIRECTORY[fromName]) {
     DIRECTORY[toName] = DIRECTORY[fromName];
     delete DIRECTORY[fromName];
@@ -1730,13 +1765,21 @@ function init() {
 
   dbRef.once('value').then(snapshot => {
     const val = snapshot.val();
-    let loaded = null;
-    try { loaded = val ? JSON.parse(val) : null; } catch (e) { loaded = null; }
-    if (Array.isArray(loaded) && loaded.length) {
-      TASKS.push(...loaded);
+    if (typeof val === 'string') {
+      // Old format from before this update: one JSON blob. Migrate it, don't discard it.
+      let oldArray = null;
+      try { oldArray = JSON.parse(val); } catch (e) { oldArray = null; }
+      if (Array.isArray(oldArray) && oldArray.length) {
+        TASKS.push(...oldArray);
+      } else {
+        TASKS.push(...SEED_TASKS);
+      }
+      persistAllTasksBulk(); // rewrite in the new per-task format
+    } else if (val && typeof val === 'object') {
+      TASKS.push(...Object.values(val));
     } else {
       TASKS.push(...SEED_TASKS);
-      persist();
+      persistAllTasksBulk();
     }
     rebuildDerivedState();
     populateOwnerSelect();
@@ -1746,10 +1789,8 @@ function init() {
     dbRef.on('value', (snap) => {
       const v = snap.val();
       if (!v) return;
-      try {
-        const remote = JSON.parse(v);
-        applyRemoteTasks(remote);
-      } catch (e) { /* ignore malformed writes */ }
+      if (typeof v === 'string') { try { applyRemoteTasks(JSON.parse(v)); } catch (e) {} return; }
+      applyRemoteTasks(Object.values(v));
     });
     setTimeout(maybeSendDailySummary, 3000); // small delay so directory/config finish loading first
   }).catch(err => {
@@ -1802,7 +1843,7 @@ document.getElementById('refresh-now-btn').addEventListener('click', async () =>
     const snapshot = await dbRef.once('value');
     const val = snapshot.val();
     if (val) {
-      const remote = JSON.parse(val);
+      const remote = typeof val === 'string' ? JSON.parse(val) : Object.values(val);
       applyingRemote = true;
       TASKS.length = 0;
       TASKS.push(...remote);
@@ -1840,6 +1881,7 @@ document.getElementById('load-progress-input').addEventListener('change', (e) =>
       populateOwnerSelect();
       renderStats();
       renderAll();
+      persistAllTasksBulk();
       flashSaveMsg('Loaded — your saved progress is back.');
     } catch (err) {
       flashSaveMsg("Couldn't read that file. Make sure it's a progress file saved from this tracker.", true);
