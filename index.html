@@ -179,7 +179,7 @@
   <div class="pin-card">
     <h2>Faire Punch List</h2>
     <p>Enter your PIN to continue</p>
-    <input type="password" id="pin-input" inputmode="numeric" maxlength="6" placeholder="&bull;&bull;&bull;&bull;" />
+    <input type="password" id="pin-input" inputmode="numeric" maxlength="4" placeholder="&bull;&bull;&bull;&bull;" />
     <button id="pin-submit">Enter</button>
     <div id="pin-error"></div>
     <div style="margin-top:14px">
@@ -204,7 +204,7 @@
   </div>
   <div id="change-pin-row" style="display:none;margin:-4px 0 12px;gap:8px;flex-wrap:wrap;align-items:center;background:var(--surface-1);border-radius:10px;padding:10px 14px">
     <span style="font-size:13px;color:var(--text-secondary)">New PIN:</span>
-    <input type="text" id="change-pin-input" inputmode="numeric" maxlength="6" placeholder="4-6 digits" style="width:110px;font-size:13px;padding:6px 9px;border-radius:7px;border:1px solid var(--border)" />
+    <input type="text" id="change-pin-input" inputmode="numeric" maxlength="4" placeholder="4 digits" style="width:110px;font-size:13px;padding:6px 9px;border-radius:7px;border:1px solid var(--border)" />
     <button class="ui" id="change-pin-save">Save new PIN</button>
     <span class="hint-small" id="change-pin-msg"></span>
   </div>
@@ -259,7 +259,7 @@
           <input type="text" id="np-email" placeholder="Email address" style="flex:1;min-width:180px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
-          <input type="text" id="np-pin" placeholder="Temporary PIN (leave blank to auto-generate)" inputmode="numeric" style="flex:1;min-width:160px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
+          <input type="text" id="np-pin" placeholder="Temporary PIN, 4 digits (leave blank to auto-generate)" inputmode="numeric" style="flex:1;min-width:160px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
           <input type="text" id="np-dept" placeholder="Department / crew" style="flex:1;min-width:160px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
         </div>
         <button class="ui" id="np-add" style="width:100%;font-weight:600">Add person &amp; email their temporary PIN</button>
@@ -1146,7 +1146,7 @@ function renderTeamList() {
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <span style="font-size:11px;color:var(--text-muted);min-width:140px">${existingPin ? `PIN: ${existingPin}` : 'No PIN yet'}</span>
-        <input type="text" class="tm-pin" placeholder="PIN (4-6 digits)" inputmode="numeric" value="${existingPin || ''}" style="width:110px;font-size:12px;padding:5px 8px;border-radius:7px;border:1px solid var(--border)" ${isAdmin ? 'disabled' : ''} />
+        <input type="text" class="tm-pin" placeholder="PIN (4 digits)" inputmode="numeric" value="${existingPin || ''}" style="width:110px;font-size:12px;padding:5px 8px;border-radius:7px;border:1px solid var(--border)" ${isAdmin ? 'disabled' : ''} />
         <input type="text" class="tm-crews" placeholder="Crews (comma separated)" value="${pinEntry ? (pinEntry.crews || []).join(', ') : ''}" style="flex:1;min-width:160px;font-size:12px;padding:5px 8px;border-radius:7px;border:1px solid var(--border)" ${isAdmin ? 'disabled' : ''} />
         <button class="ui tm-save-pin" style="font-size:12px;padding:5px 10px" ${isAdmin ? 'disabled title="Use Change my PIN while logged in as this admin"' : ''}>${existingPin ? 'Update' : 'Assign PIN'}</button>
       </div>
@@ -1179,8 +1179,8 @@ function renderTeamList() {
       pinBtn.addEventListener('click', () => {
         const newPin = row.querySelector('.tm-pin').value.trim();
         const crews = row.querySelector('.tm-crews').value.split(',').map(s => s.trim()).filter(Boolean);
-        if (!/^\d{4,6}$/.test(newPin)) {
-          flashSaveMsg('PIN must be 4-6 digits.', true);
+        if (!/^\d{4}$/.test(newPin)) {
+          flashSaveMsg('PIN must be 4 digits.', true);
           return;
         }
         if (PIN_DIRECTORY[newPin] && PIN_DIRECTORY[newPin].name !== name) {
@@ -1385,9 +1385,9 @@ document.getElementById('change-pin-save').addEventListener('click', () => {
   const msg = document.getElementById('change-pin-msg');
   const newPin = document.getElementById('change-pin-input').value.trim();
   if (!currentUser) return;
-  if (!/^\d{4,6}$/.test(newPin)) {
+  if (!/^\d{4}$/.test(newPin)) {
     msg.style.color = 'var(--red-fg)';
-    msg.textContent = 'PIN must be 4-6 digits.';
+    msg.textContent = 'PIN must be 4 digits.';
     return;
   }
   if (PIN_DIRECTORY[newPin]) {
@@ -1537,9 +1537,9 @@ document.getElementById('np-add').addEventListener('click', () => {
     msg.textContent = 'Name, email, and department are all required.';
     return;
   }
-  if (pin && !/^\d{4,6}$/.test(pin)) {
+  if (pin && !/^\d{4}$/.test(pin)) {
     msg.style.color = 'var(--red-fg)';
-    msg.textContent = 'PIN must be 4-6 digits, or leave it blank to auto-generate one.';
+    msg.textContent = 'PIN must be 4 digits, or leave it blank to auto-generate one.';
     return;
   }
   if (pin && PIN_DIRECTORY[pin]) {
