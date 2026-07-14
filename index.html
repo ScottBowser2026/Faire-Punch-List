@@ -1203,7 +1203,8 @@ function renderTeamList() {
   if (!list) return;
   list.innerHTML = '';
   names.forEach(name => {
-    const existingPin = Object.keys(PIN_DIRECTORY).find(p => PIN_DIRECTORY[p].name === name);
+    const matchingPins = Object.keys(PIN_DIRECTORY).filter(p => PIN_DIRECTORY[p].name === name);
+    const existingPin = matchingPins.find(p => PIN_DIRECTORY[p].role === 'admin') || matchingPins[0];
     const pinEntry = existingPin ? PIN_DIRECTORY[existingPin] : null;
     const isAdmin = pinEntry && pinEntry.role === 'admin';
     const row = document.createElement('div');
@@ -1606,6 +1607,11 @@ document.getElementById('np-add').addEventListener('click', () => {
   if (!name || !email || !dept) {
     msg.style.color = 'var(--red-fg)';
     msg.textContent = 'Name, email, and department are all required.';
+    return;
+  }
+  if (Object.values(PIN_DIRECTORY).some(e => e.name === name && e.role === 'admin')) {
+    msg.style.color = 'var(--red-fg)';
+    msg.textContent = `${name} is already an admin with full access to everything — no need to add them here. If you just want to save their email, do that from their row in the "Everyone" list below instead.`;
     return;
   }
   if (pin && !/^\d{4}$/.test(pin)) {
