@@ -464,6 +464,7 @@ const emailjsConfig = {
   serviceId: "service_yutnnpk",
   templateId: "template_d39wd5a"
 };
+const TRACKER_URL = "https://scottbowser2026.github.io/Faire-Punch-List/";
 </script>
 
 <script>
@@ -1061,30 +1062,66 @@ function notifyChange(ownerName, changeText) {
       to_email: ownerEmail,
       to_name: ownerName,
       subject: `Faire Punch List: ${changeText}`,
-      message: `${changeText}\n\nYour current open jobs:\n${openLines}${longRangeSection}`,
+      message: `${changeText}\n\nYour current open jobs:\n${openLines}${longRangeSection}\n\nOpen the tracker: ${TRACKER_URL}`,
       cc_email: DAILY_SUMMARY_EMAIL || ''
     }).catch(err => console.error('Email to owner failed', err));
   }
 }
 
 function renderDirectory() {
-  const owners = [...new Set(TASKS.map(t => t.owner))].sort((a, b) => a.localeCompare(b));
+  const owners = [...new Set([...TASKS.map(t => t.owner), ...Object.keys(DIRECTORY)])].sort((a, b) => a.localeCompare(b));
   const list = document.getElementById('directory-list');
   if (!list) return;
   list.innerHTML = '';
   owners.forEach(owner => {
+    const existingPin = Object.keys(PIN_DIRECTORY).find(p => PIN_DIRECTORY[p].name === owner);
     const row = document.createElement('div');
-    row.style.cssText = 'display:flex;gap:8px;align-items:center;padding:6px 0;flex-wrap:wrap';
+    row.style.cssText = 'display:flex;gap:8px;align-items:center;padding:8px 0;flex-wrap:wrap;border-top:1px solid var(--border)';
     row.innerHTML = `
       <span style="font-size:13px;min-width:150px">${owner}</span>
       <input type="text" class="dir-email" placeholder="email address" value="${DIRECTORY[owner] || ''}" style="flex:1;min-width:200px;font-size:13px;padding:6px 9px;border-radius:7px;border:1px solid var(--border)" />
       <button class="ui dir-save" style="font-size:12px;padding:5px 10px">Save</button>
+      <button class="ui dir-delete" style="font-size:12px;padding:5px 10px;border-color:var(--red-fg);color:var(--red-fg)">Delete</button>
+      <div style="flex-basis:100%;display:flex;gap:8px;align-items:center;margin-top:4px">
+        <span style="font-size:11px;color:var(--text-muted);min-width:150px">${existingPin ? `PIN: ${existingPin}` : 'No PIN yet'}</span>
+        <input type="text" class="dir-pin" placeholder="PIN (4-6 digits)" inputmode="numeric" value="${existingPin || ''}" style="width:130px;font-size:12px;padding:5px 8px;border-radius:7px;border:1px solid var(--border)" />
+        <button class="ui dir-assign-pin" style="font-size:12px;padding:5px 10px">${existingPin ? 'Update PIN' : 'Assign PIN'}</button>
+      </div>
     `;
     row.querySelector('.dir-save').addEventListener('click', () => {
       const val = row.querySelector('.dir-email').value.trim();
       if (val) DIRECTORY[owner] = val; else delete DIRECTORY[owner];
       persistDirectory();
       flashSaveMsg(`Saved email for ${owner}.`);
+    });
+    row.querySelector('.dir-delete').addEventListener('click', () => {
+      if (!confirm(`Remove ${owner} from the directory? This won't delete their jobs, just their saved email and notifications.`)) return;
+      delete DIRECTORY[owner];
+      persistDirectory();
+      renderDirectory();
+      flashSaveMsg(`Removed ${owner} from the directory.`);
+    });
+    row.querySelector('.dir-assign-pin').addEventListener('click', () => {
+      const newPin = row.querySelector('.dir-pin').value.trim();
+      if (!/^\d{4,6}$/.test(newPin)) {
+        flashSaveMsg('PIN must be 4-6 digits.', true);
+        return;
+      }
+      if (PIN_DIRECTORY[newPin] && PIN_DIRECTORY[newPin].name !== owner) {
+        flashSaveMsg('That PIN is already assigned to someone else.', true);
+        return;
+      }
+      if (PIN_DIRECTORY[newPin] && PIN_DIRECTORY[newPin].role === 'admin') {
+        flashSaveMsg("That PIN belongs to an admin account — can't reassign it here.", true);
+        return;
+      }
+      if (existingPin && existingPin !== newPin) delete PIN_DIRECTORY[existingPin];
+      const crews = (existingPin && PIN_DIRECTORY[existingPin]) ? PIN_DIRECTORY[existingPin].crews : [];
+      PIN_DIRECTORY[newPin] = { name: owner, role: 'manager', crews: crews || [] };
+      persistPinDirectory();
+      renderPinList();
+      renderDirectory();
+      flashSaveMsg(`PIN ${newPin} assigned to ${owner}. Set their crew(s) in the list below if not already set.`);
     });
     list.appendChild(row);
   });
@@ -1215,13 +1252,20 @@ function renderPinList() {
       <button class="ui pin-delete" style="font-size:12px;padding:5px 10px;border-color:var(--red-fg);color:var(--red-fg)">Remove</button>
     `;
     row.querySelector('.pin-delete').addEventListener('click', () => {
+      const openJobs = TASKS.filter(t => t.owner === entry.name && !t.longRange && t.pct < 100);
       const warning = entry.role === 'admin'
         ? `${entry.name} is an ADMIN. Removing this will remove their admin access — are you sure? (There's a recovery PIN as a backup, but this isn't reversible from here.)`
-        : `Remove PIN access for ${entry.name}?`;
+        : `Remove PIN access for ${entry.name}?${openJobs.length ? ` Their ${openJobs.length} open job${openJobs.length === 1 ? '' : 's'} will be parked as long-range so nothing gets lost.` : ''}`;
       if (!confirm(warning)) return;
       delete PIN_DIRECTORY[pin];
       persistPinDirectory();
+      if (openJobs.length) {
+        openJobs.forEach(t => { t.longRange = true; });
+        renderStats();
+        renderAll();
+      }
       renderPinList();
+      if (openJobs.length) flashSaveMsg(`Removed ${entry.name} and parked ${openJobs.length} job${openJobs.length === 1 ? '' : 's'} of theirs as long-range.`);
     });
     list.appendChild(row);
   });
@@ -1415,7 +1459,7 @@ document.getElementById('forgot-pin-send').addEventListener('click', () => {
     to_email: email,
     to_name: found.entry.name,
     subject: 'Faire Punch List: your PIN was reset',
-    message: `Your new PIN to log into the Faire Punch List tracker is: ${newPin}\n\nUse it at the login screen. Once you're in, you can change it to something memorable using "Change my PIN" at the top of the page.`,
+    message: `Your new PIN to log into the Faire Punch List tracker is: ${newPin}\n\nUse it at the login screen. Once you're in, you can change it to something memorable using "Change my PIN" at the top of the page.\n\nOpen the tracker: ${TRACKER_URL}`,
     cc_email: ''
   }).catch(err => console.error('Forgot-pin email failed', err));
   msg.style.color = 'var(--teal-fg)';
@@ -1457,6 +1501,7 @@ function buildDailySummaryText() {
     lines.push('', `OVERDUE (${overdue.length}):`);
     overdue.forEach(t => lines.push(`- ${t.name} (${t.dept}, due ${t.due})`));
   }
+  lines.push('', `Open the tracker: ${TRACKER_URL}`);
   return lines.join('\n');
 }
 
