@@ -127,7 +127,7 @@
     cursor: pointer; font-weight: 500;
   }
   button.add-btn:hover { background: var(--blue-bar); color: #fff; }
-  #add-job .hint-small { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+  .hint-small { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
   footer { text-align: center; font-size: 12px; color: var(--text-muted); margin-top: 24px; }
   #pin-gate {
     position: fixed; inset: 0; background: var(--bg); z-index: 1000;
@@ -514,7 +514,7 @@ function photoGalleryHtml(task, editable) {
     </div>`).join('')}</div>`;
 }
 
-async function uploadPhotos(task, files) {
+async function uploadPhotos(task, files, changeText) {
   if (!window.firebase || !firebase.storage) {
     alert("Photo storage isn't connected yet.");
     return;
@@ -534,10 +534,12 @@ async function uploadPhotos(task, files) {
       console.error('Photo upload failed', err);
     }
   }
+  if (newUrls.length) persistTask(task);
   renderStats();
   renderAll();
   if (newUrls.length) {
-    notifyChange(task.owner, `${newUrls.length} photo${newUrls.length === 1 ? '' : 's'} added to "${task.name}"`, newUrls);
+    const text = changeText || `${newUrls.length} photo${newUrls.length === 1 ? '' : 's'} added to "${task.name}"`;
+    notifyChange(task.owner, text, newUrls);
   }
 }
 
@@ -547,6 +549,8 @@ function deletePhoto(task, photo) {
     firebase.storage().ref().child(photo.path).delete().catch(() => {});
   }
   task.photos = (task.photos || []).filter(p => p.url !== photo.url);
+  persistTask(task);
+  renderStats();
   renderAll();
 }
 
@@ -581,7 +585,10 @@ function makeSliderRow(t, showDeptTag) {
       <span class="pct-out">${t.pct}%</span>
     </div>
     ${photoGalleryHtml(t, editable)}
-    ${editable ? `<div class="photo-upload-row"><input type="file" class="photo-input" accept="image/*" multiple /></div>` : ''}
+    ${editable ? `<div class="photo-upload-row"><input type="file" class="photo-input" accept="image/*" multiple /></div>
+    <div class="photo-upload-row"><input type="text" class="progress-note" placeholder="Or add a quick note instead of a photo..." style="flex:1;font-size:13px;padding:6px 9px;border-radius:7px;border:1px solid var(--border)" /></div>
+    <div class="hint-small">Attach a photo or add a note, then hit Save or press Enter</div>
+    <div class="hint-small save-progress-msg"></div>` : ''}
     ${t.pendingDelete ? `<div class="hint-small" style="color:var(--red-fg);font-weight:600;padding:6px 0">&#9203; Delete requested by ${t.pendingDelete.requestedBy}: "${t.pendingDelete.reason}"${currentUser && currentUser.role === 'admin' ? '' : ' — waiting on admin approval'}</div>` : ''}
     ${t.pendingPark ? `<div class="hint-small" style="color:var(--gray-fg);font-weight:600;padding:6px 0">&#9203; Park (long-range) requested by ${t.pendingPark.requestedBy}${currentUser && currentUser.role === 'admin' ? '' : ' — waiting on admin approval'}</div>` : ''}
     ${editable ? `
@@ -665,10 +672,51 @@ function makeSliderRow(t, showDeptTag) {
     });
   });
   const photoInput = row.querySelector('.photo-input');
+  const saveMsgEl = row.querySelector('.save-progress-msg');
+  const noteInput = row.querySelector('.progress-note');
+  async function doSaveProgress() {
+    const hasPhoto = photoInput && photoInput.files && photoInput.files.length > 0;
+    const noteText = noteInput ? noteInput.value.trim() : '';
+    const hasNote = noteText.length > 0;
+    if (!hasPhoto && !hasNote) {
+      if (saveMsgEl) {
+        saveMsgEl.style.color = 'var(--red-fg)';
+        saveMsgEl.textContent = 'Attach a photo or add a note before saving this update.';
+      }
+      return;
+    }
+    const baseText = `"${t.name}" updated to ${t.pct}%`;
+    const changeText = hasNote ? `${baseText} — ${noteText}` : baseText;
+    if (hasPhoto) {
+      if (saveMsgEl) {
+        saveMsgEl.style.color = 'var(--text-muted)';
+        saveMsgEl.textContent = 'Uploading photo...';
+      }
+      const files = Array.from(photoInput.files);
+      await uploadPhotos(t, files, changeText);
+      photoInput.value = '';
+    } else {
+      persistTask(t);
+      notifyChange(t.owner, changeText);
+      renderStats();
+      renderAll();
+    }
+    if (noteInput) noteInput.value = '';
+    flashSaveMsg(`Saved "${t.name}" at ${t.pct}%${hasPhoto ? ' with photo' : ' with note'}.`);
+  }
   if (photoInput) {
-    photoInput.addEventListener('change', async () => {
-      if (photoInput.files.length) {
-        await uploadPhotos(t, Array.from(photoInput.files));
+    photoInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        doSaveProgress();
+      }
+    });
+  }
+  if (noteInput) {
+    noteInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        doSaveProgress();
       }
     });
   }
@@ -682,15 +730,10 @@ function makeSliderRow(t, showDeptTag) {
     renderStats();
     renderAll();
   });
-  input.addEventListener('change', () => {
-    persistTask(t);
-  });
   const saveProgressBtn = row.querySelector('.mark-btn.save-progress');
   if (saveProgressBtn) {
     saveProgressBtn.addEventListener('click', () => {
-      persistTask(t);
-      notifyChange(t.owner, `"${t.name}" updated to ${t.pct}%`);
-      flashSaveMsg(`Saved "${t.name}" at ${t.pct}%.`);
+      doSaveProgress();
     });
   }
   row.querySelector('.mark-btn.edit').addEventListener('click', () => {
