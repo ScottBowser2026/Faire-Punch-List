@@ -1653,7 +1653,6 @@ function applyRemoteTasks(remote) {
   const remoteStr = JSON.stringify(remote);
   const localStr = JSON.stringify(TASKS);
   if (remoteStr === localStr) return;
-  if (editingIds.size || activatingIds.size) return; // don't clobber someone mid-edit
   applyingRemote = true;
   TASKS.length = 0;
   TASKS.push(...remote);
