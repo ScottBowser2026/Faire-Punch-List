@@ -284,6 +284,15 @@
         </div>
         <div class="hint-small">Fires the first time anyone opens this page after midnight — not at a fixed clock time, since this page has no server running in the background.</div>
       </div>
+      <div style="padding:10px 0;border-bottom:1px solid var(--border);margin-bottom:10px">
+        <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px">Rename a person (updates every job, their email, and their PIN entry at once)</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <select id="rename-from-select" style="flex:1;min-width:180px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)"></select>
+          <input type="text" id="rename-to-input" placeholder="New name" style="flex:1;min-width:150px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
+          <button class="ui" id="rename-person-btn">Rename everywhere</button>
+        </div>
+        <div class="hint-small" id="rename-msg"></div>
+      </div>
       <div style="padding:10px 0">
         <div id="pin-list"></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px dashed var(--border)">
@@ -781,6 +790,7 @@ function renderAll() {
 
   renderLongRange();
   renderDirectory();
+  renderRenameSelect();
   persist();
 }
 
@@ -898,6 +908,7 @@ let nextId = 1;
 function ownerToDept() {
   const map = {};
   TASKS.forEach(t => { if (!map[t.owner]) map[t.owner] = t.dept; });
+  Object.keys(DIRECTORY).forEach(name => { if (!(name in map)) map[name] = ''; });
   return map;
 }
 
@@ -908,7 +919,7 @@ function populateOwnerSelect() {
   owners.forEach(o => {
     const opt = document.createElement('option');
     opt.value = o;
-    opt.textContent = `${o} (${map[o]})`;
+    opt.textContent = map[o] ? `${o} (${map[o]})` : `${o} (no crew set yet)`;
     ownerSelect.appendChild(opt);
   });
   const newOpt = document.createElement('option');
@@ -919,8 +930,10 @@ function populateOwnerSelect() {
 
 ownerSelect.addEventListener('change', () => {
   const isNew = ownerSelect.value === '__new__';
+  const map = ownerToDept();
+  const needsCrew = !isNew && ownerSelect.value && !map[ownerSelect.value];
   newOwnerField.style.display = isNew ? 'block' : 'none';
-  newCrewField.style.display = isNew ? 'block' : 'none';
+  newCrewField.style.display = (isNew || needsCrew) ? 'block' : 'none';
 });
 
 document.getElementById('add-job-btn').addEventListener('click', () => {
@@ -942,6 +955,13 @@ document.getElementById('add-job-btn').addEventListener('click', () => {
   } else {
     owner = ownerSelect.value;
     dept = map[owner];
+    if (!dept) {
+      dept = document.getElementById('new-crew-name').value.trim();
+      if (!dept) {
+        addMsg.textContent = `${owner} doesn't have a crew set yet — enter one in the "Crew / area" field that just appeared.`;
+        return;
+      }
+    }
   }
   const isNewDept = !deptOrder.includes(dept);
   const start = document.getElementById('new-job-start').value || null;
@@ -1236,6 +1256,64 @@ document.getElementById('new-pin-add').addEventListener('click', () => {
   document.getElementById('new-pin-crews').value = '';
   msg.style.color = 'var(--teal-fg)';
   msg.textContent = `Saved PIN for ${name}.`;
+});
+
+function renderRenameSelect() {
+  const select = document.getElementById('rename-from-select');
+  if (!select) return;
+  const names = [...new Set([...TASKS.map(t => t.owner), ...Object.keys(DIRECTORY)])].sort((a, b) => a.localeCompare(b));
+  const current = select.value;
+  select.innerHTML = '';
+  names.forEach(n => {
+    const opt = document.createElement('option');
+    opt.value = n;
+    opt.textContent = n;
+    select.appendChild(opt);
+  });
+  if (names.includes(current)) select.value = current;
+}
+
+document.getElementById('rename-person-btn').addEventListener('click', () => {
+  const fromName = document.getElementById('rename-from-select').value;
+  const toName = document.getElementById('rename-to-input').value.trim();
+  const msg = document.getElementById('rename-msg');
+  if (!fromName || !toName) {
+    msg.style.color = 'var(--red-fg)';
+    msg.textContent = 'Pick who to rename and enter the new name.';
+    return;
+  }
+  if (fromName === toName) {
+    msg.style.color = 'var(--red-fg)';
+    msg.textContent = 'New name is the same as the current one.';
+    return;
+  }
+  let jobsUpdated = 0;
+  TASKS.forEach(t => { if (t.owner === fromName) { t.owner = toName; jobsUpdated++; } });
+  if (DIRECTORY[fromName]) {
+    DIRECTORY[toName] = DIRECTORY[fromName];
+    delete DIRECTORY[fromName];
+    persistDirectory();
+  }
+  let pinUpdated = false;
+  Object.keys(PIN_DIRECTORY).forEach(pin => {
+    if (PIN_DIRECTORY[pin].name === fromName) {
+      PIN_DIRECTORY[pin].name = toName;
+      pinUpdated = true;
+    }
+  });
+  if (pinUpdated) persistPinDirectory();
+  if (currentUser && currentUser.name === fromName) currentUser.name = toName;
+  rebuildDerivedState();
+  populateOwnerSelect();
+  renderStats();
+  renderAll();
+  renderDirectory();
+  renderPinList();
+  renderRenameSelect();
+  applyUserBar();
+  document.getElementById('rename-to-input').value = '';
+  msg.style.color = 'var(--teal-fg)';
+  msg.textContent = `Renamed "${fromName}" to "${toName}" across ${jobsUpdated} job${jobsUpdated === 1 ? '' : 's'}${DIRECTORY[toName] ? ', their email' : ''}${pinUpdated ? ', and their PIN' : ''}.`;
 });
 function attemptAutoLogin() {
   if (currentUser) return; // already logged in this session
