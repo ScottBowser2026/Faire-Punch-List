@@ -519,6 +519,7 @@ async function uploadPhotos(task, files) {
     return;
   }
   const storageRef = firebase.storage().ref();
+  const newUrls = [];
   for (const file of files) {
     try {
       const path = `punch-list-photos/${task.id}/${Date.now()}_${file.name}`;
@@ -527,12 +528,16 @@ async function uploadPhotos(task, files) {
       const url = await ref.getDownloadURL();
       if (!task.photos) task.photos = [];
       task.photos.push({ url, path });
+      newUrls.push(url);
     } catch (err) {
       console.error('Photo upload failed', err);
     }
   }
   renderStats();
   renderAll();
+  if (newUrls.length) {
+    notifyChange(task.owner, `${newUrls.length} photo${newUrls.length === 1 ? '' : 's'} added to "${task.name}"`, newUrls);
+  }
 }
 
 function deletePhoto(task, photo) {
@@ -1017,7 +1022,7 @@ function findDirectoryEmail(ownerName) {
   return key ? DIRECTORY[key] : null;
 }
 
-function notifyChange(ownerName, changeText) {
+function notifyChange(ownerName, changeText, photoUrls) {
   if (!emailReady()) return;
   const ownerEmail = findDirectoryEmail(ownerName);
   if (ownerEmail) {
@@ -1040,12 +1045,15 @@ function notifyChange(ownerName, changeText) {
     const longRangeSection = longRangeJobs.length
       ? `\n\nYour long-range (not yet scheduled) projects:\n${longRangeJobs.map(formatLine).join('\n')}`
       : '';
+    const photoHtml = (photoUrls && photoUrls.length)
+      ? `\n\n${photoUrls.map(url => `<img src="${url}" style="max-width:220px;border-radius:8px;margin:6px 6px 0 0;display:inline-block" />`).join('')}`
+      : '';
 
     emailjs.send(emailjsConfig.serviceId, emailjsConfig.templateId, {
       to_email: ownerEmail,
       to_name: ownerName,
       subject: `Faire Punch List: ${changeText}`,
-      message: `${changeText}\n\nYour current open jobs:\n${openLines}${longRangeSection}\n\nOpen the tracker: ${TRACKER_URL}`,
+      message: `${changeText}${photoHtml}\n\nYour current open jobs:\n${openLines}${longRangeSection}\n\nOpen the tracker: ${TRACKER_URL}`,
       cc_email: DAILY_SUMMARY_EMAIL || ''
     }).catch(err => console.error('Email to owner failed', err));
   }
