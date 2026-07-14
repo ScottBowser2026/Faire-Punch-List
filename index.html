@@ -1479,6 +1479,7 @@ document.getElementById('np-add').addEventListener('click', () => {
   persistPinDirectory();
   renderTeamList();
   renderRenameSelect();
+  populateOwnerSelect();
   if (emailReady()) {
     emailjs.send(emailjsConfig.serviceId, emailjsConfig.templateId, {
       to_email: email,
