@@ -241,48 +241,37 @@
     </div>
   </div>
 
-  <div id="email-panel" class="dept" style="margin-bottom:16px;display:none">
-    <button class="dept-header" id="email-header">
+  <div id="team-panel" class="dept" style="margin-bottom:16px;display:none">
+    <button class="dept-header" id="team-header">
       <div class="left">
-        <span class="chev" id="email-chev">&#9656;</span>
+        <span class="chev" id="team-chev">&#9656;</span>
         <div>
-          <div class="dept-name">Email notifications</div>
-          <div class="dept-owner" id="email-subtitle">Set up who gets emailed automatically</div>
+          <div class="dept-name">Team management</div>
+          <div class="dept-owner">Admin only &middot; add people, set PINs, crews, and notifications</div>
         </div>
       </div>
     </button>
-    <div class="dept-body" id="email-body">
-      <div style="padding:10px 0;border-top:1px solid var(--border)">
-        <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">Team directory — add an email for each person so they get notified about their own jobs</div>
-        <div id="directory-list"></div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px dashed var(--border)">
-          <input type="text" id="new-person-name" placeholder="Name" style="flex:1;min-width:150px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
-          <input type="text" id="new-person-email" placeholder="Email address" style="flex:1;min-width:200px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
-          <button class="ui" id="new-person-add">Add person</button>
+    <div class="dept-body" id="team-body">
+      <div style="padding:10px 0;border-bottom:1px solid var(--border);margin-bottom:10px">
+        <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:6px;font-weight:600">Add a person</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+          <input type="text" id="np-name" placeholder="Name" style="flex:1;min-width:140px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
+          <input type="text" id="np-email" placeholder="Email address" style="flex:1;min-width:180px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
         </div>
-        <div class="hint-small" id="new-person-msg"></div>
-      </div>
-    </div>
-  </div>
-
-  <div id="pin-panel" class="dept" style="margin-bottom:16px;display:none">
-    <button class="dept-header" id="pin-header">
-      <div class="left">
-        <span class="chev" id="pin-chev">&#9656;</span>
-        <div>
-          <div class="dept-name">Manager PINs &amp; permissions</div>
-          <div class="dept-owner">Admin only &middot; set who can edit which crew</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+          <input type="text" id="np-pin" placeholder="Temporary PIN (leave blank to auto-generate)" inputmode="numeric" style="flex:1;min-width:160px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
+          <input type="text" id="np-dept" placeholder="Department / crew" style="flex:1;min-width:160px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
         </div>
+        <button class="ui" id="np-add" style="width:100%;font-weight:600">Add person &amp; email their temporary PIN</button>
+        <div class="hint-small" id="np-msg"></div>
       </div>
-    </button>
-    <div class="dept-body" id="pin-body">
       <div style="padding:10px 0;border-bottom:1px solid var(--border);margin-bottom:10px">
         <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px">Daily summary email (sent once per day to the Faire 2026 Teams channel)</label>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <input type="text" id="daily-summary-input" placeholder="e.g. f78b9b28.parenfaire.com@amer.teams.ms" style="flex:1;min-width:220px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
+          <input type="text" id="daily-summary-input" placeholder="e.g. yourchannel@amer.teams.ms" style="flex:1;min-width:220px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
           <button class="ui" id="daily-summary-save">Save</button>
         </div>
-        <div class="hint-small">Fires the first time anyone opens this page after midnight — not at a fixed clock time, since this page has no server running in the background.</div>
+        <div class="hint-small">This same address is also Cc'd on every individual job-update email. Fires once daily the first time anyone opens the page after midnight — not at a fixed clock time.</div>
       </div>
       <div style="padding:10px 0;border-bottom:1px solid var(--border);margin-bottom:10px">
         <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px">Rename a person (updates every job, their email, and their PIN entry at once)</label>
@@ -294,14 +283,8 @@
         <div class="hint-small" id="rename-msg"></div>
       </div>
       <div style="padding:10px 0">
-        <div id="pin-list"></div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px dashed var(--border)">
-          <input type="text" id="new-pin-name" placeholder="Name" style="flex:1;min-width:130px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
-          <input type="text" id="new-pin-code" placeholder="PIN (4-6 digits)" inputmode="numeric" style="flex:0 1 130px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
-          <input type="text" id="new-pin-crews" placeholder="Crews (comma separated)" style="flex:1;min-width:180px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
-          <button class="ui" id="new-pin-add">Add / Update</button>
-        </div>
-        <div class="hint-small" id="pin-msg"></div>
+        <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:6px;font-weight:600">Everyone</label>
+        <div id="team-list"></div>
       </div>
     </div>
   </div>
@@ -790,7 +773,7 @@ function renderAll() {
   document.getElementById('master-subtitle').textContent = `${done.length} job${done.length === 1 ? '' : 's'} completed`;
 
   renderLongRange();
-  renderDirectory();
+  renderTeamList();
   renderRenameSelect();
   persist();
 }
@@ -1068,69 +1051,82 @@ function notifyChange(ownerName, changeText) {
   }
 }
 
-function renderDirectory() {
-  const owners = [...new Set([...TASKS.map(t => t.owner), ...Object.keys(DIRECTORY)])].sort((a, b) => a.localeCompare(b));
-  const list = document.getElementById('directory-list');
+function renderTeamList() {
+  const names = [...new Set([...TASKS.map(t => t.owner), ...Object.keys(DIRECTORY), ...Object.values(PIN_DIRECTORY).map(e => e.name)])].sort((a, b) => a.localeCompare(b));
+  const list = document.getElementById('team-list');
   if (!list) return;
   list.innerHTML = '';
-  owners.forEach(owner => {
-    const existingPin = Object.keys(PIN_DIRECTORY).find(p => PIN_DIRECTORY[p].name === owner);
+  names.forEach(name => {
+    const existingPin = Object.keys(PIN_DIRECTORY).find(p => PIN_DIRECTORY[p].name === name);
+    const pinEntry = existingPin ? PIN_DIRECTORY[existingPin] : null;
+    const isAdmin = pinEntry && pinEntry.role === 'admin';
     const row = document.createElement('div');
-    row.style.cssText = 'display:flex;gap:8px;align-items:center;padding:8px 0;flex-wrap:wrap;border-top:1px solid var(--border)';
+    row.style.cssText = 'padding:10px 0;border-top:1px solid var(--border)';
     row.innerHTML = `
-      <span style="font-size:13px;min-width:150px">${owner}</span>
-      <input type="text" class="dir-email" placeholder="email address" value="${DIRECTORY[owner] || ''}" style="flex:1;min-width:200px;font-size:13px;padding:6px 9px;border-radius:7px;border:1px solid var(--border)" />
-      <button class="ui dir-save" style="font-size:12px;padding:5px 10px">Save</button>
-      <button class="ui dir-delete" style="font-size:12px;padding:5px 10px;border-color:var(--red-fg);color:var(--red-fg)">Delete</button>
-      <div style="flex-basis:100%;display:flex;gap:8px;align-items:center;margin-top:4px">
-        <span style="font-size:11px;color:var(--text-muted);min-width:150px">${existingPin ? `PIN: ${existingPin}` : 'No PIN yet'}</span>
-        <input type="text" class="dir-pin" placeholder="PIN (4-6 digits)" inputmode="numeric" value="${existingPin || ''}" style="width:130px;font-size:12px;padding:5px 8px;border-radius:7px;border:1px solid var(--border)" />
-        <button class="ui dir-assign-pin" style="font-size:12px;padding:5px 10px">${existingPin ? 'Update PIN' : 'Assign PIN'}</button>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
+        <span style="font-size:13px;font-weight:600;min-width:140px">${name}${isAdmin ? ' <span style="font-weight:400;color:var(--text-muted)">(admin)</span>' : ''}</span>
+        <input type="text" class="tm-email" placeholder="email address" value="${DIRECTORY[name] || ''}" style="flex:1;min-width:180px;font-size:13px;padding:6px 9px;border-radius:7px;border:1px solid var(--border)" />
+        <button class="ui tm-save-email" style="font-size:12px;padding:5px 10px">Save email</button>
+        <button class="ui tm-delete" style="font-size:12px;padding:5px 10px;border-color:var(--red-fg);color:var(--red-fg)">Delete</button>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <span style="font-size:11px;color:var(--text-muted);min-width:140px">${existingPin ? `PIN: ${existingPin}` : 'No PIN yet'}</span>
+        <input type="text" class="tm-pin" placeholder="PIN (4-6 digits)" inputmode="numeric" value="${existingPin || ''}" style="width:110px;font-size:12px;padding:5px 8px;border-radius:7px;border:1px solid var(--border)" ${isAdmin ? 'disabled' : ''} />
+        <input type="text" class="tm-crews" placeholder="Crews (comma separated)" value="${pinEntry ? (pinEntry.crews || []).join(', ') : ''}" style="flex:1;min-width:160px;font-size:12px;padding:5px 8px;border-radius:7px;border:1px solid var(--border)" ${isAdmin ? 'disabled' : ''} />
+        <button class="ui tm-save-pin" style="font-size:12px;padding:5px 10px" ${isAdmin ? 'disabled title="Use Change my PIN while logged in as this admin"' : ''}>${existingPin ? 'Update' : 'Assign PIN'}</button>
       </div>
     `;
-    row.querySelector('.dir-save').addEventListener('click', () => {
-      const val = row.querySelector('.dir-email').value.trim();
-      if (val) DIRECTORY[owner] = val; else delete DIRECTORY[owner];
+    row.querySelector('.tm-save-email').addEventListener('click', () => {
+      const val = row.querySelector('.tm-email').value.trim();
+      if (val) DIRECTORY[name] = val; else delete DIRECTORY[name];
       persistDirectory();
-      flashSaveMsg(`Saved email for ${owner}.`);
+      flashSaveMsg(`Saved email for ${name}.`);
     });
-    row.querySelector('.dir-delete').addEventListener('click', () => {
-      if (!confirm(`Remove ${owner} from the directory? This won't delete their jobs, just their saved email and notifications.`)) return;
-      delete DIRECTORY[owner];
+    row.querySelector('.tm-delete').addEventListener('click', () => {
+      if (isAdmin) {
+        if (!confirm(`${name} is an ADMIN. Removing them removes admin access — are you sure? (Recovery PIN still works as backup.)`)) return;
+      } else if (!confirm(`Remove ${name} entirely (email, PIN, and crew access)? Their existing jobs will be parked as long-range so nothing gets lost.`)) {
+        return;
+      }
+      const openJobs = TASKS.filter(t => t.owner === name && !t.longRange && t.pct < 100);
+      openJobs.forEach(t => { t.longRange = true; });
+      delete DIRECTORY[name];
+      if (existingPin) delete PIN_DIRECTORY[existingPin];
       persistDirectory();
-      renderDirectory();
-      flashSaveMsg(`Removed ${owner} from the directory.`);
-    });
-    row.querySelector('.dir-assign-pin').addEventListener('click', () => {
-      const newPin = row.querySelector('.dir-pin').value.trim();
-      if (!/^\d{4,6}$/.test(newPin)) {
-        flashSaveMsg('PIN must be 4-6 digits.', true);
-        return;
-      }
-      if (PIN_DIRECTORY[newPin] && PIN_DIRECTORY[newPin].name !== owner) {
-        flashSaveMsg('That PIN is already assigned to someone else.', true);
-        return;
-      }
-      if (PIN_DIRECTORY[newPin] && PIN_DIRECTORY[newPin].role === 'admin') {
-        flashSaveMsg("That PIN belongs to an admin account — can't reassign it here.", true);
-        return;
-      }
-      if (existingPin && existingPin !== newPin) delete PIN_DIRECTORY[existingPin];
-      const crews = (existingPin && PIN_DIRECTORY[existingPin]) ? PIN_DIRECTORY[existingPin].crews : [];
-      PIN_DIRECTORY[newPin] = { name: owner, role: 'manager', crews: crews || [] };
       persistPinDirectory();
-      renderPinList();
-      renderDirectory();
-      flashSaveMsg(`PIN ${newPin} assigned to ${owner}. Set their crew(s) in the list below if not already set.`);
+      if (openJobs.length) { renderStats(); renderAll(); }
+      renderTeamList();
+      renderRenameSelect();
+      flashSaveMsg(`Removed ${name}.${openJobs.length ? ` Parked ${openJobs.length} of their job${openJobs.length === 1 ? '' : 's'} as long-range.` : ''}`);
     });
+    const pinBtn = row.querySelector('.tm-save-pin');
+    if (!isAdmin) {
+      pinBtn.addEventListener('click', () => {
+        const newPin = row.querySelector('.tm-pin').value.trim();
+        const crews = row.querySelector('.tm-crews').value.split(',').map(s => s.trim()).filter(Boolean);
+        if (!/^\d{4,6}$/.test(newPin)) {
+          flashSaveMsg('PIN must be 4-6 digits.', true);
+          return;
+        }
+        if (PIN_DIRECTORY[newPin] && PIN_DIRECTORY[newPin].name !== name) {
+          flashSaveMsg('That PIN is already assigned to someone else.', true);
+          return;
+        }
+        if (existingPin && existingPin !== newPin) delete PIN_DIRECTORY[existingPin];
+        PIN_DIRECTORY[newPin] = { name, role: 'manager', crews };
+        persistPinDirectory();
+        renderTeamList();
+        flashSaveMsg(`PIN ${newPin} saved for ${name}.`);
+      });
+    }
     list.appendChild(row);
   });
 }
 
-document.getElementById('email-header').addEventListener('click', () => {
+document.getElementById('team-header').addEventListener('click', () => {
   directoryOpen = !directoryOpen;
-  document.getElementById('email-body').style.display = directoryOpen ? 'block' : 'none';
-  document.getElementById('email-chev').style.transform = directoryOpen ? 'rotate(90deg)' : 'rotate(0deg)';
+  document.getElementById('team-body').style.display = directoryOpen ? 'block' : 'none';
+  document.getElementById('team-chev').style.transform = directoryOpen ? 'rotate(90deg)' : 'rotate(0deg)';
 });
 
 // ===================== PIN LOGIN & PERMISSIONS =====================
@@ -1150,7 +1146,6 @@ let PIN_DIRECTORY = {};
 let pinDirectoryRef = null;
 let currentUser = null;
 let currentPin = null;
-let pinOpen = false;
 
 function canEdit(task) {
   if (!currentUser) return false;
@@ -1171,13 +1166,11 @@ function hidePinGate() {
 
 function applyUserBar() {
   const label = document.getElementById('user-bar-label');
-  const pinPanel = document.getElementById('pin-panel');
-  const emailPanel = document.getElementById('email-panel');
+  const teamPanel = document.getElementById('team-panel');
   const viewAllBtn = document.getElementById('view-all-depts-btn');
   if (!currentUser) return;
   label.textContent = `Logged in as ${currentUser.name} (${currentUser.role === 'admin' ? 'Admin — full access' : 'Manager — ' + (currentUser.crews || []).join(', ')})`;
-  pinPanel.style.display = currentUser.role === 'admin' ? 'block' : 'none';
-  emailPanel.style.display = currentUser.role === 'admin' ? 'block' : 'none';
+  teamPanel.style.display = currentUser.role === 'admin' ? 'block' : 'none';
   viewAllBtn.style.display = currentUser.role === 'admin' ? 'none' : 'inline-block';
   updateViewAllBtnLabel();
 }
@@ -1237,71 +1230,6 @@ document.getElementById('logout-btn').addEventListener('click', () => {
   showPinGate();
 });
 
-function renderPinList() {
-  const list = document.getElementById('pin-list');
-  if (!list) return;
-  list.innerHTML = '';
-  Object.keys(PIN_DIRECTORY).sort((a, b) => a.localeCompare(b)).forEach(pin => {
-    const entry = PIN_DIRECTORY[pin];
-    const row = document.createElement('div');
-    row.style.cssText = 'display:flex;gap:8px;align-items:center;padding:6px 0;flex-wrap:wrap;border-top:1px solid var(--border)';
-    row.innerHTML = `
-      <span style="font-size:12px;font-family:monospace;background:var(--surface-1);padding:2px 8px;border-radius:6px;min-width:60px;text-align:center">${pin}</span>
-      <span style="font-size:13px;min-width:130px">${entry.name}</span>
-      <span style="font-size:12px;color:var(--text-muted);flex:1">${entry.role === 'admin' ? 'Admin (full access)' : (entry.crews || []).join(', ')}</span>
-      <button class="ui pin-delete" style="font-size:12px;padding:5px 10px;border-color:var(--red-fg);color:var(--red-fg)">Remove</button>
-    `;
-    row.querySelector('.pin-delete').addEventListener('click', () => {
-      const openJobs = TASKS.filter(t => t.owner === entry.name && !t.longRange && t.pct < 100);
-      const warning = entry.role === 'admin'
-        ? `${entry.name} is an ADMIN. Removing this will remove their admin access — are you sure? (There's a recovery PIN as a backup, but this isn't reversible from here.)`
-        : `Remove PIN access for ${entry.name}?${openJobs.length ? ` Their ${openJobs.length} open job${openJobs.length === 1 ? '' : 's'} will be parked as long-range so nothing gets lost.` : ''}`;
-      if (!confirm(warning)) return;
-      delete PIN_DIRECTORY[pin];
-      persistPinDirectory();
-      if (openJobs.length) {
-        openJobs.forEach(t => { t.longRange = true; });
-        renderStats();
-        renderAll();
-      }
-      renderPinList();
-      if (openJobs.length) flashSaveMsg(`Removed ${entry.name} and parked ${openJobs.length} job${openJobs.length === 1 ? '' : 's'} of theirs as long-range.`);
-    });
-    list.appendChild(row);
-  });
-}
-
-document.getElementById('pin-header').addEventListener('click', () => {
-  pinOpen = !pinOpen;
-  document.getElementById('pin-body').style.display = pinOpen ? 'block' : 'none';
-  document.getElementById('pin-chev').style.transform = pinOpen ? 'rotate(90deg)' : 'rotate(0deg)';
-});
-
-document.getElementById('new-pin-add').addEventListener('click', () => {
-  const name = document.getElementById('new-pin-name').value.trim();
-  const code = document.getElementById('new-pin-code').value.trim();
-  const crews = document.getElementById('new-pin-crews').value.split(',').map(s => s.trim()).filter(Boolean);
-  const msg = document.getElementById('pin-msg');
-  if (!name || !code || !/^\d{4,6}$/.test(code)) {
-    msg.style.color = 'var(--red-fg)';
-    msg.textContent = 'Enter a name and a 4-6 digit PIN.';
-    return;
-  }
-  if (PIN_DIRECTORY[code] && PIN_DIRECTORY[code].role === 'admin') {
-    msg.style.color = 'var(--red-fg)';
-    msg.textContent = `PIN ${code} belongs to an admin account — this form can't change admin accounts, to avoid accidentally locking them out. Use "Change my PIN" while logged in as that admin instead.`;
-    return;
-  }
-  PIN_DIRECTORY[code] = { name, role: 'manager', crews };
-  persistPinDirectory();
-  renderPinList();
-  document.getElementById('new-pin-name').value = '';
-  document.getElementById('new-pin-code').value = '';
-  document.getElementById('new-pin-crews').value = '';
-  msg.style.color = 'var(--teal-fg)';
-  msg.textContent = `Saved PIN for ${name}.`;
-});
-
 function renderRenameSelect() {
   const select = document.getElementById('rename-from-select');
   if (!select) return;
@@ -1351,8 +1279,7 @@ document.getElementById('rename-person-btn').addEventListener('click', () => {
   populateOwnerSelect();
   renderStats();
   renderAll();
-  renderDirectory();
-  renderPinList();
+  renderTeamList();
   renderRenameSelect();
   applyUserBar();
   document.getElementById('rename-to-input').value = '';
@@ -1398,7 +1325,7 @@ document.getElementById('change-pin-save').addEventListener('click', () => {
   PIN_DIRECTORY[newPin] = currentUser;
   currentPin = newPin;
   persistPinDirectory();
-  renderPinList();
+  renderTeamList();
   try { localStorage.setItem('punchlist_pin', newPin); } catch (e) {}
   document.getElementById('change-pin-input').value = '';
   msg.style.color = 'var(--teal-fg)';
@@ -1454,7 +1381,7 @@ document.getElementById('forgot-pin-send').addEventListener('click', () => {
   delete PIN_DIRECTORY[found.pin];
   PIN_DIRECTORY[newPin] = found.entry;
   persistPinDirectory();
-  renderPinList();
+  renderTeamList();
   emailjs.send(emailjsConfig.serviceId, emailjsConfig.templateId, {
     to_email: email,
     to_name: found.entry.name,
@@ -1524,24 +1451,49 @@ function maybeSendDailySummary() {
 }
 // =================== END DAILY SUMMARY EMAIL ===================
 
-document.getElementById('new-person-add').addEventListener('click', () => {
-  const nameInput = document.getElementById('new-person-name');
-  const emailInput = document.getElementById('new-person-email');
-  const msg = document.getElementById('new-person-msg');
-  const name = nameInput.value.trim();
-  const email = emailInput.value.trim();
-  if (!name || !email) {
+document.getElementById('np-add').addEventListener('click', () => {
+  const name = document.getElementById('np-name').value.trim();
+  const email = document.getElementById('np-email').value.trim();
+  const dept = document.getElementById('np-dept').value.trim();
+  let pin = document.getElementById('np-pin').value.trim();
+  const msg = document.getElementById('np-msg');
+  if (!name || !email || !dept) {
     msg.style.color = 'var(--red-fg)';
-    msg.textContent = 'Enter both a name and an email address.';
+    msg.textContent = 'Name, email, and department are all required.';
     return;
   }
+  if (pin && !/^\d{4,6}$/.test(pin)) {
+    msg.style.color = 'var(--red-fg)';
+    msg.textContent = 'PIN must be 4-6 digits, or leave it blank to auto-generate one.';
+    return;
+  }
+  if (pin && PIN_DIRECTORY[pin]) {
+    msg.style.color = 'var(--red-fg)';
+    msg.textContent = 'That PIN is already taken — pick a different one or leave it blank.';
+    return;
+  }
+  if (!pin) pin = generateNewPin();
   DIRECTORY[name] = email;
+  PIN_DIRECTORY[pin] = { name, role: 'manager', crews: [dept] };
   persistDirectory();
-  renderDirectory();
-  nameInput.value = '';
-  emailInput.value = '';
+  persistPinDirectory();
+  renderTeamList();
+  renderRenameSelect();
+  if (emailReady()) {
+    emailjs.send(emailjsConfig.serviceId, emailjsConfig.templateId, {
+      to_email: email,
+      to_name: name,
+      subject: 'Welcome to the Faire Punch List tracker',
+      message: `You've been added to the Faire Punch List tracker for ${dept}.\n\nYour temporary PIN is: ${pin}\n\nUse it to log in, then change it to something memorable using "Change my PIN" at the top of the page.\n\nOpen the tracker: ${TRACKER_URL}`,
+      cc_email: ''
+    }).catch(err => console.error('Invite email failed', err));
+  }
+  document.getElementById('np-name').value = '';
+  document.getElementById('np-email').value = '';
+  document.getElementById('np-pin').value = '';
+  document.getElementById('np-dept').value = '';
   msg.style.color = 'var(--teal-fg)';
-  msg.textContent = `Added ${name} to the directory. To assign them a job, use "Add a job" below and pick "New person..." with their exact name.`;
+  msg.textContent = `Added ${name} to ${dept} with PIN ${pin}${emailReady() ? ' and emailed them their PIN' : ' (email not sent — EmailJS isn\'t configured)'}. They'll also show up in "Add a job" going forward.`;
 });
 
 function applyRemoteTasks(remote) {
@@ -1582,8 +1534,7 @@ function init() {
     populateOwnerSelect();
     renderStats();
     renderAll();
-    renderDirectory();
-    renderPinList();
+    renderTeamList();
     attemptAutoLogin();
     const bar = document.getElementById('save-bar');
     if (bar) bar.innerHTML = '<div style="font-size:13px;color:var(--red-fg);font-weight:600">&#9679; Not connected — this copy only saves in this browser tab. Add your Firebase config (see comments at the top of the file) to turn on live sync.</div>';
@@ -1610,7 +1561,7 @@ function init() {
     } else {
       try { DIRECTORY = JSON.parse(v); } catch (e) { DIRECTORY = {}; }
     }
-    renderDirectory();
+    renderTeamList();
   });
 
   pinDirectoryRef.on('value', snap => {
@@ -1621,7 +1572,7 @@ function init() {
     } else {
       try { PIN_DIRECTORY = JSON.parse(v); } catch (e) { PIN_DIRECTORY = {}; }
     }
-    renderPinList();
+    renderTeamList();
     attemptAutoLogin();
   });
 
@@ -1657,7 +1608,7 @@ function init() {
     populateOwnerSelect();
     renderStats();
     renderAll();
-    renderPinList();
+    renderTeamList();
     attemptAutoLogin();
   });
 }
