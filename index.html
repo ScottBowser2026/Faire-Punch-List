@@ -80,7 +80,7 @@
   .job-slider-row { display: flex; align-items: center; gap: 10px; }
   input[type=range] { flex: 1; accent-color: var(--blue-bar); height: 4px; }
   .pct-out { font-size: 13px; font-weight: 600; min-width: 34px; text-align: right; }
-  .job-actions { margin-top: 8px; display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+  .job-actions { margin-top: 8px; display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
   button.mark-btn {
     font-size: 12px; padding: 5px 12px; border-radius: 7px;
     border: 1px solid var(--border); background: var(--surface);
@@ -502,6 +502,7 @@ function formatDue(dateStr) {
 }
 
 const editingIds = new Set();
+const deletingIds = new Set();
 
 function photoGalleryHtml(task, editable) {
   const photos = task.photos || [];
@@ -561,6 +562,7 @@ function makeSliderRow(t, showDeptTag) {
     ? `<span class="due-tag${isOverdue ? ' overdue' : ''}"> &middot; Due ${formatDue(t.due)}</span>`
     : '';
   const isEditing = editingIds.has(t.id);
+  const isDeleting = deletingIds.has(t.id);
   const editable = canEdit(t);
   const row = document.createElement('div');
   row.className = 'job-row';
@@ -582,11 +584,31 @@ function makeSliderRow(t, showDeptTag) {
     ${editable ? `<div class="photo-upload-row"><input type="file" class="photo-input" accept="image/*" multiple /></div>` : ''}
     ${editable ? `
     <div class="job-actions">
-      <button class="mark-btn edit">${isEditing ? 'Cancel' : 'Edit'}</button>
-      <button class="mark-btn ${isDone ? 'reopen' : 'done'}">${isDone ? 'Reopen job' : 'Mark complete'}</button>
-      ${currentUser && currentUser.role === 'admin' ? `<button class="mark-btn park">Park (long-range)</button>` : ''}
-      <button class="mark-btn delete">Delete</button>
-    </div>` : `<div class="locked-note">&#128274; View only — this job belongs to a different crew</div>`}
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="mark-btn edit">${isEditing ? 'Cancel' : 'Edit'}</button>
+        ${currentUser && currentUser.role === 'admin' ? `<button class="mark-btn park">Park (long-range)</button>` : ''}
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="mark-btn save-progress">Save</button>
+        <button class="mark-btn ${isDone ? 'reopen' : 'done'}">${isDone ? 'Reopen job' : 'Mark complete'}</button>
+        ${currentUser && currentUser.role === 'admin' ? `<button class="mark-btn delete">${isDeleting ? 'Cancel' : 'Delete'}</button>` : ''}
+      </div>
+    </div>
+    ${isDeleting ? `
+    <div class="edit-form">
+      <div class="add-row">
+        <div class="field grow">
+          <label>Reason for deleting <span style="color:var(--red-fg)">*</span></label>
+          <input type="text" class="delete-reason" placeholder="e.g. duplicate entry, job cancelled..." />
+        </div>
+      </div>
+      <div class="hint-small delete-msg"></div>
+      <div class="job-actions">
+        <span></span>
+        <button class="mark-btn delete-confirm" style="border-color:var(--red-fg);color:var(--red-fg)">Confirm delete</button>
+      </div>
+    </div>` : ''}
+    ` : `<div class="locked-note">&#128274; View only — this job belongs to a different crew</div>`}
     ${isEditing ? `
     <div class="edit-form">
       <div class="add-row">
@@ -652,9 +674,13 @@ function makeSliderRow(t, showDeptTag) {
     renderStats();
     renderAll();
   });
-  input.addEventListener('change', () => {
-    notifyChange(t.owner, `"${t.name}" updated to ${t.pct}%`);
-  });
+  const saveProgressBtn = row.querySelector('.mark-btn.save-progress');
+  if (saveProgressBtn) {
+    saveProgressBtn.addEventListener('click', () => {
+      notifyChange(t.owner, `"${t.name}" updated to ${t.pct}%`);
+      flashSaveMsg(`Saved "${t.name}" at ${t.pct}%.`);
+    });
+  }
   row.querySelector('.mark-btn.edit').addEventListener('click', () => {
     if (editingIds.has(t.id)) editingIds.delete(t.id); else editingIds.add(t.id);
     renderAll();
@@ -690,15 +716,33 @@ function makeSliderRow(t, showDeptTag) {
       notifyChange(t.owner, `"${t.name}" was edited`);
     });
   }
-  row.querySelector('.mark-btn.delete').addEventListener('click', () => {
-    if (!confirm(`Delete "${t.name}"? This can't be undone.`)) return;
-    const idx = TASKS.indexOf(t);
-    if (idx > -1) TASKS.splice(idx, 1);
-    editingIds.delete(t.id);
-    renderStats();
-    renderAll();
-    notifyChange(t.owner, `"${t.name}" was deleted`);
-  });
+  const deleteBtn = row.querySelector('.mark-btn.delete');
+  if (deleteBtn) {
+    deleteBtn.addEventListener('click', () => {
+      if (deletingIds.has(t.id)) deletingIds.delete(t.id); else deletingIds.add(t.id);
+      renderAll();
+    });
+  }
+  const deleteConfirmBtn = row.querySelector('.mark-btn.delete-confirm');
+  if (deleteConfirmBtn) {
+    deleteConfirmBtn.addEventListener('click', () => {
+      const reason = row.querySelector('.delete-reason').value.trim();
+      const msg = row.querySelector('.delete-msg');
+      if (!reason) {
+        msg.style.color = 'var(--red-fg)';
+        msg.textContent = 'Enter a reason before deleting.';
+        return;
+      }
+      const idx = TASKS.indexOf(t);
+      if (idx > -1) TASKS.splice(idx, 1);
+      deletingIds.delete(t.id);
+      editingIds.delete(t.id);
+      renderStats();
+      renderAll();
+      notifyChange(t.owner, `"${t.name}" was deleted`);
+      notifyAdmins(`Job deleted by ${currentUser.name}`, `"${t.name}" (${t.dept}, assigned to ${t.owner}) was deleted by ${currentUser.name}.\n\nReason: ${reason}`);
+    });
+  }
   const parkBtn = row.querySelector('.mark-btn.park');
   if (parkBtn) {
     parkBtn.addEventListener('click', () => {
@@ -1062,6 +1106,24 @@ function notifyChange(ownerName, changeText, photoUrls) {
       cc_email: DAILY_SUMMARY_EMAIL || ''
     }).catch(err => console.error('Email to owner failed', err));
   }
+}
+
+function notifyAdmins(subject, message) {
+  if (!emailReady()) return;
+  const seen = new Set();
+  Object.values(PIN_DIRECTORY).forEach(entry => {
+    if (entry.role !== 'admin' || seen.has(entry.name)) return;
+    seen.add(entry.name);
+    const email = findDirectoryEmail(entry.name);
+    if (!email) return;
+    emailjs.send(emailjsConfig.serviceId, emailjsConfig.templateId, {
+      to_email: email,
+      to_name: entry.name,
+      subject: `Faire Punch List: ${subject}`,
+      message: `${message}\n\nOpen the tracker: ${TRACKER_URL}`,
+      cc_email: DAILY_SUMMARY_EMAIL || ''
+    }).catch(err => console.error('Admin notify failed', err));
+  });
 }
 
 function renderTeamList() {
