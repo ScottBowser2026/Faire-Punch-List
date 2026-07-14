@@ -582,16 +582,24 @@ function makeSliderRow(t, showDeptTag) {
     </div>
     ${photoGalleryHtml(t, editable)}
     ${editable ? `<div class="photo-upload-row"><input type="file" class="photo-input" accept="image/*" multiple /></div>` : ''}
+    ${t.pendingDelete ? `<div class="hint-small" style="color:var(--red-fg);font-weight:600;padding:6px 0">&#9203; Delete requested by ${t.pendingDelete.requestedBy}: "${t.pendingDelete.reason}"${currentUser && currentUser.role === 'admin' ? '' : ' — waiting on admin approval'}</div>` : ''}
+    ${t.pendingPark ? `<div class="hint-small" style="color:var(--gray-fg);font-weight:600;padding:6px 0">&#9203; Park (long-range) requested by ${t.pendingPark.requestedBy}${currentUser && currentUser.role === 'admin' ? '' : ' — waiting on admin approval'}</div>` : ''}
     ${editable ? `
     <div class="job-actions">
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="mark-btn edit">${isEditing ? 'Cancel' : 'Edit'}</button>
-        ${currentUser && currentUser.role === 'admin' ? `<button class="mark-btn park">Park (long-range)</button>` : ''}
+        ${t.pendingPark && currentUser && currentUser.role === 'admin' ? `
+          <button class="mark-btn park-approve">Approve park</button>
+          <button class="mark-btn park-deny">Deny</button>
+        ` : !t.pendingPark ? `<button class="mark-btn park">Park (long-range)</button>` : ''}
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="mark-btn save-progress">Save</button>
         <button class="mark-btn ${isDone ? 'reopen' : 'done'}">${isDone ? 'Reopen job' : 'Mark complete'}</button>
-        ${currentUser && currentUser.role === 'admin' ? `<button class="mark-btn delete">${isDeleting ? 'Cancel' : 'Delete'}</button>` : ''}
+        ${t.pendingDelete && currentUser && currentUser.role === 'admin' ? `
+          <button class="mark-btn delete-approve" style="border-color:var(--red-fg);color:var(--red-fg)">Approve delete</button>
+          <button class="mark-btn delete-deny">Deny</button>
+        ` : !t.pendingDelete ? `<button class="mark-btn delete">${isDeleting ? 'Cancel' : 'Delete'}</button>` : ''}
       </div>
     </div>
     ${isDeleting ? `
@@ -605,7 +613,7 @@ function makeSliderRow(t, showDeptTag) {
       <div class="hint-small delete-msg"></div>
       <div class="job-actions">
         <span></span>
-        <button class="mark-btn delete-confirm" style="border-color:var(--red-fg);color:var(--red-fg)">Confirm delete</button>
+        <button class="mark-btn delete-confirm" style="border-color:var(--red-fg);color:var(--red-fg)">${currentUser && currentUser.role === 'admin' ? 'Confirm delete' : 'Send delete request to admin'}</button>
       </div>
     </div>` : ''}
     ` : `<div class="locked-note">&#128274; View only — this job belongs to a different crew</div>`}
@@ -733,25 +741,88 @@ function makeSliderRow(t, showDeptTag) {
         msg.textContent = 'Enter a reason before deleting.';
         return;
       }
+      deletingIds.delete(t.id);
+      if (currentUser.role === 'admin') {
+        const idx = TASKS.indexOf(t);
+        if (idx > -1) TASKS.splice(idx, 1);
+        editingIds.delete(t.id);
+        renderStats();
+        renderAll();
+        notifyChange(t.owner, `"${t.name}" was deleted`);
+        notifyAdmins(`Job deleted by ${currentUser.name}`, `"${t.name}" (${t.dept}, assigned to ${t.owner}) was deleted by ${currentUser.name}.\n\nReason: ${reason}`);
+      } else {
+        t.pendingDelete = { requestedBy: currentUser.name, reason, requestedAt: new Date().toISOString() };
+        renderStats();
+        renderAll();
+        notifyAdmins(`Delete approval needed — requested by ${currentUser.name}`, `${currentUser.name} wants to delete "${t.name}" (${t.dept}, assigned to ${t.owner}).\n\nReason: ${reason}\n\nOpen the tracker and use the Approve/Deny buttons on that job to decide.`);
+      }
+    });
+  }
+  const deleteApproveBtn = row.querySelector('.mark-btn.delete-approve');
+  if (deleteApproveBtn) {
+    deleteApproveBtn.addEventListener('click', () => {
+      if (!confirm(`Approve deleting "${t.name}"? This can't be undone.`)) return;
+      const requester = t.pendingDelete ? t.pendingDelete.requestedBy : null;
+      const reason = t.pendingDelete ? t.pendingDelete.reason : '';
       const idx = TASKS.indexOf(t);
       if (idx > -1) TASKS.splice(idx, 1);
-      deletingIds.delete(t.id);
-      editingIds.delete(t.id);
       renderStats();
       renderAll();
       notifyChange(t.owner, `"${t.name}" was deleted`);
-      notifyAdmins(`Job deleted by ${currentUser.name}`, `"${t.name}" (${t.dept}, assigned to ${t.owner}) was deleted by ${currentUser.name}.\n\nReason: ${reason}`);
+      if (requester) notifyChange(requester, `Your delete request for "${t.name}" was approved`);
+      notifyAdmins(`Job deleted (approved by ${currentUser.name})`, `"${t.name}" (${t.dept}, assigned to ${t.owner}) was deleted.\n\nRequested by: ${requester || 'unknown'}\nReason: ${reason}\nApproved by: ${currentUser.name}`);
+    });
+  }
+  const deleteDenyBtn = row.querySelector('.mark-btn.delete-deny');
+  if (deleteDenyBtn) {
+    deleteDenyBtn.addEventListener('click', () => {
+      const requester = t.pendingDelete ? t.pendingDelete.requestedBy : null;
+      delete t.pendingDelete;
+      renderStats();
+      renderAll();
+      if (requester) notifyChange(requester, `Your delete request for "${t.name}" was denied`);
     });
   }
   const parkBtn = row.querySelector('.mark-btn.park');
   if (parkBtn) {
     parkBtn.addEventListener('click', () => {
-      if (!confirm(`Park "${t.name}" as a long-range project? It'll move out of the active list until it's made active again.`)) return;
+      if (currentUser.role === 'admin') {
+        if (!confirm(`Park "${t.name}" as a long-range project? It'll move out of the active list until it's made active again.`)) return;
+        t.longRange = true;
+        editingIds.delete(t.id);
+        renderStats();
+        renderAll();
+        notifyChange(t.owner, `"${t.name}" was parked as a long-range project`);
+      } else {
+        if (!confirm(`Ask admin to park "${t.name}" as a long-range project?`)) return;
+        t.pendingPark = { requestedBy: currentUser.name, requestedAt: new Date().toISOString() };
+        renderStats();
+        renderAll();
+        notifyAdmins(`Park approval needed — requested by ${currentUser.name}`, `${currentUser.name} wants to park "${t.name}" (${t.dept}, assigned to ${t.owner}) as long-range.\n\nOpen the tracker and use the Approve/Deny buttons on that job to decide.`);
+      }
+    });
+  }
+  const parkApproveBtn = row.querySelector('.mark-btn.park-approve');
+  if (parkApproveBtn) {
+    parkApproveBtn.addEventListener('click', () => {
+      const requester = t.pendingPark ? t.pendingPark.requestedBy : null;
+      delete t.pendingPark;
       t.longRange = true;
       editingIds.delete(t.id);
       renderStats();
       renderAll();
       notifyChange(t.owner, `"${t.name}" was parked as a long-range project`);
+      if (requester) notifyChange(requester, `Your request to park "${t.name}" was approved`);
+    });
+  }
+  const parkDenyBtn = row.querySelector('.mark-btn.park-deny');
+  if (parkDenyBtn) {
+    parkDenyBtn.addEventListener('click', () => {
+      const requester = t.pendingPark ? t.pendingPark.requestedBy : null;
+      delete t.pendingPark;
+      renderStats();
+      renderAll();
+      if (requester) notifyChange(requester, `Your request to park "${t.name}" was denied`);
     });
   }
   return row;
