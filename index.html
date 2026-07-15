@@ -226,8 +226,8 @@
     <div style="font-size:13px;color:var(--text-secondary)"><span style="color:var(--teal-fg);font-weight:600">&#9679; Live</span> — changes save automatically and sync to everyone with this link instantly.</div>
     <div style="display:flex;gap:8px;flex-shrink:0">
       <button class="ui" id="refresh-now-btn">Refresh now</button>
-      <button class="ui" id="save-progress-btn">Download backup</button>
-      <button class="ui" id="load-progress-btn">Restore backup</button>
+      <button class="ui" id="save-progress-btn" style="display:none">Download backup</button>
+      <button class="ui" id="load-progress-btn" style="display:none">Restore backup</button>
       <input type="file" id="load-progress-input" accept=".json" style="display:none" />
     </div>
   </div>
@@ -330,12 +330,13 @@
         <input type="date" id="new-job-due" />
       </div>
     </div>
-    <div class="add-row" style="align-items:center">
+    <div class="add-row" id="new-job-longrange-row" style="align-items:center">
       <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-primary);margin:0">
         <input type="checkbox" id="new-job-longrange" style="width:auto" />
         Long-range project (not scheduled yet — park it for later)
       </label>
     </div>
+    <div class="hint-small" id="new-job-longrange-hint" style="display:none">Managers can request a job be parked as long-range after creating it, using the Park button — that goes to admin for approval.</div>
     <div class="add-actions">
       <button class="add-btn" id="add-job-btn">Add job</button>
     </div>
@@ -1145,7 +1146,7 @@ document.getElementById('add-job-btn').addEventListener('click', () => {
   const isNewDept = !deptOrder.includes(dept);
   const start = document.getElementById('new-job-start').value || null;
   const due = document.getElementById('new-job-due').value || null;
-  const longRange = document.getElementById('new-job-longrange').checked;
+  const longRange = currentUser.role === 'admin' && document.getElementById('new-job-longrange').checked;
   const newTask = { id: nextId++, dept, owner, name: jobName, status: 'next', pct: 0, start, due, longRange };
   TASKS.push(newTask);
   persistTask(newTask);
@@ -1413,6 +1414,14 @@ function applyUserBar() {
   viewAllBtn.style.display = currentUser.role === 'admin' ? 'none' : 'inline-block';
   testModeBtn.style.display = currentUser.role === 'admin' ? 'inline-block' : 'none';
   globalRefreshBtn.style.display = currentUser.role === 'admin' ? 'inline-block' : 'none';
+  const downloadBackupBtn = document.getElementById('save-progress-btn');
+  const restoreBackupBtn = document.getElementById('load-progress-btn');
+  if (downloadBackupBtn) downloadBackupBtn.style.display = currentUser.role === 'admin' ? 'inline-block' : 'none';
+  if (restoreBackupBtn) restoreBackupBtn.style.display = currentUser.role === 'admin' ? 'inline-block' : 'none';
+  const lrRow = document.getElementById('new-job-longrange-row');
+  const lrHint = document.getElementById('new-job-longrange-hint');
+  if (lrRow) lrRow.style.display = currentUser.role === 'admin' ? 'flex' : 'none';
+  if (lrHint) lrHint.style.display = currentUser.role === 'admin' ? 'none' : 'block';
   updateViewAllBtnLabel();
 }
 
