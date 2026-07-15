@@ -18,7 +18,7 @@ async function main() {
     return;
   }
 
-  const tasks = tasksObj ? Object.values(tasksObj) : [];
+  const tasks = tasksObj ? (Array.isArray(tasksObj) ? tasksObj : Object.values(tasksObj)).filter(Boolean) : [];
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
