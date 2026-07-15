@@ -150,6 +150,18 @@
   .photo-upload-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
   .photo-upload-row input[type=file] { font-size: 12px; }
   #photo-lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.85); z-index: 2000; display: none; align-items: center; justify-content: center; cursor: zoom-out; }
+  #help-modal { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 2100; display: none; align-items: center; justify-content: center; padding: 20px; }
+  .help-modal-card { background: var(--surface); border-radius: 14px; max-width: 640px; width: 100%; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; }
+  .help-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .help-modal-header h2 { font-size: 18px; margin: 0; }
+  #help-close-btn { background: none; border: none; font-size: 24px; line-height: 1; cursor: pointer; color: var(--text-secondary); padding: 4px 8px; }
+  .help-modal-body { padding: 16px 20px 24px; overflow-y: auto; }
+  .help-modal-body h3 { font-size: 14px; margin: 18px 0 6px; color: var(--text-primary); }
+  .help-modal-body h3:first-child { margin-top: 0; }
+  .help-modal-body p { font-size: 13px; line-height: 1.6; color: var(--text-secondary); margin: 0 0 4px; }
+  .help-modal-body ul { margin: 4px 0; padding-left: 20px; }
+  .help-modal-body li { font-size: 13px; line-height: 1.6; color: var(--text-secondary); margin-bottom: 6px; }
+  .help-modal-body hr { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
   #photo-lightbox img { max-width: 90vw; max-height: 90vh; border-radius: 8px; }
 @media (max-width: 640px) {
   body { padding: 16px 12px 40px; }
@@ -162,7 +174,7 @@
   #user-bar > div { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   #user-bar > div button.ui { width: 100%; }
   .add-row { flex-direction: column; }
-  .field, .field.narrow, .field.grow { min-width: 0; width: 100%; }
+  .field, .field.narrow, .field.grow { min-width: 0; width: 100%; flex: none; }
   .job-actions { justify-content: stretch; flex-direction: column; align-items: stretch; }
   .job-actions > div { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
   .job-actions button.mark-btn { flex: 1 1 auto; min-width: 0; width: 100%; padding: 9px 8px; }
@@ -202,6 +214,65 @@
   </div>
 </div>
 <div id="photo-lightbox"><img id="photo-lightbox-img" src="" /></div>
+<div id="help-modal">
+  <div class="help-modal-card">
+    <div class="help-modal-header">
+      <h2>Help / User Manual</h2>
+      <button id="help-close-btn" aria-label="Close">&times;</button>
+    </div>
+    <div class="help-modal-body">
+      <h3>Logging in</h3>
+      <p>Enter your 4-digit PIN. The tracker remembers you after that on the same device, until you log out.</p>
+      <ul>
+        <li><strong>Forgot your PIN?</strong> Click "Forgot your PIN?" on the login screen, type your name, and a new one gets emailed to you.</li>
+        <li><strong>Want to change it?</strong> Click "Change my PIN" at the top of the page once logged in.</li>
+      </ul>
+
+      <h3>What you'll see</h3>
+      <p>By default you only see your own crew's jobs. Click "View all department tasks" to see everything, and again to switch back.</p>
+
+      <h3>Updating a job's progress</h3>
+      <p>Drag the slider, then attach a photo or a short note and click Save (or press Enter) to actually commit the change. Without a photo or note, Save won't do anything &mdash; every update needs some evidence behind it.</p>
+
+      <h3>Marking complete / reopening</h3>
+      <p>"Mark complete" jumps a job to 100% and moves it to Completed Projects. Reopen it from that list if it isn't actually finished.</p>
+
+      <h3>Editing a job</h3>
+      <p>Click "Edit" to change its description, owner, crew, or dates, then Save changes.</p>
+
+      <h3>Adding a new job</h3>
+      <p>Use "Add a job": pick a person (or "New person..." for someone not yet in the tracker), fill in the description and optional dates, and submit &mdash; no approval needed to create one.</p>
+
+      <h3>Park and Delete</h3>
+      <p>Managers requesting either one sends it to admin for approval first &mdash; you'll get an email once it's approved or denied. Admin's own Park/Delete actions happen immediately after a confirmation prompt.</p>
+
+      <h3>Photos</h3>
+      <p>Click any thumbnail to view it full-size; click again to close. Remove a photo with the small &times; on its corner, if you have edit access to that job.</p>
+
+      <h3>Notifications</h3>
+      <p>You'll get an email whenever a job you own changes, whenever a Park/Delete request you made gets decided, and if your PIN is ever reset.</p>
+
+      <div id="help-admin-section" style="display:none">
+        <hr />
+        <h3>Admin: Team Management</h3>
+        <ul>
+          <li><strong>Add a person:</strong> one form for name, email, temporary PIN, and crew &mdash; emails them their PIN automatically.</li>
+          <li><strong>Everyone list:</strong> edit anyone's email, PIN, or crews inline. Delete removes them entirely and auto-parks their open jobs so nothing's lost.</li>
+          <li><strong>Rename a person:</strong> updates their name across every job, their email, and their PIN in one click.</li>
+          <li><strong>Daily summary email:</strong> the address here gets a daily digest and is Cc'd on every job update. "Send now" tests it immediately.</li>
+          <li><strong>Force refresh everyone:</strong> reloads and signs out every open session &mdash; useful after a change, or to clear stale tabs.</li>
+          <li><strong>Test mode:</strong> blocks everyone but admin from signing in, with a banner shown to all.</li>
+        </ul>
+        <h3>Admin: Approving requests</h3>
+        <p>Park/Delete requests show Approve and Deny buttons right on the job. Approve carries it out and notifies everyone involved; Deny clears the request and notifies the requester.</p>
+        <h3>Admin: Backups</h3>
+        <p>"Download backup" and "Restore backup," near the top of the page, are for emergencies &mdash; the tracker already saves everything automatically as you go.</p>
+        <h3>Admin: Recovery PIN</h3>
+        <p>If your admin PIN ever breaks, <strong>861029</strong> always logs in as admin. Change your real PIN right after using it. Keep this number private.</p>
+      </div>
+    </div>
+  </div>
+</div>
 <div class="wrap">
   <div id="user-bar">
     <span id="user-bar-label"></span>
@@ -246,6 +317,7 @@
   <div class="toolbar">
     <span class="hint">Click a crew to expand its jobs</span>
     <div class="btns">
+      <button class="ui" id="help-btn">Help</button>
       <button class="ui" id="view-all-depts-btn" style="display:none">View all department tasks</button>
       <button class="ui" id="expand-all">Expand all</button>
       <button class="ui" id="collapse-all">Collapse all</button>
@@ -1956,6 +2028,18 @@ function init() {
 
 document.getElementById('photo-lightbox').addEventListener('click', () => {
   document.getElementById('photo-lightbox').style.display = 'none';
+});
+
+document.getElementById('help-btn').addEventListener('click', () => {
+  const adminSection = document.getElementById('help-admin-section');
+  adminSection.style.display = (currentUser && currentUser.role === 'admin') ? 'block' : 'none';
+  document.getElementById('help-modal').style.display = 'flex';
+});
+document.getElementById('help-close-btn').addEventListener('click', () => {
+  document.getElementById('help-modal').style.display = 'none';
+});
+document.getElementById('help-modal').addEventListener('click', (e) => {
+  if (e.target.id === 'help-modal') document.getElementById('help-modal').style.display = 'none';
 });
 
 init();
