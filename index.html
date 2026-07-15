@@ -281,8 +281,9 @@
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <input type="text" id="daily-summary-input" placeholder="e.g. yourchannel@amer.teams.ms" style="flex:1;min-width:220px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
           <button class="ui" id="daily-summary-save">Save</button>
+          <button class="ui" id="daily-summary-send-now">Send now</button>
         </div>
-        <div class="hint-small">This same address is also Cc'd on every individual job-update email. Fires once daily the first time anyone opens the page after midnight — not at a fixed clock time.</div>
+        <div class="hint-small">This same address is also Cc'd on every individual job-update email. Auto-fires once per calendar day (your device's local time), the first time anyone opens the page that day — not at a fixed clock time. Use "Send now" to trigger one immediately, any time.</div>
       </div>
       <div style="padding:10px 0;border-bottom:1px solid var(--border);margin-bottom:10px">
         <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px">Rename a person (updates every job, their email, and their PIN entry at once)</label>
@@ -1196,21 +1197,25 @@ function sanitizeTask(t) {
   return JSON.parse(JSON.stringify(t));
 }
 
+function taskKey(id) {
+  return 'task_' + id; // non-numeric prefix — Firebase silently turns purely-numeric-keyed objects into arrays with null gaps otherwise
+}
+
 function persistTask(t) {
   if (applyingRemote || !dbRef) return;
-  dbRef.child(String(t.id)).set(sanitizeTask(t)).catch(err => console.error('Save failed', err));
+  dbRef.child(taskKey(t.id)).set(sanitizeTask(t)).catch(err => console.error('Save failed', err));
 }
 
 function persistDeleteTask(id) {
   if (applyingRemote || !dbRef) return;
-  dbRef.child(String(id)).remove().catch(err => console.error('Delete failed', err));
+  dbRef.child(taskKey(id)).remove().catch(err => console.error('Delete failed', err));
 }
 
 function persistAllTasksBulk() {
   // Only for explicit full-replace actions (e.g. restoring a backup) — not for routine edits.
   if (applyingRemote || !dbRef) return;
   const obj = {};
-  TASKS.forEach(t => { obj[String(t.id)] = sanitizeTask(t); });
+  TASKS.forEach(t => { obj[taskKey(t.id)] = sanitizeTask(t); });
   dbRef.set(obj).catch(err => console.error('Bulk save failed', err));
 }
 
@@ -1683,6 +1688,11 @@ document.getElementById('daily-summary-save').addEventListener('click', () => {
   flashSaveMsg('Saved the daily summary recipient.');
 });
 
+document.getElementById('daily-summary-send-now').addEventListener('click', () => {
+  sendDailySummaryNow();
+  flashSaveMsg('Daily summary sent.');
+});
+
 function buildDailySummaryText() {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const scheduled = TASKS.filter(t => !t.longRange);
@@ -1706,9 +1716,28 @@ function buildDailySummaryText() {
   return lines.join('\n');
 }
 
+function localDateStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function sendDailySummaryNow() {
+  if (!emailReady()) { alert("Email isn't set up yet — check the EmailJS config at the top of the file."); return; }
+  if (!DAILY_SUMMARY_EMAIL) { alert('Set a "Daily summary email" address first.'); return; }
+  emailjs.send(emailjsConfig.serviceId, emailjsConfig.templateId, {
+    to_email: DAILY_SUMMARY_EMAIL,
+    to_name: 'Faire 2026',
+    subject: `Faire Punch List: Daily Summary — ${new Date().toLocaleDateString()}`,
+    message: buildDailySummaryText(),
+    cc_email: ''
+  }).then(() => {
+    if (lastSummaryDateRef) lastSummaryDateRef.set(localDateStr());
+  }).catch(err => console.error('Daily summary send failed', err));
+}
+
 function maybeSendDailySummary() {
   if (!emailReady() || !DAILY_SUMMARY_EMAIL || !lastSummaryDateRef) return;
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = localDateStr();
   lastSummaryDateRef.once('value').then(snap => {
     const lastSent = snap.val();
     if (lastSent === todayStr) return; // already sent today
@@ -1877,22 +1906,28 @@ function init() {
 
   dbRef.once('value').then(snapshot => {
     const val = snapshot.val();
+    let needsRewrite = false;
     if (typeof val === 'string') {
-      // Old format from before this update: one JSON blob. Migrate it, don't discard it.
+      // Old format from before the per-task update: one JSON blob. Migrate it, don't discard it.
       let oldArray = null;
       try { oldArray = JSON.parse(val); } catch (e) { oldArray = null; }
       if (Array.isArray(oldArray) && oldArray.length) {
-        TASKS.push(...oldArray);
+        TASKS.push(...oldArray.filter(Boolean));
       } else {
         TASKS.push(...SEED_TASKS);
       }
-      persistAllTasksBulk(); // rewrite in the new per-task format
+      needsRewrite = true;
+    } else if (Array.isArray(val)) {
+      // Numeric-keyed data that Firebase silently coerced into an array with null gaps. Migrate it.
+      TASKS.push(...val.filter(Boolean));
+      needsRewrite = true;
     } else if (val && typeof val === 'object') {
-      TASKS.push(...Object.values(val));
+      TASKS.push(...Object.values(val).filter(Boolean));
     } else {
       TASKS.push(...SEED_TASKS);
-      persistAllTasksBulk();
+      needsRewrite = true;
     }
+    if (needsRewrite) persistAllTasksBulk(); // rewrite using the non-numeric key format so this can't recur
     rebuildDerivedState();
     populateOwnerSelect();
     renderStats();
@@ -1901,8 +1936,9 @@ function init() {
     dbRef.on('value', (snap) => {
       const v = snap.val();
       if (!v) return;
-      if (typeof v === 'string') { try { applyRemoteTasks(JSON.parse(v)); } catch (e) {} return; }
-      applyRemoteTasks(Object.values(v));
+      if (typeof v === 'string') { try { applyRemoteTasks(JSON.parse(v).filter(Boolean)); } catch (e) {} return; }
+      const values = Array.isArray(v) ? v.filter(Boolean) : Object.values(v).filter(Boolean);
+      applyRemoteTasks(values);
     });
     setTimeout(maybeSendDailySummary, 3000); // small delay so directory/config finish loading first
   }).catch(err => {
@@ -1955,7 +1991,7 @@ document.getElementById('refresh-now-btn').addEventListener('click', async () =>
     const snapshot = await dbRef.once('value');
     const val = snapshot.val();
     if (val) {
-      const remote = typeof val === 'string' ? JSON.parse(val) : Object.values(val);
+      const remote = typeof val === 'string' ? JSON.parse(val).filter(Boolean) : (Array.isArray(val) ? val.filter(Boolean) : Object.values(val).filter(Boolean));
       applyingRemote = true;
       TASKS.length = 0;
       TASKS.push(...remote);
