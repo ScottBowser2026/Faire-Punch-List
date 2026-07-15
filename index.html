@@ -197,11 +197,14 @@
 <div class="wrap">
   <div id="user-bar">
     <span id="user-bar-label"></span>
-    <div style="display:flex;gap:8px">
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="ui" id="test-mode-btn" style="display:none">Enable test mode</button>
+      <button class="ui" id="global-refresh-btn" style="display:none;border-color:var(--red-fg);color:var(--red-fg)">Refresh everyone</button>
       <button class="ui" id="change-pin-btn">Change my PIN</button>
       <button class="ui" id="logout-btn">Log out</button>
     </div>
   </div>
+  <div id="test-mode-banner" style="display:none;background:#FBE4E4;color:var(--red-fg);border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;font-weight:600">&#128679; Test mode is ON — only admin can sign in right now.</div>
   <div id="change-pin-row" style="display:none;margin:-4px 0 12px;gap:8px;flex-wrap:wrap;align-items:center;background:var(--surface-1);border-radius:10px;padding:10px 14px">
     <span style="font-size:13px;color:var(--text-secondary)">New PIN:</span>
     <input type="text" id="change-pin-input" inputmode="numeric" maxlength="4" placeholder="4 digits" style="width:110px;font-size:13px;padding:6px 9px;border-radius:7px;border:1px solid var(--border)" />
@@ -1393,10 +1396,14 @@ function applyUserBar() {
   const label = document.getElementById('user-bar-label');
   const teamPanel = document.getElementById('team-panel');
   const viewAllBtn = document.getElementById('view-all-depts-btn');
+  const testModeBtn = document.getElementById('test-mode-btn');
+  const globalRefreshBtn = document.getElementById('global-refresh-btn');
   if (!currentUser) return;
   label.textContent = `Logged in as ${currentUser.name} (${currentUser.role === 'admin' ? 'Admin — full access' : 'Manager — ' + (currentUser.crews || []).join(', ')})`;
   teamPanel.style.display = currentUser.role === 'admin' ? 'block' : 'none';
   viewAllBtn.style.display = currentUser.role === 'admin' ? 'none' : 'inline-block';
+  testModeBtn.style.display = currentUser.role === 'admin' ? 'inline-block' : 'none';
+  globalRefreshBtn.style.display = currentUser.role === 'admin' ? 'inline-block' : 'none';
   updateViewAllBtnLabel();
 }
 
@@ -1431,6 +1438,10 @@ function tryLogin(pin) {
     errorEl.textContent = "That PIN isn't recognized.";
     return;
   }
+  if (testModeActive && match.role !== 'admin') {
+    errorEl.textContent = "The tracker is in test mode right now — only admin can sign in. Try again shortly.";
+    return;
+  }
   currentUser = match;
   currentPin = trimmed;
   try { localStorage.setItem('punchlist_pin', trimmed); } catch (e) {}
@@ -1453,6 +1464,21 @@ document.getElementById('logout-btn').addEventListener('click', () => {
   document.getElementById('pin-input').value = '';
   document.getElementById('pin-error').textContent = '';
   showPinGate();
+});
+
+document.getElementById('test-mode-btn').addEventListener('click', () => {
+  if (!testModeRef) return;
+  const turningOn = !testModeActive;
+  if (turningOn && !confirm('Turn on test mode? No one but admin will be able to sign in until you turn it off again.')) return;
+  testModeRef.set(turningOn).catch(err => console.error('Test mode toggle failed', err));
+});
+
+document.getElementById('global-refresh-btn').addEventListener('click', () => {
+  if (!forceReloadRef) return;
+  if (!confirm("Reload the tracker for everyone who currently has it open, right now? Anyone with an unsaved change could lose it.")) return;
+  forceReloadBaseline = new Date().toISOString(); // so this tab doesn't reload/log itself out
+  forceReloadRef.set(forceReloadBaseline).catch(err => console.error('Force refresh failed', err));
+  flashSaveMsg('Sent — every open copy of the tracker will reload and sign out within a few seconds.');
 });
 
 function renderRenameSelect() {
@@ -1516,6 +1542,7 @@ function attemptAutoLogin() {
   let savedPin = null;
   try { savedPin = localStorage.getItem('punchlist_pin'); } catch (e) { savedPin = null; }
   if (savedPin && PIN_DIRECTORY[savedPin]) {
+    if (testModeActive && PIN_DIRECTORY[savedPin].role !== 'admin') return; // stay on the lock screen
     currentUser = PIN_DIRECTORY[savedPin];
     currentPin = savedPin;
     hidePinGate();
@@ -1623,6 +1650,10 @@ document.getElementById('forgot-pin-send').addEventListener('click', () => {
 let DAILY_SUMMARY_EMAIL = '';
 let dailySummaryEmailRef = null;
 let lastSummaryDateRef = null;
+let forceReloadRef = null;
+let forceReloadBaseline = undefined;
+let testModeRef = null;
+let testModeActive = false;
 
 function persistDailySummaryEmail() {
   if (dailySummaryEmailRef) dailySummaryEmailRef.set(DAILY_SUMMARY_EMAIL).catch(err => console.error('Daily summary email save failed', err));
@@ -1776,6 +1807,26 @@ function init() {
   pinDirectoryRef = firebase.database().ref('faire-punch-list-pins');
   dailySummaryEmailRef = firebase.database().ref('faire-punch-list-daily-summary-email');
   lastSummaryDateRef = firebase.database().ref('faire-punch-list-last-summary-date');
+  forceReloadRef = firebase.database().ref('faire-punch-list-force-reload');
+  forceReloadRef.on('value', snap => {
+    const v = snap.val();
+    if (forceReloadBaseline === undefined) {
+      forceReloadBaseline = v; // first read after page load — just record it, don't reload ourselves
+      return;
+    }
+    if (v !== forceReloadBaseline) {
+      try { localStorage.removeItem('punchlist_pin'); } catch (e) {}
+      window.location.reload();
+    }
+  });
+  testModeRef = firebase.database().ref('faire-punch-list-test-mode');
+  testModeRef.on('value', snap => {
+    testModeActive = !!snap.val();
+    const banner = document.getElementById('test-mode-banner');
+    const btn = document.getElementById('test-mode-btn');
+    if (banner) banner.style.display = testModeActive ? 'block' : 'none';
+    if (btn) btn.textContent = testModeActive ? 'Disable test mode' : 'Enable test mode';
+  });
 
   dailySummaryEmailRef.on('value', snap => {
     DAILY_SUMMARY_EMAIL = snap.val() || '';
