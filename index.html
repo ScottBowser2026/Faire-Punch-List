@@ -174,7 +174,9 @@
   #user-bar > div { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   #user-bar > div button.ui { width: 100%; }
   .add-row { flex-direction: column; }
-  .field, .field.narrow, .field.grow { min-width: 0; width: 100%; flex: none; }
+  .field, .field.narrow, .field.grow,
+  #add-job .field, #add-job .field.narrow, #add-job .field.grow,
+  .edit-form .field { min-width: 0; width: 100%; flex: none; }
   .job-actions { justify-content: stretch; flex-direction: column; align-items: stretch; }
   .job-actions > div { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
   .job-actions button.mark-btn { flex: 1 1 auto; min-width: 0; width: 100%; padding: 9px 8px; }
@@ -191,6 +193,8 @@
   #team-list > div, #directory-list > div { flex-direction: column; align-items: stretch !important; }
   #team-list input, #directory-list input { width: 100%; box-sizing: border-box; margin-bottom: 4px; }
   #pin-gate .pin-card { padding: 24px 18px; }
+  input[type=date] { min-height: 40px; box-sizing: border-box; -webkit-appearance: none; appearance: none; background: var(--surface); font-size: 16px; }
+  input[type=date]::-webkit-calendar-picker-indicator { cursor: pointer; opacity: 1; padding: 4px; }
 }
 </style>
 </head>
