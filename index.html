@@ -159,18 +159,26 @@
   .toolbar .btns { flex-direction: column; }
   .toolbar .btns button.ui { width: 100%; }
   #user-bar { flex-direction: column; align-items: stretch; gap: 8px; }
-  #user-bar > div { display: flex; gap: 8px; }
-  #user-bar > div button.ui { flex: 1; }
-  #add-job .add-row { flex-direction: column; }
-  #add-job .field, #add-job .field.narrow, #add-job .field.grow { min-width: 0; width: 100%; }
-  .job-actions { justify-content: stretch; }
-  .job-actions button.mark-btn { flex: 1 1 auto; min-width: 0; padding: 9px 8px; }
+  #user-bar > div { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  #user-bar > div button.ui { width: 100%; }
+  .add-row { flex-direction: column; }
+  .field, .field.narrow, .field.grow { min-width: 0; width: 100%; }
+  .job-actions { justify-content: stretch; flex-direction: column; align-items: stretch; }
+  .job-actions > div { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
+  .job-actions button.mark-btn { flex: 1 1 auto; min-width: 0; width: 100%; padding: 9px 8px; }
   .dept-header { padding: 12px; }
   .dept-owner { font-size: 11px; }
   .job-name { font-size: 14px; }
   input[type=range] { height: 24px; }
   button.mark-btn, button.ui, button.add-btn { min-height: 38px; }
   .photo-gallery img { width: 56px; height: 56px; }
+  .photo-upload-row { flex-direction: column; align-items: stretch; }
+  .photo-upload-row input[type=text], .photo-upload-row input[type=file] { width: 100%; box-sizing: border-box; }
+  #team-body input, #team-body select, #email-panel input, #email-panel select { width: 100%; box-sizing: border-box; }
+  #team-body > div > div[style*="display:flex"], #email-panel > div > div[style*="display:flex"] { flex-direction: column !important; align-items: stretch !important; }
+  #team-list > div, #directory-list > div { flex-direction: column; align-items: stretch !important; }
+  #team-list input, #directory-list input { width: 100%; box-sizing: border-box; margin-bottom: 4px; }
+  #pin-gate .pin-card { padding: 24px 18px; }
 }
 </style>
 </head>
