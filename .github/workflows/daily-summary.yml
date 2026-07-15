@@ -1,0 +1,21 @@
+name: Daily Summary Email
+
+on:
+  schedule:
+    # 22:00 UTC = 6:00 PM Eastern Daylight Time (summer).
+    # Switch to '0 23 * * *' once EST (winter, UTC-5) is in effect.
+    - cron: '0 22 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  send-summary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Send daily summary email
+        env:
+          EMAILJS_PRIVATE_KEY: ${{ secrets.EMAILJS_PRIVATE_KEY }}
+        run: node scripts/send-daily-summary.js
