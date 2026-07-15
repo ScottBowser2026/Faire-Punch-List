@@ -795,6 +795,7 @@ function makeSliderRow(t, showDeptTag) {
       }
       deletingIds.delete(t.id);
       if (currentUser.role === 'admin') {
+        if (!confirm(`Delete "${t.name}"? This can't be undone.`)) { deletingIds.add(t.id); renderAll(); return; }
         const idx = TASKS.indexOf(t);
         if (idx > -1) TASKS.splice(idx, 1);
         editingIds.delete(t.id);
