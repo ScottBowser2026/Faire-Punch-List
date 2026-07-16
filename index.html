@@ -1208,13 +1208,13 @@ let nextId = 1;
 
 function ownerToDept() {
   const map = {};
-  TASKS.forEach(t => { if (!map[t.owner]) map[t.owner] = t.dept; });
-  Object.keys(DIRECTORY).forEach(name => { if (!(name in map)) map[name] = ''; });
   Object.values(PIN_DIRECTORY).forEach(entry => {
-    if (entry.crews && entry.crews.length && !map[entry.name]) {
+    if (entry.crews && entry.crews.length) {
       map[entry.name] = entry.crews[0];
     }
   });
+  TASKS.forEach(t => { if (!(t.owner in map)) map[t.owner] = t.dept; });
+  Object.keys(DIRECTORY).forEach(name => { if (!(name in map)) map[name] = ''; });
   return map;
 }
 
