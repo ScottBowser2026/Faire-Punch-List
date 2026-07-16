@@ -344,6 +344,7 @@
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
           <input type="text" id="np-name" placeholder="Name" style="flex:1;min-width:140px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
           <input type="text" id="np-email" placeholder="Email address" style="flex:1;min-width:180px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
+          <input type="tel" id="np-phone" placeholder="Phone (optional, for texts)" style="flex:1;min-width:160px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
           <input type="text" id="np-pin" placeholder="Temporary PIN, 4 digits (leave blank to auto-generate)" inputmode="numeric" style="flex:1;min-width:160px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
@@ -1191,6 +1192,8 @@ ownerSelect.addEventListener('change', () => {
   const needsCrew = !isNew && ownerSelect.value && !map[ownerSelect.value];
   newOwnerField.style.display = isNew ? 'block' : 'none';
   newCrewField.style.display = (isNew || needsCrew) ? 'block' : 'none';
+  document.getElementById('new-owner-name').value = '';
+  document.getElementById('new-crew-name').value = '';
 });
 
 document.getElementById('add-job-btn').addEventListener('click', () => {
@@ -1243,12 +1246,28 @@ document.getElementById('add-job-btn').addEventListener('click', () => {
     ? `Parked "${jobName}" under long-range projects for ${owner}.`
     : `Added to ${dept} (${owner}).`;
   notifyChange(owner, longRange ? `New long-range job added: "${jobName}"` : `New job added: "${jobName}"`);
+  if (!longRange) sendJobText(owner, jobName, dept);
 });
+
+function sendJobText(ownerName, jobName, dept) {
+  const phone = findPhone(ownerName);
+  if (!phone) return;
+  fetch('https://us-central1-faire-builder-tracker.cloudfunctions.net/sendJobText', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      to: phone,
+      message: `Faire Punch List: you've been assigned a new job in ${dept}: "${jobName}". Open the tracker: ${TRACKER_URL}`
+    })
+  }).catch(err => console.error('Text notification failed', err));
+}
 
 let applyingRemote = false;
 let dbRef = null;
 let directoryRef = null;
 let DIRECTORY = {};      // owner name -> email
+let PHONE_DIRECTORY = {}; // owner name -> phone number
+let phoneDirectoryRef = null;
 const SEED_DIRECTORY = {
   "Michael Hess": "ConstructionForeman@parenfaire.com",
   "Dave Wallace": "DaveW@parenfaire.com",
@@ -1299,6 +1318,17 @@ function persistDirectory() {
   if (directoryRef) directoryRef.set(JSON.stringify(DIRECTORY)).catch(err => console.error('Directory save failed', err));
 }
 
+function persistPhoneDirectory() {
+  if (phoneDirectoryRef) phoneDirectoryRef.set(JSON.stringify(PHONE_DIRECTORY)).catch(err => console.error('Phone directory save failed', err));
+}
+
+function findPhone(name) {
+  if (!name) return null;
+  const target = name.trim().toLowerCase();
+  const key = Object.keys(PHONE_DIRECTORY).find(k => k.trim().toLowerCase() === target);
+  return key ? PHONE_DIRECTORY[key] : null;
+}
+
 
 function emailReady() {
   return window.emailjs && emailjsConfig.publicKey && !emailjsConfig.publicKey.includes('YOUR-');
@@ -1317,37 +1347,48 @@ function findDirectoryEmail(ownerName) {
 function notifyChange(ownerName, changeText, photoUrls) {
   if (!emailReady()) return;
   const ownerEmail = findDirectoryEmail(ownerName);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const formatLine = (t) => {
+    const overdue = t.due && !t.longRange && new Date(t.due + 'T00:00:00') < today ? ' <strong style="color:#a32d2d">[OVERDUE]</strong>' : '';
+    const startPart = t.start ? `start ${t.start}` : '';
+    const duePart = t.due ? `due ${t.due}` : '';
+    const dates = [startPart, duePart].filter(Boolean).join(', ');
+    const datesText = dates ? ` (${dates})` : '';
+    const body = t.longRange
+      ? `${t.name}${datesText}`
+      : `${t.name}${datesText} — ${t.pct}% done${overdue}`;
+    return `<li style="margin-bottom:4px">${body}</li>`;
+  };
+  const open = TASKS.filter(t => t.owner === ownerName && !t.longRange && t.pct < 100);
+  const longRangeJobs = TASKS.filter(t => t.owner === ownerName && t.longRange);
+  const openListHtml = open.length
+    ? `<ul style="margin:6px 0 0;padding-left:20px">${open.map(formatLine).join('')}</ul>`
+    : '<p style="margin:6px 0 0">No open jobs right now — nice work!</p>';
+  const longRangeSection = longRangeJobs.length
+    ? `<p style="margin:14px 0 0"><strong>Your long-range (not yet scheduled) projects:</strong></p><ul style="margin:6px 0 0;padding-left:20px">${longRangeJobs.map(formatLine).join('')}</ul>`
+    : '';
+  const photoHtml = (photoUrls && photoUrls.length)
+    ? `<div style="margin:10px 0">${photoUrls.map(url => `<img src="${url}" style="max-width:220px;border-radius:8px;margin:6px 6px 0 0;display:inline-block" />`).join('')}</div>`
+    : '';
+  const message = `<p style="margin:0">${changeText}</p>${photoHtml}<p style="margin:14px 0 0"><strong>Your current open jobs:</strong></p>${openListHtml}${longRangeSection}<p style="margin:14px 0 0">Open the tracker: <a href="${TRACKER_URL}">${TRACKER_URL}</a></p>`;
+
   if (ownerEmail) {
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const formatLine = (t) => {
-      const overdue = t.due && !t.longRange && new Date(t.due + 'T00:00:00') < today ? '  [OVERDUE]' : '';
-      const startPart = t.start ? `start ${t.start}` : '';
-      const duePart = t.due ? `due ${t.due}` : '';
-      const dates = [startPart, duePart].filter(Boolean).join(', ');
-      const datesText = dates ? ` (${dates})` : '';
-      return t.longRange
-        ? `- ${t.name}${datesText}`
-        : `- ${t.name}${datesText} — ${t.pct}% done${overdue}`;
-    };
-
-    const open = TASKS.filter(t => t.owner === ownerName && !t.longRange && t.pct < 100);
-    const longRangeJobs = TASKS.filter(t => t.owner === ownerName && t.longRange);
-
-    const openLines = open.length ? open.map(formatLine).join('\n') : 'No open jobs right now — nice work!';
-    const longRangeSection = longRangeJobs.length
-      ? `\n\nYour long-range (not yet scheduled) projects:\n${longRangeJobs.map(formatLine).join('\n')}`
-      : '';
-    const photoHtml = (photoUrls && photoUrls.length)
-      ? `\n\n${photoUrls.map(url => `<img src="${url}" style="max-width:220px;border-radius:8px;margin:6px 6px 0 0;display:inline-block" />`).join('')}`
-      : '';
-
     emailjs.send(emailjsConfig.serviceId, emailjsConfig.templateId, {
       to_email: ownerEmail,
       to_name: ownerName,
       subject: `Faire Punch List: ${changeText}`,
-      message: `${changeText}${photoHtml}\n\nYour current open jobs:\n${openLines}${longRangeSection}\n\nOpen the tracker: ${TRACKER_URL}`,
+      message,
       cc_email: DAILY_SUMMARY_EMAIL || ''
     }).catch(err => console.error('Email to owner failed', err));
+  } else if (DAILY_SUMMARY_EMAIL) {
+    // Owner has no email on file yet — still let the team know via Teams directly.
+    emailjs.send(emailjsConfig.serviceId, emailjsConfig.templateId, {
+      to_email: DAILY_SUMMARY_EMAIL,
+      to_name: 'Faire 2026',
+      subject: `Faire Punch List: ${changeText}`,
+      message: `${message}<p style="margin:10px 0 0;color:#888780">(${ownerName} doesn't have an email on file yet, so this only went to Teams.)</p>`,
+      cc_email: ''
+    }).catch(err => console.error('Email to Teams failed', err));
   }
 }
 
@@ -1386,6 +1427,8 @@ function renderTeamList() {
         <span style="font-size:13px;font-weight:600;min-width:140px">${name}${isAdmin ? ' <span style="font-weight:400;color:var(--text-muted)">(admin)</span>' : ''}</span>
         <input type="text" class="tm-email" placeholder="email address" value="${DIRECTORY[name] || ''}" style="flex:1;min-width:180px;font-size:13px;padding:6px 9px;border-radius:7px;border:1px solid var(--border)" />
         <button class="ui tm-save-email" style="font-size:12px;padding:5px 10px">Save email</button>
+        <input type="tel" class="tm-phone" placeholder="phone (for texts)" value="${PHONE_DIRECTORY[name] || ''}" style="flex:1;min-width:150px;font-size:13px;padding:6px 9px;border-radius:7px;border:1px solid var(--border)" />
+        <button class="ui tm-save-phone" style="font-size:12px;padding:5px 10px">Save phone</button>
         <button class="ui tm-delete" style="font-size:12px;padding:5px 10px;border-color:var(--red-fg);color:var(--red-fg)">Delete</button>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -1401,6 +1444,12 @@ function renderTeamList() {
       persistDirectory();
       flashSaveMsg(`Saved email for ${name}.`);
     });
+    row.querySelector('.tm-save-phone').addEventListener('click', () => {
+      const val = row.querySelector('.tm-phone').value.trim();
+      if (val) PHONE_DIRECTORY[name] = val; else delete PHONE_DIRECTORY[name];
+      persistPhoneDirectory();
+      flashSaveMsg(`Saved phone for ${name}.`);
+    });
     row.querySelector('.tm-delete').addEventListener('click', () => {
       if (isAdmin) {
         if (!confirm(`${name} is an ADMIN. Removing them removes admin access — are you sure? (Recovery PIN still works as backup.)`)) return;
@@ -1410,8 +1459,10 @@ function renderTeamList() {
       const openJobs = TASKS.filter(t => t.owner === name && !t.longRange && t.pct < 100);
       openJobs.forEach(t => { t.longRange = true; persistTask(t); });
       delete DIRECTORY[name];
+      delete PHONE_DIRECTORY[name];
       if (existingPin) delete PIN_DIRECTORY[existingPin];
       persistDirectory();
+      persistPhoneDirectory();
       persistPinDirectory();
       if (openJobs.length) { renderStats(); renderAll(); }
       renderTeamList();
@@ -1615,6 +1666,11 @@ document.getElementById('rename-person-btn').addEventListener('click', () => {
     DIRECTORY[toName] = DIRECTORY[fromName];
     delete DIRECTORY[fromName];
     persistDirectory();
+  }
+  if (PHONE_DIRECTORY[fromName]) {
+    PHONE_DIRECTORY[toName] = PHONE_DIRECTORY[fromName];
+    delete PHONE_DIRECTORY[fromName];
+    persistPhoneDirectory();
   }
   let pinUpdated = false;
   Object.keys(PIN_DIRECTORY).forEach(pin => {
@@ -1857,7 +1913,9 @@ document.getElementById('np-add').addEventListener('click', () => {
     return;
   }
   if (!pin) pin = generateNewPin();
+  const phone = document.getElementById('np-phone').value.trim();
   DIRECTORY[name] = email;
+  if (phone) { PHONE_DIRECTORY[name] = phone; persistPhoneDirectory(); }
   PIN_DIRECTORY[pin] = { name, role: 'manager', crews: [dept] };
   persistDirectory();
   persistPinDirectory();
@@ -1875,6 +1933,7 @@ document.getElementById('np-add').addEventListener('click', () => {
   }
   document.getElementById('np-name').value = '';
   document.getElementById('np-email').value = '';
+  document.getElementById('np-phone').value = '';
   document.getElementById('np-pin').value = '';
   document.getElementById('np-dept').value = '';
   msg.style.color = 'var(--teal-fg)';
@@ -1927,6 +1986,11 @@ function init() {
   firebase.initializeApp(firebaseConfig);
   dbRef = firebase.database().ref('faire-punch-list-tasks');
   directoryRef = firebase.database().ref('faire-punch-list-directory');
+  phoneDirectoryRef = firebase.database().ref('faire-punch-list-phones');
+  phoneDirectoryRef.on('value', snap => {
+    const v = snap.val();
+    try { PHONE_DIRECTORY = v ? JSON.parse(v) : {}; } catch (e) { PHONE_DIRECTORY = {}; }
+  });
   pinDirectoryRef = firebase.database().ref('faire-punch-list-pins');
   dailySummaryEmailRef = firebase.database().ref('faire-punch-list-daily-summary-email');
   lastSummaryDateRef = firebase.database().ref('faire-punch-list-last-summary-date');
