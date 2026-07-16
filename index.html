@@ -725,11 +725,17 @@ function makeSliderRow(t, showDeptTag) {
       <div class="add-row">
         <div class="field">
           <label>Person responsible</label>
-          <input type="text" class="edit-owner" value="${t.owner.replace(/"/g, '&quot;')}" />
+          <select class="edit-owner-select"></select>
+        </div>
+      </div>
+      <div class="add-row edit-new-owner-row" style="display:none">
+        <div class="field">
+          <label>New person's name</label>
+          <input type="text" class="edit-new-owner-name" />
         </div>
         <div class="field">
           <label>Crew / area</label>
-          <input type="text" class="edit-dept" value="${t.dept.replace(/"/g, '&quot;')}" />
+          <input type="text" class="edit-new-crew-name" />
         </div>
       </div>
       <div class="add-row">
@@ -838,20 +844,62 @@ function makeSliderRow(t, showDeptTag) {
     renderAll();
     notifyChange(t.owner, isDone ? `"${t.name}" reopened` : `"${t.name}" marked complete`);
   });
+  const editOwnerSelect = row.querySelector('.edit-owner-select');
+  if (editOwnerSelect) {
+    const map = ownerToDept();
+    if (!(t.owner in map)) map[t.owner] = t.dept;
+    Object.keys(map).sort((a, b) => a.localeCompare(b)).forEach(o => {
+      const opt = document.createElement('option');
+      opt.value = o;
+      opt.textContent = map[o] ? `${o} (${map[o]})` : `${o} (no crew set yet)`;
+      if (o === t.owner) opt.selected = true;
+      editOwnerSelect.appendChild(opt);
+    });
+    const newOpt = document.createElement('option');
+    newOpt.value = '__new__';
+    newOpt.textContent = 'New person...';
+    editOwnerSelect.appendChild(newOpt);
+    const editNewOwnerRow = row.querySelector('.edit-new-owner-row');
+    const updateEditOwnerRow = () => {
+      const isNew = editOwnerSelect.value === '__new__';
+      const needsCrew = !isNew && editOwnerSelect.value && !map[editOwnerSelect.value];
+      editNewOwnerRow.style.display = (isNew || needsCrew) ? 'flex' : 'none';
+      row.querySelector('.edit-new-owner-name').parentElement.style.display = isNew ? 'block' : 'none';
+      row.querySelector('.edit-new-owner-name').value = '';
+      row.querySelector('.edit-new-crew-name').value = '';
+    };
+    editOwnerSelect.addEventListener('change', updateEditOwnerRow);
+  }
   const saveBtn = row.querySelector('.mark-btn.save');
   if (saveBtn) {
     saveBtn.addEventListener('click', () => {
       const newName = row.querySelector('.edit-name').value.trim();
-      const newOwner = row.querySelector('.edit-owner').value.trim();
-      const newDept = row.querySelector('.edit-dept').value.trim();
+      let newOwner, newDept;
+      if (editOwnerSelect.value === '__new__') {
+        newOwner = row.querySelector('.edit-new-owner-name').value.trim();
+        newDept = row.querySelector('.edit-new-crew-name').value.trim();
+        if (!newOwner || !newDept) {
+          flashSaveMsg('Enter both a name and a crew for the new person.', true);
+          return;
+        }
+      } else {
+        newOwner = editOwnerSelect.value;
+        const map = ownerToDept();
+        newDept = map[newOwner];
+        if (!newDept) {
+          newDept = row.querySelector('.edit-new-crew-name').value.trim();
+          if (!newDept) {
+            flashSaveMsg(`${newOwner} doesn't have a crew set yet — enter one in the "Crew / area" field.`, true);
+            return;
+          }
+        }
+      }
       const newStart = row.querySelector('.edit-start').value || null;
       const newDue = row.querySelector('.edit-due').value || null;
       if (newName) t.name = newName;
-      if (newOwner) t.owner = newOwner;
-      if (newDept) {
-        t.dept = newDept;
-        if (!deptOrder.includes(newDept)) deptOrder.push(newDept);
-      }
+      t.owner = newOwner;
+      t.dept = newDept;
+      if (!deptOrder.includes(newDept)) deptOrder.push(newDept);
       t.start = newStart;
       t.due = newDue;
       editingIds.delete(t.id);
