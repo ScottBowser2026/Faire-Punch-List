@@ -44,4 +44,4 @@ jobs:
       - name: Deploy functions
         env:
           GOOGLE_APPLICATION_CREDENTIALS: /tmp/service-account.json
-        run: firebase deploy --only functions --project faire-builder-tracker --non-interactive
+        run: firebase deploy --only functions --project faire-builder-tracker --non-interactive --force
