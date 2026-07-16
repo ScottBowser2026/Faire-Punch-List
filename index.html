@@ -236,39 +236,42 @@
       <p>By default you only see your own crew's jobs. Click "View all department tasks" to see everything, and again to switch back.</p>
 
       <h3>Updating a job's progress</h3>
-      <p>Drag the slider, then attach a photo or a short note and click Save (or press Enter) to actually commit the change. Without a photo or note, Save won't do anything &mdash; every update needs some evidence behind it.</p>
+      <p>Drag the slider, then attach a photo or a short note and click Save (or press Enter) to actually commit the change. Without a photo or note, Save won't do anything &mdash; every update needs some evidence behind it. Notes and photos are saved permanently on the job, visible to anyone who opens it later.</p>
 
       <h3>Marking complete / reopening</h3>
       <p>"Mark complete" jumps a job to 100% and moves it to Completed Projects. Reopen it from that list if it isn't actually finished.</p>
 
       <h3>Editing a job</h3>
-      <p>Click "Edit" to change its description, owner, crew, or dates, then Save changes.</p>
+      <p>Click "Edit" to change its description, owner, crew, or dates, then Save changes. Reassigning to a different person requires a reason, and doesn't take effect immediately &mdash; the new person has to accept it first (see below).</p>
+
+      <h3>Reassigning a job to someone else</h3>
+      <p>Change "Person responsible" in Edit, type a reason, and save. The job stays with the current owner until the new person accepts it &mdash; they'll see Accept/Decline buttons right on that job once it's their turn to review. All existing notes and photos carry over automatically once accepted.</p>
 
       <h3>Adding a new job</h3>
-      <p>Use "Add a job": pick a person (or "New person..." for someone not yet in the tracker), fill in the description and optional dates, and submit &mdash; no approval needed to create one.</p>
+      <p>Use "Add a job": pick a person (or "New person..." for someone not yet in the tracker), fill in the description, start date, and due date &mdash; all three are required. No approval needed to create a normal job. Jobs within each crew are sorted by due date automatically, soonest first.</p>
 
       <h3>Park and Delete</h3>
-      <p>Managers requesting either one sends it to admin for approval first &mdash; you'll get an email once it's approved or denied. Admin's own Park/Delete actions happen immediately after a confirmation prompt.</p>
+      <p>Managers requesting either one sends it to admin for approval first &mdash; you'll get an email once it's approved or denied. Admin's own Park/Delete actions happen immediately after a confirmation prompt. Only admin can create a brand-new job as long-range from the start; managers get there by creating it normally, then requesting Park.</p>
 
       <h3>Photos</h3>
       <p>Click any thumbnail to view it full-size; click again to close. Remove a photo with the small &times; on its corner, if you have edit access to that job.</p>
 
       <h3>Notifications</h3>
-      <p>You'll get an email whenever a job you own changes, whenever a Park/Delete request you made gets decided, and if your PIN is ever reset.</p>
+      <p>You'll get an email whenever a job you own changes, whenever a Park/Delete/reassignment request you're involved in gets decided, and if your PIN is ever reset. If you have a phone number on file, you'll also get a text the moment a brand-new job is assigned to you.</p>
 
       <div id="help-admin-section" style="display:none">
         <hr />
         <h3>Admin: Team Management</h3>
         <ul>
-          <li><strong>Add a person:</strong> one form for name, email, temporary PIN, and crew &mdash; emails them their PIN automatically.</li>
-          <li><strong>Everyone list:</strong> edit anyone's email, PIN, or crews inline. Delete removes them entirely and auto-parks their open jobs so nothing's lost.</li>
-          <li><strong>Rename a person:</strong> updates their name across every job, their email, and their PIN in one click.</li>
-          <li><strong>Daily summary email:</strong> the address here gets a daily digest and is Cc'd on every job update. "Send now" tests it immediately.</li>
+          <li><strong>Add a person:</strong> one form for name, email, phone (optional, for texts), temporary PIN, and crew &mdash; emails them their PIN automatically.</li>
+          <li><strong>Everyone list:</strong> edit anyone's email, phone, PIN, or crews inline. Delete removes them entirely and auto-parks their open jobs so nothing's lost.</li>
+          <li><strong>Rename a person:</strong> updates their name across every job, their email, phone, and their PIN in one click.</li>
+          <li><strong>Daily summary email:</strong> the address here gets a daily digest and is Cc'd on every job update. "Send now" tests it immediately. Also fires automatically once a day at 6 PM Eastern via a scheduled job, independent of anyone having the tracker open.</li>
           <li><strong>Force refresh everyone:</strong> reloads and signs out every open session &mdash; useful after a change, or to clear stale tabs.</li>
           <li><strong>Test mode:</strong> blocks everyone but admin from signing in, with a banner shown to all.</li>
         </ul>
         <h3>Admin: Approving requests</h3>
-        <p>Park/Delete requests show Approve and Deny buttons right on the job. Approve carries it out and notifies everyone involved; Deny clears the request and notifies the requester.</p>
+        <p>Park, Delete, and reassignment requests all show Approve/Accept and Deny/Decline buttons right on the job. Approving carries out the action and notifies everyone involved; denying clears the request and notifies the requester.</p>
         <h3>Admin: Backups</h3>
         <p>"Download backup" and "Restore backup," near the top of the page, are for emergencies &mdash; the tracker already saves everything automatically as you go.</p>
         <h3>Admin: Recovery PIN</h3>
@@ -400,11 +403,11 @@
         <input type="text" id="new-job-name" placeholder="e.g. Replace broken bench at Joust" />
       </div>
       <div class="field narrow">
-        <label for="new-job-start">Start date</label>
+        <label for="new-job-start">Start date <span style="color:var(--red-fg)">*</span></label>
         <input type="date" id="new-job-start" />
       </div>
       <div class="field narrow">
-        <label for="new-job-due">Due date</label>
+        <label for="new-job-due">Due date <span style="color:var(--red-fg)">*</span></label>
         <input type="date" id="new-job-due" />
       </div>
     </div>
@@ -667,6 +670,7 @@ function makeSliderRow(t, showDeptTag) {
         ${showDeptTag ? `<span class="job-dept-tag"> &middot; ${t.dept}</span>` : ''}
         ${startHtml}
         ${dueHtml}
+        ${t.assignedBy ? `<span class="hint-small" style="display:inline;margin:0"> &middot; assigned by ${t.assignedBy}</span>` : ''}
       </span>
       <span class="badge" style="background:${meta.bg};color:${meta.fg}">${meta.label}</span>
     </div>
@@ -675,12 +679,22 @@ function makeSliderRow(t, showDeptTag) {
       <span class="pct-out">${t.pct}%</span>
     </div>
     ${photoGalleryHtml(t, editable)}
+    ${(t.notes && t.notes.length) ? `<div class="hint-small" style="margin-top:6px"><strong>Notes:</strong><br>${t.notes.map(n => `${n.text} <span style="color:var(--text-muted)">— ${n.by}</span>`).join('<br>')}</div>` : ''}
     ${editable ? `<div class="photo-upload-row"><input type="file" class="photo-input" accept="image/*" multiple /></div>
     <div class="photo-upload-row"><input type="text" class="progress-note" placeholder="Or add a quick note instead of a photo..." style="flex:1;font-size:13px;padding:6px 9px;border-radius:7px;border:1px solid var(--border)" /></div>
     <div class="hint-small">Attach a photo or add a note, then hit Save or press Enter</div>
     <div class="hint-small save-progress-msg"></div>` : ''}
     ${t.pendingDelete ? `<div class="hint-small" style="color:var(--red-fg);font-weight:600;padding:6px 0">&#9203; Delete requested by ${t.pendingDelete.requestedBy}: "${t.pendingDelete.reason}"${currentUser && currentUser.role === 'admin' ? '' : ' — waiting on admin approval'}</div>` : ''}
     ${t.pendingPark ? `<div class="hint-small" style="color:var(--gray-fg);font-weight:600;padding:6px 0">&#9203; Park (long-range) requested by ${t.pendingPark.requestedBy}${currentUser && currentUser.role === 'admin' ? '' : ' — waiting on admin approval'}</div>` : ''}
+    ${t.pendingReassign ? `<div class="hint-small" style="color:var(--gray-fg);font-weight:600;padding:6px 0">&#9203; ${t.pendingReassign.requestedBy} wants to reassign this to ${t.pendingReassign.newOwner} (${t.pendingReassign.newDept}): "${t.pendingReassign.reason}"</div>` : ''}
+    ${t.pendingReassign && currentUser && (currentUser.name === t.pendingReassign.newOwner || currentUser.role === 'admin') ? `
+    <div class="job-actions">
+      <span></span>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="mark-btn reassign-accept">Accept reassignment</button>
+        <button class="mark-btn reassign-decline">Decline</button>
+      </div>
+    </div>` : ''}
     ${editable ? `
     <div class="job-actions">
       <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -738,6 +752,12 @@ function makeSliderRow(t, showDeptTag) {
           <input type="text" class="edit-new-crew-name" />
         </div>
       </div>
+      <div class="add-row edit-reassign-reason-row" style="display:none">
+        <div class="field grow">
+          <label>Reason for reassigning to a new person <span style="color:var(--red-fg)">*</span></label>
+          <input type="text" class="edit-reassign-reason" placeholder="Why is this moving to someone else?" />
+        </div>
+      </div>
       <div class="add-row">
         <div class="field narrow">
           <label>Start date</label>
@@ -783,6 +803,10 @@ function makeSliderRow(t, showDeptTag) {
     }
     const baseText = `"${t.name}" updated to ${t.pct}%`;
     const changeText = hasNote ? `${baseText} — ${noteText}` : baseText;
+    if (hasNote) {
+      if (!t.notes) t.notes = [];
+      t.notes.push({ text: noteText, by: currentUser.name, at: new Date().toISOString() });
+    }
     if (hasPhoto) {
       if (saveMsgEl) {
         saveMsgEl.style.color = 'var(--text-muted)';
@@ -867,6 +891,10 @@ function makeSliderRow(t, showDeptTag) {
       row.querySelector('.edit-new-owner-name').parentElement.style.display = isNew ? 'block' : 'none';
       row.querySelector('.edit-new-owner-name').value = '';
       row.querySelector('.edit-new-crew-name').value = '';
+      const reassignRow = row.querySelector('.edit-reassign-reason-row');
+      const isReassigning = isNew || editOwnerSelect.value !== t.owner;
+      reassignRow.style.display = isReassigning ? 'flex' : 'none';
+      if (!isReassigning) row.querySelector('.edit-reassign-reason').value = '';
     };
     editOwnerSelect.addEventListener('change', updateEditOwnerRow);
   }
@@ -896,19 +924,72 @@ function makeSliderRow(t, showDeptTag) {
       }
       const newStart = row.querySelector('.edit-start').value || null;
       const newDue = row.querySelector('.edit-due').value || null;
+      const isReassigning = newOwner !== t.owner;
+      let reason = '';
+      if (isReassigning) {
+        reason = row.querySelector('.edit-reassign-reason').value.trim();
+        if (!reason) {
+          flashSaveMsg('Enter a reason for reassigning this job.', true);
+          return;
+        }
+      }
+      // Non-reassignment changes (name, dates) apply immediately regardless.
       if (newName) t.name = newName;
-      t.owner = newOwner;
-      t.dept = newDept;
-      if (!deptOrder.includes(newDept)) deptOrder.push(newDept);
       t.start = newStart;
       t.due = newDue;
       editingIds.delete(t.id);
-      if (t.dept) openDepts.add(t.dept);
+      if (isReassigning) {
+        t.pendingReassign = { newOwner, newDept, reason, requestedBy: currentUser.name, requestedAt: new Date().toISOString() };
+        persistTask(t);
+        renderStats();
+        renderAll();
+        notifyChange(newOwner, `${currentUser.name} wants to reassign "${t.name}" to you`);
+        notifyAdmins(`Reassignment pending acceptance`, `${currentUser.name} wants to reassign "${t.name}" from ${t.owner} to ${newOwner} (${newDept}).\n\nReason: ${reason}\n\nWaiting on ${newOwner} to accept or decline.`);
+      } else {
+        t.dept = newDept;
+        if (!deptOrder.includes(newDept)) deptOrder.push(newDept);
+        if (t.dept) openDepts.add(t.dept);
+        persistTask(t);
+        populateOwnerSelect();
+        renderStats();
+        renderAll();
+        notifyChange(t.owner, `"${t.name}" was edited`);
+      }
+    });
+  }
+  const reassignAcceptBtn = row.querySelector('.mark-btn.reassign-accept');
+  if (reassignAcceptBtn) {
+    reassignAcceptBtn.addEventListener('click', () => {
+      const pr = t.pendingReassign;
+      if (!pr) return;
+      const oldOwner = t.owner;
+      t.owner = pr.newOwner;
+      t.dept = pr.newDept;
+      if (!deptOrder.includes(pr.newDept)) deptOrder.push(pr.newDept);
+      openDepts.add(pr.newDept);
+      delete t.pendingReassign;
       persistTask(t);
       populateOwnerSelect();
       renderStats();
       renderAll();
-      notifyChange(t.owner, `"${t.name}" was edited`);
+      const notesSummary = (t.notes && t.notes.length) ? `\n\nNotes so far:\n${t.notes.map(n => `- ${n.text} (${n.by})`).join('\n')}` : '';
+      const existingPhotos = (t.photos || []).map(p => p.url);
+      notifyChange(t.owner, `"${t.name}" was reassigned to you and accepted${notesSummary}`, existingPhotos);
+      notifyChange(oldOwner, `"${t.name}" was accepted by ${t.owner} and reassigned off your list`);
+      notifyAdmins(`Reassignment accepted`, `"${t.name}" moved from ${oldOwner} to ${t.owner} (${t.dept}). Accepted by ${currentUser.name}.`);
+    });
+  }
+  const reassignDeclineBtn = row.querySelector('.mark-btn.reassign-decline');
+  if (reassignDeclineBtn) {
+    reassignDeclineBtn.addEventListener('click', () => {
+      const pr = t.pendingReassign;
+      if (!pr) return;
+      delete t.pendingReassign;
+      persistTask(t);
+      renderStats();
+      renderAll();
+      notifyChange(pr.requestedBy, `Your request to reassign "${t.name}" to ${pr.newOwner} was declined`);
+      notifyAdmins(`Reassignment declined`, `${pr.newOwner} declined being reassigned "${t.name}" (requested by ${pr.requestedBy}).`);
     });
   }
   const deleteBtn = row.querySelector('.mark-btn.delete');
@@ -1029,6 +1110,15 @@ function deptAvg(dept) {
   return items.length ? Math.round(items.reduce((s, t) => s + t.pct, 0) / items.length) : 0;
 }
 
+function sortByDueDate(list) {
+  return [...list].sort((a, b) => {
+    if (!a.due && !b.due) return 0;
+    if (!a.due) return 1;
+    if (!b.due) return -1;
+    return a.due.localeCompare(b.due);
+  });
+}
+
 function renderAll() {
   deptsEl.innerHTML = '';
   const showOnlyOwnCrews = currentUser && currentUser.role !== 'admin' && !viewAllDepts;
@@ -1038,7 +1128,7 @@ function renderAll() {
     if (items.length === 0) return;
     const uniqueOwners = [...new Set(items.map(i => i.owner))];
     const owner = uniqueOwners.length === 1 ? uniqueOwners[0] : `${uniqueOwners.length} people`;
-    const active = items.filter(t => t.pct < 100);
+    const active = sortByDueDate(items.filter(t => t.pct < 100));
     const wrap = document.createElement('div');
     wrap.className = 'dept';
     const isOpen = openDepts.has(dept);
@@ -1251,6 +1341,15 @@ document.getElementById('add-job-btn').addEventListener('click', () => {
     addMsg.textContent = 'Enter a job description first.';
     return;
   }
+  const isLongRangeAttempt = currentUser.role === 'admin' && document.getElementById('new-job-longrange').checked;
+  if (!isLongRangeAttempt) {
+    const startVal = document.getElementById('new-job-start').value;
+    const dueVal = document.getElementById('new-job-due').value;
+    if (!startVal || !dueVal) {
+      addMsg.textContent = 'Start date and due date are both required (unless it\'s a long-range project).';
+      return;
+    }
+  }
   let owner, dept;
   const map = ownerToDept();
   if (ownerSelect.value === '__new__') {
@@ -1275,7 +1374,7 @@ document.getElementById('add-job-btn').addEventListener('click', () => {
   const start = document.getElementById('new-job-start').value || null;
   const due = document.getElementById('new-job-due').value || null;
   const longRange = currentUser.role === 'admin' && document.getElementById('new-job-longrange').checked;
-  const newTask = { id: nextId++, dept, owner, name: jobName, status: 'next', pct: 0, start, due, longRange };
+  const newTask = { id: nextId++, dept, owner, name: jobName, status: 'next', pct: 0, start, due, longRange, assignedBy: currentUser.name };
   TASKS.push(newTask);
   persistTask(newTask);
   if (isNewDept && !longRange) deptOrder.push(dept);
