@@ -418,6 +418,12 @@
       </label>
     </div>
     <div class="hint-small" id="new-job-longrange-hint" style="display:none">Managers can request a job be parked as long-range after creating it, using the Park button — that goes to admin for approval.</div>
+    <div class="add-row">
+      <div class="field grow">
+        <label>Photo (optional — e.g. what needs repair)</label>
+        <input type="file" id="new-job-photo" accept="image/*" multiple />
+      </div>
+    </div>
     <div class="add-actions">
       <button class="add-btn" id="add-job-btn">Add job</button>
     </div>
@@ -1379,12 +1385,15 @@ document.getElementById('add-job-btn').addEventListener('click', () => {
   persistTask(newTask);
   if (isNewDept && !longRange) deptOrder.push(dept);
   if (!longRange) openDepts.add(dept);
+  const photoInput = document.getElementById('new-job-photo');
+  const photoFiles = photoInput && photoInput.files ? Array.from(photoInput.files) : [];
   document.getElementById('new-job-name').value = '';
   document.getElementById('new-owner-name').value = '';
   document.getElementById('new-crew-name').value = '';
   document.getElementById('new-job-start').value = '';
   document.getElementById('new-job-due').value = '';
   document.getElementById('new-job-longrange').checked = false;
+  if (photoInput) photoInput.value = '';
   populateOwnerSelect();
   renderStats();
   renderAll();
@@ -1392,8 +1401,13 @@ document.getElementById('add-job-btn').addEventListener('click', () => {
   addMsg.textContent = longRange
     ? `Parked "${jobName}" under long-range projects for ${owner}.`
     : `Added to ${dept} (${owner}).`;
-  notifyChange(owner, longRange ? `New long-range job added: "${jobName}"` : `New job added: "${jobName}"`);
+  const jobAddedText = longRange ? `New long-range job added: "${jobName}"` : `New job added: "${jobName}"`;
   if (!longRange) sendJobText(owner, jobName, dept);
+  if (photoFiles.length) {
+    uploadPhotos(newTask, photoFiles, jobAddedText);
+  } else {
+    notifyChange(owner, jobAddedText);
+  }
 });
 
 function sendJobText(ownerName, jobName, dept) {
