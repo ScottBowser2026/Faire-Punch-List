@@ -697,6 +697,34 @@ function photoGalleryHtml(task, editable) {
     </div>`).join('')}</div>`;
 }
 
+function createLinkedGraphicsJob(gfx, jobName, owner, dept, start, due) {
+  const gfxName = gfx.projectName || jobName;
+  const gfxDeptExisting = deptOrder.includes('Graphics');
+  const gfxTask = {
+    id: nextId++,
+    dept: 'Graphics',
+    owner: 'Gabbi',
+    name: `Graphics request: ${gfxName}`,
+    status: 'next',
+    pct: 0,
+    start: start,
+    due: gfx.completionDate || due,
+    longRange: false,
+    assignedBy: currentUser.name,
+    notes: [{
+      text: `Linked to "${jobName}" (${owner}, ${dept}). ${gfx.designType} — ${gfx.projectType}${gfx.specs ? ' — ' + gfx.specs : ''}.${gfx.copies ? ' Copies: ' + gfx.copies + '.' : ''} ${gfx.needsFiles ? 'Requires new files from project contact.' : 'No new files needed.'} ${gfx.description}`,
+      by: currentUser.name,
+      at: new Date().toISOString()
+    }]
+  };
+  TASKS.push(gfxTask);
+  persistTask(gfxTask);
+  if (!gfxDeptExisting) deptOrder.push('Graphics');
+  openDepts.add('Graphics');
+  notifyChange('Gabbi', `New graphics request: "${gfxName}" (linked to "${jobName}")`);
+  if (gfx.files && gfx.files.length) uploadJobFiles(gfxTask, gfx.files, `New design files for "${gfxName}"`);
+}
+
 async function uploadJobFiles(task, files, changeText) {
   if (!window.firebase || !firebase.storage) {
     alert("File storage isn't connected yet.");
@@ -800,6 +828,7 @@ function makeSliderRow(t, showDeptTag) {
   const editable = canEdit(t);
   const row = document.createElement('div');
   row.className = 'job-row';
+  row.dataset.taskId = t.id;
   row.innerHTML = `
     <div class="job-top">
       <span>
@@ -906,6 +935,12 @@ function makeSliderRow(t, showDeptTag) {
           <input type="date" class="edit-due" value="${t.due || ''}" />
         </div>
       </div>
+      <div class="add-row" style="align-items:center">
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-primary);margin:0">
+          <input type="checkbox" class="edit-needs-graphics" style="width:auto" />
+          This job also needs a Graphics/design request
+        </label>
+      </div>
       <div class="job-actions">
         <button class="mark-btn save">Save changes</button>
       </div>
@@ -1006,6 +1041,17 @@ function makeSliderRow(t, showDeptTag) {
     renderAll();
     notifyChange(t.owner, isDone ? `"${t.name}" reopened` : `"${t.name}" marked complete`);
   });
+  const editNeedsGraphics = row.querySelector('.edit-needs-graphics');
+  if (editNeedsGraphics) {
+    editNeedsGraphics.addEventListener('change', (e) => {
+      if (e.target.checked) {
+        graphicsModalContext = t.id;
+        document.getElementById('graphics-modal').style.display = 'flex';
+      } else {
+        if (graphicsModalContext === t.id) pendingGraphicsRequest = null;
+      }
+    });
+  }
   const editOwnerSelect = row.querySelector('.edit-owner-select');
   if (editOwnerSelect) {
     const map = ownerToDept();
@@ -1092,6 +1138,16 @@ function makeSliderRow(t, showDeptTag) {
         renderStats();
         renderAll();
         notifyChange(t.owner, `"${t.name}" was edited`);
+      }
+      const needsGraphicsBox = row.querySelector('.edit-needs-graphics');
+      if (needsGraphicsBox && needsGraphicsBox.checked && pendingGraphicsRequest && graphicsModalContext === t.id) {
+        createLinkedGraphicsJob(pendingGraphicsRequest, t.name, t.owner, t.dept, t.start, t.due);
+        pendingGraphicsRequest = null;
+        needsGraphicsBox.checked = false;
+        const gfxFilesInput = document.getElementById('gfx-files');
+        if (gfxFilesInput) gfxFilesInput.value = '';
+        renderStats();
+        renderAll();
       }
     });
   }
@@ -1538,32 +1594,7 @@ document.getElementById('add-job-btn').addEventListener('click', () => {
     notifyChange(owner, jobAddedText);
   }
   if (pendingGraphicsRequest && !longRange) {
-    const gfx = pendingGraphicsRequest;
-    const gfxName = gfx.projectName || jobName;
-    const gfxDeptExisting = deptOrder.includes('Graphics');
-    const gfxTask = {
-      id: nextId++,
-      dept: 'Graphics',
-      owner: 'Gabbi',
-      name: `Graphics request: ${gfxName}`,
-      status: 'next',
-      pct: 0,
-      start: newTask.start,
-      due: gfx.completionDate || newTask.due,
-      longRange: false,
-      assignedBy: currentUser.name,
-      notes: [{
-        text: `Linked to "${jobName}" (${owner}, ${dept}). ${gfx.designType} — ${gfx.projectType}${gfx.specs ? ' — ' + gfx.specs : ''}.${gfx.copies ? ' Copies: ' + gfx.copies + '.' : ''} ${gfx.needsFiles ? 'Requires new files from project contact.' : 'No new files needed.'} ${gfx.description}`,
-        by: currentUser.name,
-        at: new Date().toISOString()
-      }]
-    };
-    TASKS.push(gfxTask);
-    persistTask(gfxTask);
-    if (!gfxDeptExisting) deptOrder.push('Graphics');
-    openDepts.add('Graphics');
-    notifyChange('Gabbi', `New graphics request: "${gfxName}" (linked to "${jobName}")`);
-    if (gfx.files && gfx.files.length) uploadJobFiles(gfxTask, gfx.files, `New design files for "${gfxName}"`);
+    createLinkedGraphicsJob(pendingGraphicsRequest, jobName, owner, dept, newTask.start, newTask.due);
   }
   pendingGraphicsRequest = null;
   document.getElementById('new-job-needs-graphics').checked = false;
@@ -2436,22 +2467,33 @@ document.getElementById('help-modal').addEventListener('click', (e) => {
 });
 
 let pendingGraphicsRequest = null;
+let graphicsModalContext = 'add'; // 'add' or a task id
 
 document.getElementById('new-job-needs-graphics').addEventListener('change', (e) => {
   if (e.target.checked) {
+    graphicsModalContext = 'add';
     document.getElementById('graphics-modal').style.display = 'flex';
   } else {
     pendingGraphicsRequest = null;
   }
 });
+function uncheckGraphicsBoxForContext() {
+  if (graphicsModalContext === 'add') {
+    document.getElementById('new-job-needs-graphics').checked = false;
+  } else {
+    const row = document.querySelector(`[data-task-id="${graphicsModalContext}"]`);
+    const box = row ? row.querySelector('.edit-needs-graphics') : null;
+    if (box) box.checked = false;
+  }
+}
 document.getElementById('graphics-close-btn').addEventListener('click', () => {
   document.getElementById('graphics-modal').style.display = 'none';
-  if (!pendingGraphicsRequest) document.getElementById('new-job-needs-graphics').checked = false;
+  if (!pendingGraphicsRequest) uncheckGraphicsBoxForContext();
 });
 document.getElementById('graphics-modal').addEventListener('click', (e) => {
   if (e.target.id === 'graphics-modal') {
     document.getElementById('graphics-modal').style.display = 'none';
-    if (!pendingGraphicsRequest) document.getElementById('new-job-needs-graphics').checked = false;
+    if (!pendingGraphicsRequest) uncheckGraphicsBoxForContext();
   }
 });
 document.getElementById('gfx-save-btn').addEventListener('click', () => {
