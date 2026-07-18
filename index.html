@@ -344,6 +344,13 @@
           <textarea id="gfx-description" rows="3" style="width:100%;font-size:13px;padding:8px 10px;border-radius:7px;border:1px solid var(--border);font-family:inherit;box-sizing:border-box" placeholder="Any sizing, materials, or details Gabbi needs to know"></textarea>
         </div>
       </div>
+      <div class="add-row">
+        <div class="field grow">
+          <label>Design files (optional)</label>
+          <input type="file" id="gfx-files" accept=".jpg,.jpeg,.png,.eps,.pdf,.ai,.psd" multiple />
+          <div class="hint-small">JPG, PNG, EPS, PDF, AI, or PSD. Please make sure images are at least 150 DPI at final size for printing.</div>
+        </div>
+      </div>
       <div class="add-actions">
         <button class="add-btn" id="gfx-save-btn">Save graphics request</button>
       </div>
@@ -690,6 +697,53 @@ function photoGalleryHtml(task, editable) {
     </div>`).join('')}</div>`;
 }
 
+async function uploadJobFiles(task, files, changeText) {
+  if (!window.firebase || !firebase.storage) {
+    alert("File storage isn't connected yet.");
+    return;
+  }
+  const storageRef = firebase.storage().ref();
+  let added = 0;
+  const newFiles = [];
+  for (const file of files) {
+    try {
+      const path = `punch-list-files/${task.id}/${Date.now()}_${file.name}`;
+      const ref = storageRef.child(path);
+      await ref.put(file);
+      const url = await ref.getDownloadURL();
+      if (!task.files) task.files = [];
+      const entry = { url, path, name: file.name };
+      task.files.push(entry);
+      newFiles.push(entry);
+      added++;
+    } catch (err) {
+      console.error('File upload failed', err);
+    }
+  }
+  if (added) persistTask(task);
+  renderStats();
+  renderAll();
+  if (added && emailReady()) {
+    const ownerEmail = findDirectoryEmail(task.owner);
+    if (ownerEmail) {
+      const fileLinksHtml = newFiles.map(f => `<li><a href="${f.url}">${f.name}</a></li>`).join('');
+      const subject = changeText || `${added} file${added === 1 ? '' : 's'} added to "${task.name}"`;
+      emailjs.send(emailjsConfig.serviceId, emailjsConfig.templateId, {
+        to_email: ownerEmail,
+        to_name: task.owner,
+        subject: `Faire Punch List: ${subject}`,
+        message: `<p style="margin:0">${subject}</p><p style="margin:14px 0 0"><strong>Files:</strong></p><ul style="margin:6px 0 0;padding-left:20px">${fileLinksHtml}</ul><p style="margin:14px 0 0">Open the tracker: <a href="${TRACKER_URL}">${TRACKER_URL}</a></p>`,
+        cc_email: DAILY_SUMMARY_EMAIL || ''
+      }).catch(err => console.error('File email failed', err));
+    }
+  }
+}
+
+function jobFilesHtml(task) {
+  if (!task.files || !task.files.length) return '';
+  return `<div class="hint-small" style="margin-top:6px"><strong>Files:</strong> ${task.files.map(f => `<a href="${f.url}" target="_blank" rel="noopener">${f.name}</a>`).join(', ')}</div>`;
+}
+
 async function uploadPhotos(task, files, changeText) {
   if (!window.firebase || !firebase.storage) {
     alert("Photo storage isn't connected yet.");
@@ -762,6 +816,7 @@ function makeSliderRow(t, showDeptTag) {
       <span class="pct-out">${t.pct}%</span>
     </div>
     ${photoGalleryHtml(t, editable)}
+    ${jobFilesHtml(t)}
     ${(t.notes && t.notes.length) ? `<div class="hint-small" style="margin-top:6px"><strong>Notes:</strong><br>${t.notes.map(n => `${n.text} <span style="color:var(--text-muted)">— ${n.by}</span>`).join('<br>')}</div>` : ''}
     ${editable ? `<div class="photo-upload-row"><input type="file" class="photo-input" accept="image/*" multiple /></div>
     <div class="photo-upload-row"><input type="text" class="progress-note" placeholder="Or add a quick note instead of a photo..." style="flex:1;font-size:13px;padding:6px 9px;border-radius:7px;border:1px solid var(--border)" /></div>
@@ -1508,9 +1563,12 @@ document.getElementById('add-job-btn').addEventListener('click', () => {
     if (!gfxDeptExisting) deptOrder.push('Graphics');
     openDepts.add('Graphics');
     notifyChange('Gabbi', `New graphics request: "${gfxName}" (linked to "${jobName}")`);
+    if (gfx.files && gfx.files.length) uploadJobFiles(gfxTask, gfx.files, `New design files for "${gfxName}"`);
   }
   pendingGraphicsRequest = null;
   document.getElementById('new-job-needs-graphics').checked = false;
+  const gfxFilesInput = document.getElementById('gfx-files');
+  if (gfxFilesInput) gfxFilesInput.value = '';
   populateOwnerSelect();
   renderStats();
   renderAll();
@@ -2404,6 +2462,7 @@ document.getElementById('gfx-save-btn').addEventListener('click', () => {
     msg.textContent = 'Enter a brief project description.';
     return;
   }
+  const filesInput = document.getElementById('gfx-files');
   pendingGraphicsRequest = {
     projectName: document.getElementById('gfx-project-name').value.trim(),
     completionDate: document.getElementById('gfx-completion-date').value || null,
@@ -2412,7 +2471,8 @@ document.getElementById('gfx-save-btn').addEventListener('click', () => {
     projectType: document.getElementById('gfx-project-type').value,
     specs: document.getElementById('gfx-specs').value.trim(),
     needsFiles: document.getElementById('gfx-needs-files').checked,
-    description
+    description,
+    files: filesInput && filesInput.files ? Array.from(filesInput.files) : []
   };
   document.getElementById('graphics-modal').style.display = 'none';
   flashSaveMsg('Graphics request details saved — they\'ll be attached when you add the job.');
