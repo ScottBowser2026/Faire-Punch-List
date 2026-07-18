@@ -127,7 +127,7 @@
     cursor: pointer; font-weight: 500;
   }
   button.add-btn:hover { background: var(--blue-bar); color: #fff; }
-  .hint-small { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+  .hint-small { font-size: 12px; color: var(--text-muted); margin-top: 6px; overflow-wrap: break-word; }
   footer { text-align: center; font-size: 12px; color: var(--text-muted); margin-top: 24px; }
   #pin-gate {
     position: fixed; inset: 0; background: var(--bg); z-index: 1000;
@@ -480,7 +480,7 @@
     </div>
     <div class="add-row">
       <div class="field grow">
-        <label for="new-job-name">Job description</label>
+        <label for="new-job-name">Job title</label>
         <input type="text" id="new-job-name" placeholder="e.g. Replace broken bench at Joust" />
       </div>
       <div class="field narrow">
@@ -490,6 +490,12 @@
       <div class="field narrow">
         <label for="new-job-due">Due date <span style="color:var(--red-fg)">*</span></label>
         <input type="date" id="new-job-due" />
+      </div>
+    </div>
+    <div class="add-row">
+      <div class="field grow">
+        <label for="new-job-description">Description <span style="color:var(--red-fg)">*</span></label>
+        <textarea id="new-job-description" rows="2" style="width:100%;font-size:13px;padding:8px 10px;border-radius:7px;border:1px solid var(--border);font-family:inherit;box-sizing:border-box" placeholder="Any extra detail — sizing, materials, location specifics, etc."></textarea>
       </div>
     </div>
     <div class="add-row" id="new-job-longrange-row" style="align-items:center">
@@ -849,6 +855,7 @@ function makeSliderRow(t, showDeptTag) {
       </span>
       <span class="badge" style="background:${meta.bg};color:${meta.fg}">${meta.label}</span>
     </div>
+    ${t.description ? `<div class="hint-small" style="margin:2px 0 6px">${t.description}</div>` : ''}
     <div class="job-slider-row">
       <input type="range" min="0" max="100" step="5" value="${t.pct}" ${editable ? '' : 'disabled'} />
       <span class="pct-out">${t.pct}%</span>
@@ -917,8 +924,14 @@ function makeSliderRow(t, showDeptTag) {
     <div class="edit-form">
       <div class="add-row">
         <div class="field grow">
-          <label>Job description</label>
+          <label>Job title</label>
           <input type="text" class="edit-name" value="${t.name.replace(/"/g, '&quot;')}" />
+        </div>
+      </div>
+      <div class="add-row">
+        <div class="field grow">
+          <label>Description <span style="color:var(--red-fg)">*</span></label>
+          <textarea class="edit-description" rows="2" style="width:100%;font-size:13px;padding:8px 10px;border-radius:7px;border:1px solid var(--border);font-family:inherit;box-sizing:border-box"></textarea>
         </div>
       </div>
       <div class="add-row">
@@ -1070,6 +1083,8 @@ function makeSliderRow(t, showDeptTag) {
       }
     });
   }
+  const editDescriptionField = row.querySelector('.edit-description');
+  if (editDescriptionField) editDescriptionField.value = t.description || '';
   const editOwnerSelect = row.querySelector('.edit-owner-select');
   if (editOwnerSelect) {
     const map = ownerToDept();
@@ -1126,6 +1141,11 @@ function makeSliderRow(t, showDeptTag) {
       }
       const newStart = row.querySelector('.edit-start').value || null;
       const newDue = row.querySelector('.edit-due').value || null;
+      const newDescription = row.querySelector('.edit-description').value.trim();
+      if (!newDescription) {
+        flashSaveMsg('Description is required.', true);
+        return;
+      }
       const isReassigning = newOwner !== t.owner;
       let reason = '';
       if (isReassigning) {
@@ -1137,6 +1157,7 @@ function makeSliderRow(t, showDeptTag) {
       }
       // Non-reassignment changes (name, dates) apply immediately regardless.
       if (newName) t.name = newName;
+      t.description = newDescription;
       t.start = newStart;
       t.due = newDue;
       editingIds.delete(t.id);
@@ -1574,7 +1595,11 @@ document.getElementById('add-job-btn').addEventListener('click', () => {
   const jobName = document.getElementById('new-job-name').value.trim();
   addMsg.style.color = 'var(--text-muted)';
   if (!jobName) {
-    addMsg.textContent = 'Enter a job description first.';
+    addMsg.textContent = 'Enter a job title first.';
+    return;
+  }
+  if (!document.getElementById('new-job-description').value.trim()) {
+    addMsg.textContent = 'Description is required.';
     return;
   }
   const isLongRangeAttempt = currentUser.role === 'admin' && document.getElementById('new-job-longrange').checked;
@@ -1610,7 +1635,8 @@ document.getElementById('add-job-btn').addEventListener('click', () => {
   const start = document.getElementById('new-job-start').value || null;
   const due = document.getElementById('new-job-due').value || null;
   const longRange = currentUser.role === 'admin' && document.getElementById('new-job-longrange').checked;
-  const newTask = { id: nextId++, dept, owner, name: jobName, status: 'next', pct: 0, start, due, longRange, assignedBy: currentUser.name };
+  const description = document.getElementById('new-job-description').value.trim();
+  const newTask = { id: nextId++, dept, owner, name: jobName, description, status: 'next', pct: 0, start, due, longRange, assignedBy: currentUser.name };
   if (owner !== currentUser.name) {
     newTask.pendingAcceptance = { requestedBy: currentUser.name, requestedAt: new Date().toISOString() };
   }
@@ -1621,6 +1647,7 @@ document.getElementById('add-job-btn').addEventListener('click', () => {
   const photoInput = document.getElementById('new-job-photo');
   const photoFiles = photoInput && photoInput.files ? Array.from(photoInput.files) : [];
   document.getElementById('new-job-name').value = '';
+  document.getElementById('new-job-description').value = '';
   document.getElementById('new-owner-name').value = '';
   document.getElementById('new-crew-name').value = '';
   document.getElementById('new-job-start').value = '';
