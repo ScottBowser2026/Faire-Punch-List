@@ -1685,7 +1685,7 @@ function sendJobText(ownerName, jobName, dept) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       to: phone,
-      message: `Faire Punch List: you've been assigned a new job in ${dept}: "${jobName}". Open the tracker: ${TRACKER_URL}`
+      message: `Faire Punch List: you've been assigned a new job in ${dept}: "${jobName}". ${TRACKER_URL} Reply STOP to opt out.`
     })
   }).catch(err => console.error('Text notification failed', err));
 }
