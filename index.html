@@ -700,7 +700,7 @@ function photoGalleryHtml(task, editable) {
     </div>`).join('')}</div>`;
 }
 
-function createLinkedGraphicsJob(gfx, jobName, owner, dept, start, due) {
+function createLinkedGraphicsJob(gfx, jobName, owner, dept, start, due, existingPhotos, existingFiles, rawPhotoFilesToCopy) {
   const gfxName = gfx.projectName || jobName;
   const gfxDeptExisting = deptOrder.includes('Graphics');
   const gfxTask = {
@@ -720,6 +720,8 @@ function createLinkedGraphicsJob(gfx, jobName, owner, dept, start, due) {
       at: new Date().toISOString()
     }]
   };
+  if (existingPhotos && existingPhotos.length) gfxTask.photos = existingPhotos.map(p => ({ ...p }));
+  if (existingFiles && existingFiles.length) gfxTask.files = existingFiles.map(f => ({ ...f }));
   if ('Gabbi' !== currentUser.name) {
     gfxTask.pendingAcceptance = { requestedBy: currentUser.name, requestedAt: new Date().toISOString() };
   }
@@ -729,6 +731,7 @@ function createLinkedGraphicsJob(gfx, jobName, owner, dept, start, due) {
   openDepts.add('Graphics');
   notifyChange('Gabbi', `New graphics request: "${gfxName}" (linked to "${jobName}")`);
   if (gfx.files && gfx.files.length) uploadJobFiles(gfxTask, gfx.files, `New design files for "${gfxName}"`);
+  if (rawPhotoFilesToCopy && rawPhotoFilesToCopy.length) uploadPhotos(gfxTask, rawPhotoFilesToCopy, `Reference photo from "${jobName}"`);
 }
 
 async function uploadJobFiles(task, files, changeText) {
@@ -1156,7 +1159,7 @@ function makeSliderRow(t, showDeptTag) {
       }
       const needsGraphicsBox = row.querySelector('.edit-needs-graphics');
       if (needsGraphicsBox && needsGraphicsBox.checked && pendingGraphicsRequest && graphicsModalContext === t.id) {
-        createLinkedGraphicsJob(pendingGraphicsRequest, t.name, t.owner, t.dept, t.start, t.due);
+        createLinkedGraphicsJob(pendingGraphicsRequest, t.name, t.owner, t.dept, t.start, t.due, t.photos, t.files);
         pendingGraphicsRequest = null;
         needsGraphicsBox.checked = false;
         const gfxFilesInput = document.getElementById('gfx-files');
@@ -1636,7 +1639,7 @@ document.getElementById('add-job-btn').addEventListener('click', () => {
     notifyChange(owner, jobAddedText);
   }
   if (pendingGraphicsRequest && !longRange) {
-    createLinkedGraphicsJob(pendingGraphicsRequest, jobName, owner, dept, newTask.start, newTask.due);
+    createLinkedGraphicsJob(pendingGraphicsRequest, jobName, owner, dept, newTask.start, newTask.due, null, null, photoFiles);
   }
   pendingGraphicsRequest = null;
   document.getElementById('new-job-needs-graphics').checked = false;
