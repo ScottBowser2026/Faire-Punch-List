@@ -151,6 +151,8 @@
   .photo-upload-row input[type=file] { font-size: 12px; }
   #photo-lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.85); z-index: 2000; display: none; align-items: center; justify-content: center; cursor: zoom-out; }
   #help-modal { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 2100; display: none; align-items: center; justify-content: center; padding: 20px; }
+  #graphics-modal { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 2100; display: none; align-items: center; justify-content: center; padding: 20px; }
+  #graphics-modal .help-modal-body { padding: 16px 20px 20px; }
   .help-modal-card { background: var(--surface); border-radius: 14px; max-width: 640px; width: 100%; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; }
   .help-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
   .help-modal-header h2 { font-size: 18px; margin: 0; }
@@ -277,6 +279,75 @@
         <h3>Admin: Recovery PIN</h3>
         <p>If your admin PIN ever breaks, <strong>861029</strong> always logs in as admin. Change your real PIN right after using it. Keep this number private.</p>
       </div>
+    </div>
+  </div>
+</div>
+<div id="graphics-modal">
+  <div class="help-modal-card" style="max-width:520px">
+    <div class="help-modal-header">
+      <h2>Graphics / design request</h2>
+      <button id="graphics-close-btn" aria-label="Close">&times;</button>
+    </div>
+    <div class="help-modal-body">
+      <div class="add-row">
+        <div class="field grow">
+          <label>Project name</label>
+          <input type="text" id="gfx-project-name" placeholder="Defaults to the job description if left blank" />
+        </div>
+      </div>
+      <div class="add-row">
+        <div class="field narrow">
+          <label>Requested completion date</label>
+          <input type="date" id="gfx-completion-date" />
+        </div>
+        <div class="field narrow">
+          <label>Number of copies</label>
+          <input type="number" id="gfx-copies" min="1" placeholder="e.g. 25" />
+        </div>
+      </div>
+      <div class="add-row">
+        <div class="field">
+          <label>New or existing design?</label>
+          <select id="gfx-design-type">
+            <option value="New Design">New Design</option>
+            <option value="Existing Design with Changes">Existing Design with Changes</option>
+            <option value="Existing Design without Changes">Existing Design without Changes</option>
+            <option value="Not sure">Not sure</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Type of project</label>
+          <select id="gfx-project-type">
+            <option value="Non-Print (Web, Outsource)">Non-Print (Web, Outsource)</option>
+            <option value="Copier">Copier</option>
+            <option value="Label">Label</option>
+            <option value="Large Scale">Large Scale</option>
+            <option value="Not sure">Not sure</option>
+          </select>
+        </div>
+      </div>
+      <div class="add-row">
+        <div class="field grow">
+          <label>Size / specs (if known)</label>
+          <input type="text" id="gfx-specs" placeholder="e.g. Standard A-Frame 24x36&quot;, or Business Card 3.5x2&quot;" />
+        </div>
+      </div>
+      <div class="add-row" style="align-items:center">
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-primary);margin:0">
+          <input type="checkbox" id="gfx-needs-files" style="width:auto" />
+          Requires new files from the project contact
+        </label>
+      </div>
+      <div class="add-row">
+        <div class="field grow">
+          <label>Brief project description</label>
+          <textarea id="gfx-description" rows="3" style="width:100%;font-size:13px;padding:8px 10px;border-radius:7px;border:1px solid var(--border);font-family:inherit;box-sizing:border-box" placeholder="Any sizing, materials, or details Gabbi needs to know"></textarea>
+        </div>
+      </div>
+      <div class="add-actions">
+        <button class="add-btn" id="gfx-save-btn">Save graphics request</button>
+      </div>
+      <div class="hint-small" id="gfx-msg"></div>
     </div>
   </div>
 </div>
@@ -418,6 +489,12 @@
       </label>
     </div>
     <div class="hint-small" id="new-job-longrange-hint" style="display:none">Managers can request a job be parked as long-range after creating it, using the Park button — that goes to admin for approval.</div>
+    <div class="add-row" style="align-items:center">
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-primary);margin:0">
+        <input type="checkbox" id="new-job-needs-graphics" style="width:auto" />
+        This job also needs a Graphics/design request
+      </label>
+    </div>
     <div class="add-row">
       <div class="field grow">
         <label>Photo (optional — e.g. what needs repair)</label>
@@ -1394,9 +1471,6 @@ document.getElementById('add-job-btn').addEventListener('click', () => {
   document.getElementById('new-job-due').value = '';
   document.getElementById('new-job-longrange').checked = false;
   if (photoInput) photoInput.value = '';
-  populateOwnerSelect();
-  renderStats();
-  renderAll();
   addMsg.style.color = 'var(--teal-fg)';
   addMsg.textContent = longRange
     ? `Parked "${jobName}" under long-range projects for ${owner}.`
@@ -1408,6 +1482,38 @@ document.getElementById('add-job-btn').addEventListener('click', () => {
   } else {
     notifyChange(owner, jobAddedText);
   }
+  if (pendingGraphicsRequest && !longRange) {
+    const gfx = pendingGraphicsRequest;
+    const gfxName = gfx.projectName || jobName;
+    const gfxDeptExisting = deptOrder.includes('Graphics');
+    const gfxTask = {
+      id: nextId++,
+      dept: 'Graphics',
+      owner: 'Gabbi',
+      name: `Graphics request: ${gfxName}`,
+      status: 'next',
+      pct: 0,
+      start: newTask.start,
+      due: gfx.completionDate || newTask.due,
+      longRange: false,
+      assignedBy: currentUser.name,
+      notes: [{
+        text: `Linked to "${jobName}" (${owner}, ${dept}). ${gfx.designType} — ${gfx.projectType}${gfx.specs ? ' — ' + gfx.specs : ''}.${gfx.copies ? ' Copies: ' + gfx.copies + '.' : ''} ${gfx.needsFiles ? 'Requires new files from project contact.' : 'No new files needed.'} ${gfx.description}`,
+        by: currentUser.name,
+        at: new Date().toISOString()
+      }]
+    };
+    TASKS.push(gfxTask);
+    persistTask(gfxTask);
+    if (!gfxDeptExisting) deptOrder.push('Graphics');
+    openDepts.add('Graphics');
+    notifyChange('Gabbi', `New graphics request: "${gfxName}" (linked to "${jobName}")`);
+  }
+  pendingGraphicsRequest = null;
+  document.getElementById('new-job-needs-graphics').checked = false;
+  populateOwnerSelect();
+  renderStats();
+  renderAll();
 });
 
 function sendJobText(ownerName, jobName, dept) {
@@ -2269,6 +2375,47 @@ document.getElementById('help-close-btn').addEventListener('click', () => {
 });
 document.getElementById('help-modal').addEventListener('click', (e) => {
   if (e.target.id === 'help-modal') document.getElementById('help-modal').style.display = 'none';
+});
+
+let pendingGraphicsRequest = null;
+
+document.getElementById('new-job-needs-graphics').addEventListener('change', (e) => {
+  if (e.target.checked) {
+    document.getElementById('graphics-modal').style.display = 'flex';
+  } else {
+    pendingGraphicsRequest = null;
+  }
+});
+document.getElementById('graphics-close-btn').addEventListener('click', () => {
+  document.getElementById('graphics-modal').style.display = 'none';
+  if (!pendingGraphicsRequest) document.getElementById('new-job-needs-graphics').checked = false;
+});
+document.getElementById('graphics-modal').addEventListener('click', (e) => {
+  if (e.target.id === 'graphics-modal') {
+    document.getElementById('graphics-modal').style.display = 'none';
+    if (!pendingGraphicsRequest) document.getElementById('new-job-needs-graphics').checked = false;
+  }
+});
+document.getElementById('gfx-save-btn').addEventListener('click', () => {
+  const description = document.getElementById('gfx-description').value.trim();
+  const msg = document.getElementById('gfx-msg');
+  if (!description) {
+    msg.style.color = 'var(--red-fg)';
+    msg.textContent = 'Enter a brief project description.';
+    return;
+  }
+  pendingGraphicsRequest = {
+    projectName: document.getElementById('gfx-project-name').value.trim(),
+    completionDate: document.getElementById('gfx-completion-date').value || null,
+    copies: document.getElementById('gfx-copies').value.trim(),
+    designType: document.getElementById('gfx-design-type').value,
+    projectType: document.getElementById('gfx-project-type').value,
+    specs: document.getElementById('gfx-specs').value.trim(),
+    needsFiles: document.getElementById('gfx-needs-files').checked,
+    description
+  };
+  document.getElementById('graphics-modal').style.display = 'none';
+  flashSaveMsg('Graphics request details saved — they\'ll be attached when you add the job.');
 });
 
 init();
