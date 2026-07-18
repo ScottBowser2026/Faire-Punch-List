@@ -250,7 +250,10 @@
       <p>Change "Person responsible" in Edit, type a reason, and save. The job stays with the current owner until the new person accepts it &mdash; they'll see Accept/Decline buttons right on that job once it's their turn to review. All existing notes and photos carry over automatically once accepted.</p>
 
       <h3>Adding a new job</h3>
-      <p>Use "Add a job": pick a person (or "New person..." for someone not yet in the tracker), fill in the description, start date, and due date &mdash; all three are required. No approval needed to create a normal job. Jobs within each crew are sorted by due date automatically, soonest first.</p>
+      <p>Use "Add a job": pick a person (or "New person..." for someone not yet in the tracker), fill in the description, start date, and due date &mdash; all three are required. Jobs within each crew are sorted by due date automatically, soonest first. If you assign a job to someone other than yourself, it waits for them to accept it (see below) &mdash; assigning a job to yourself skips that step.</p>
+
+      <h3>Accepting a new job</h3>
+      <p>When someone assigns a job to you (rather than you creating it for yourself), it shows a banner until you accept it, with Accept/Decline buttons right on the job. Declining notifies whoever assigned it so they can reassign it to someone else. This also applies to graphics requests created for Gabbi.</p>
 
       <h3>Park and Delete</h3>
       <p>Managers requesting either one sends it to admin for approval first &mdash; you'll get an email once it's approved or denied. Admin's own Park/Delete actions happen immediately after a confirmation prompt. Only admin can create a brand-new job as long-range from the start; managers get there by creating it normally, then requesting Park.</p>
@@ -717,6 +720,9 @@ function createLinkedGraphicsJob(gfx, jobName, owner, dept, start, due) {
       at: new Date().toISOString()
     }]
   };
+  if ('Gabbi' !== currentUser.name) {
+    gfxTask.pendingAcceptance = { requestedBy: currentUser.name, requestedAt: new Date().toISOString() };
+  }
   TASKS.push(gfxTask);
   persistTask(gfxTask);
   if (!gfxDeptExisting) deptOrder.push('Graphics');
@@ -851,6 +857,15 @@ function makeSliderRow(t, showDeptTag) {
     <div class="photo-upload-row"><input type="text" class="progress-note" placeholder="Or add a quick note instead of a photo..." style="flex:1;font-size:13px;padding:6px 9px;border-radius:7px;border:1px solid var(--border)" /></div>
     <div class="hint-small">Attach a photo or add a note, then hit Save or press Enter</div>
     <div class="hint-small save-progress-msg"></div>` : ''}
+    ${t.pendingAcceptance ? `<div class="hint-small" style="color:var(--gray-fg);font-weight:600;padding:6px 0">&#9203; New job assigned by ${t.pendingAcceptance.requestedBy} — waiting on ${t.owner} to accept</div>` : ''}
+    ${t.pendingAcceptance && currentUser && (currentUser.name === t.owner || currentUser.role === 'admin') ? `
+    <div class="job-actions">
+      <span></span>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="mark-btn accept-job">Accept job</button>
+        <button class="mark-btn decline-job">Decline</button>
+      </div>
+    </div>` : ''}
     ${t.pendingDelete ? `<div class="hint-small" style="color:var(--red-fg);font-weight:600;padding:6px 0">&#9203; Delete requested by ${t.pendingDelete.requestedBy}: "${t.pendingDelete.reason}"${currentUser && currentUser.role === 'admin' ? '' : ' — waiting on admin approval'}</div>` : ''}
     ${t.pendingPark ? `<div class="hint-small" style="color:var(--gray-fg);font-weight:600;padding:6px 0">&#9203; Park (long-range) requested by ${t.pendingPark.requestedBy}${currentUser && currentUser.role === 'admin' ? '' : ' — waiting on admin approval'}</div>` : ''}
     ${t.pendingReassign ? `<div class="hint-small" style="color:var(--gray-fg);font-weight:600;padding:6px 0">&#9203; ${t.pendingReassign.requestedBy} wants to reassign this to ${t.pendingReassign.newOwner} (${t.pendingReassign.newDept}): "${t.pendingReassign.reason}"</div>` : ''}
@@ -1149,6 +1164,30 @@ function makeSliderRow(t, showDeptTag) {
         renderStats();
         renderAll();
       }
+    });
+  }
+  const acceptJobBtn = row.querySelector('.mark-btn.accept-job');
+  if (acceptJobBtn) {
+    acceptJobBtn.addEventListener('click', () => {
+      const requestedBy = t.pendingAcceptance ? t.pendingAcceptance.requestedBy : null;
+      delete t.pendingAcceptance;
+      persistTask(t);
+      renderStats();
+      renderAll();
+      if (requestedBy) notifyChange(requestedBy, `${t.owner} accepted "${t.name}"`);
+    });
+  }
+  const declineJobBtn = row.querySelector('.mark-btn.decline-job');
+  if (declineJobBtn) {
+    declineJobBtn.addEventListener('click', () => {
+      if (!confirm(`Decline "${t.name}"? Whoever assigned it will be notified to reassign it.`)) return;
+      const requestedBy = t.pendingAcceptance ? t.pendingAcceptance.requestedBy : null;
+      delete t.pendingAcceptance;
+      persistTask(t);
+      renderStats();
+      renderAll();
+      if (requestedBy) notifyChange(requestedBy, `${t.owner} declined "${t.name}" — needs to be reassigned`);
+      notifyAdmins(`Job declined`, `${t.owner} declined "${t.name}" (${t.dept}), assigned by ${requestedBy || 'unknown'}. It needs to be reassigned via Edit.`);
     });
   }
   const reassignAcceptBtn = row.querySelector('.mark-btn.reassign-accept');
@@ -1569,6 +1608,9 @@ document.getElementById('add-job-btn').addEventListener('click', () => {
   const due = document.getElementById('new-job-due').value || null;
   const longRange = currentUser.role === 'admin' && document.getElementById('new-job-longrange').checked;
   const newTask = { id: nextId++, dept, owner, name: jobName, status: 'next', pct: 0, start, due, longRange, assignedBy: currentUser.name };
+  if (owner !== currentUser.name) {
+    newTask.pendingAcceptance = { requestedBy: currentUser.name, requestedAt: new Date().toISOString() };
+  }
   TASKS.push(newTask);
   persistTask(newTask);
   if (isNewDept && !longRange) deptOrder.push(dept);
