@@ -455,6 +455,11 @@
         </div>
         <div class="hint-small" id="rename-msg"></div>
       </div>
+      <div style="padding:10px 0;border-bottom:1px solid var(--border);margin-bottom:10px">
+        <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:6px;font-weight:600">Categories (crews)</label>
+        <div id="category-list"></div>
+        <div class="hint-small" id="category-msg"></div>
+      </div>
       <div style="padding:10px 0">
         <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:6px;font-weight:600">Everyone</label>
         <div id="team-list"></div>
@@ -1438,6 +1443,7 @@ function renderAll() {
   renderLongRange();
   renderTeamList();
   renderRenameSelect();
+  renderCategoryList();
 }
 
 const activatingIds = new Set();
@@ -1836,6 +1842,55 @@ function notifyAdmins(subject, message) {
       cc_email: DAILY_SUMMARY_EMAIL || ''
     }).catch(err => console.error('Admin notify failed', err));
   });
+}
+
+function renderCategoryList() {
+  const list = document.getElementById('category-list');
+  if (!list) return;
+  const allDepts = [...new Set([...deptOrder, ...TASKS.map(t => t.dept)])].sort((a, b) => a.localeCompare(b));
+  list.innerHTML = '';
+  allDepts.forEach(dept => {
+    const active = TASKS.filter(t => t.dept === dept && !t.longRange && t.pct < 100).length;
+    const completed = TASKS.filter(t => t.dept === dept && !t.longRange && t.pct >= 100).length;
+    const longRangeCount = TASKS.filter(t => t.dept === dept && t.longRange).length;
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:8px;align-items:center;padding:6px 0;flex-wrap:wrap;border-top:1px solid var(--border)';
+    row.innerHTML = `
+      <span style="font-size:13px;font-weight:600;min-width:140px">${dept}</span>
+      <span style="font-size:12px;color:var(--text-muted);flex:1">${active} active, ${completed} completed, ${longRangeCount} long-range</span>
+      <button class="ui cat-delete" style="font-size:12px;padding:5px 10px;border-color:var(--red-fg);color:var(--red-fg)">Delete</button>
+    `;
+    row.querySelector('.cat-delete').addEventListener('click', () => {
+      deleteCategory(dept, active, completed, longRangeCount);
+    });
+    list.appendChild(row);
+  });
+}
+
+function deleteCategory(dept, activeCount, completedCount, longRangeCount) {
+  const totalJobs = activeCount + completedCount + longRangeCount;
+  const msg = document.getElementById('category-msg');
+  if (totalJobs === 0) {
+    if (!confirm(`Remove empty category "${dept}"?`)) return;
+    const idx = deptOrder.indexOf(dept);
+    if (idx > -1) deptOrder.splice(idx, 1);
+    openDepts.delete(dept);
+    renderAll();
+    flashSaveMsg(`Removed "${dept}".`);
+    return;
+  }
+  const warning = activeCount > 0
+    ? `"${dept}" has ${activeCount} active job${activeCount === 1 ? '' : 's'}. Deleting this category will park ${activeCount === 1 ? 'it' : 'them'} as long-range so nothing is lost. ${completedCount} completed job${completedCount === 1 ? '' : 's'} will stay in the Completed list. Continue?`
+    : `"${dept}" has ${completedCount} completed and ${longRangeCount} long-range job${(completedCount + longRangeCount) === 1 ? '' : 's'}, but no active jobs. Remove it from the crew list? Existing jobs stay exactly where they are, just the category itself won't show as an active crew section anymore.`;
+  if (!confirm(warning)) return;
+  const activeJobs = TASKS.filter(t => t.dept === dept && !t.longRange && t.pct < 100);
+  activeJobs.forEach(t => { t.longRange = true; persistTask(t); });
+  const idx = deptOrder.indexOf(dept);
+  if (idx > -1) deptOrder.splice(idx, 1);
+  openDepts.delete(dept);
+  renderStats();
+  renderAll();
+  flashSaveMsg(`Removed "${dept}"${activeJobs.length ? ` and parked ${activeJobs.length} job${activeJobs.length === 1 ? '' : 's'} as long-range` : ''}.`);
 }
 
 function renderTeamList() {
