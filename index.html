@@ -1229,6 +1229,10 @@ function makeSliderRow(t, showDeptTag) {
       const pr = t.pendingReassign;
       if (!pr) return;
       const oldOwner = t.owner;
+      if (DELETED_PEOPLE.has(pr.newOwner)) {
+        DELETED_PEOPLE.delete(pr.newOwner);
+        persistDeletedPeople();
+      }
       t.owner = pr.newOwner;
       t.dept = pr.newDept;
       if (!deptOrder.includes(pr.newDept)) deptOrder.push(pr.newDept);
@@ -1646,6 +1650,10 @@ document.getElementById('add-job-btn').addEventListener('click', () => {
   const due = document.getElementById('new-job-due').value || null;
   const longRange = currentUser.role === 'admin' && document.getElementById('new-job-longrange').checked;
   const description = document.getElementById('new-job-description').value.trim();
+  if (DELETED_PEOPLE.has(owner)) {
+    DELETED_PEOPLE.delete(owner);
+    persistDeletedPeople();
+  }
   const newTask = { id: nextId++, dept, owner, name: jobName, description, status: 'next', pct: 0, start, due, longRange, assignedBy: currentUser.name };
   if (owner !== currentUser.name) {
     newTask.pendingAcceptance = { requestedBy: currentUser.name, requestedAt: new Date().toISOString() };
@@ -1708,6 +1716,8 @@ let applyingRemote = false;
 let dbRef = null;
 let DELETED_CATEGORIES = new Set();
 let deletedCategoriesRef = null;
+let DELETED_PEOPLE = new Set();
+let deletedPeopleRef = null;
 let directoryRef = null;
 let DIRECTORY = {};      // owner name -> email
 let PHONE_DIRECTORY = {}; // owner name -> phone number
@@ -1768,6 +1778,10 @@ function persistPhoneDirectory() {
 
 function persistDeletedCategories() {
   if (deletedCategoriesRef) deletedCategoriesRef.set(JSON.stringify([...DELETED_CATEGORIES])).catch(err => console.error('Deleted categories save failed', err));
+}
+
+function persistDeletedPeople() {
+  if (deletedPeopleRef) deletedPeopleRef.set(JSON.stringify([...DELETED_PEOPLE])).catch(err => console.error('Deleted people save failed', err));
 }
 
 function findPhone(name) {
@@ -1929,6 +1943,22 @@ function renderTeamList() {
   if (!list) return;
   list.innerHTML = '';
   names.forEach(name => {
+    if (DELETED_PEOPLE.has(name)) {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;gap:8px;align-items:center;padding:8px 0;flex-wrap:wrap;border-top:1px solid var(--border)';
+      row.innerHTML = `
+        <span style="font-size:13px;font-weight:600;min-width:140px">${name} <span style="font-weight:400;color:var(--text-muted)">(removed)</span></span>
+        <button class="ui tm-restore" style="font-size:12px;padding:5px 10px">Restore</button>
+      `;
+      row.querySelector('.tm-restore').addEventListener('click', () => {
+        DELETED_PEOPLE.delete(name);
+        persistDeletedPeople();
+        renderTeamList();
+        flashSaveMsg(`Restored ${name}.`);
+      });
+      list.appendChild(row);
+      return;
+    }
     const matchingPins = Object.keys(PIN_DIRECTORY).filter(p => PIN_DIRECTORY[p].name === name);
     const existingPin = matchingPins.find(p => PIN_DIRECTORY[p].role === 'admin') || matchingPins[0];
     const pinEntry = existingPin ? PIN_DIRECTORY[existingPin] : null;
@@ -1974,9 +2004,11 @@ function renderTeamList() {
       delete DIRECTORY[name];
       delete PHONE_DIRECTORY[name];
       if (existingPin) delete PIN_DIRECTORY[existingPin];
+      DELETED_PEOPLE.add(name);
       persistDirectory();
       persistPhoneDirectory();
       persistPinDirectory();
+      persistDeletedPeople();
       if (openJobs.length) { renderStats(); renderAll(); }
       renderTeamList();
       renderRenameSelect();
@@ -2511,6 +2543,12 @@ function init() {
     rebuildDerivedState();
     renderStats();
     renderAll();
+  });
+  deletedPeopleRef = firebase.database().ref('faire-punch-list-deleted-people');
+  deletedPeopleRef.on('value', snap => {
+    const v = snap.val();
+    try { DELETED_PEOPLE = new Set(v ? JSON.parse(v) : []); } catch (e) { DELETED_PEOPLE = new Set(); }
+    renderTeamList();
   });
   pinDirectoryRef = firebase.database().ref('faire-punch-list-pins');
   dailySummaryEmailRef = firebase.database().ref('faire-punch-list-daily-summary-email');
