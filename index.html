@@ -977,6 +977,7 @@ function makeSliderRow(t, showDeptTag) {
           This job also needs a Graphics/design request
         </label>
       </div>
+      <div class="hint-small edit-msg"></div>
       <div class="job-actions">
         <button class="mark-btn save">Save changes</button>
       </div>
@@ -1123,13 +1124,18 @@ function makeSliderRow(t, showDeptTag) {
   const saveBtn = row.querySelector('.mark-btn.save');
   if (saveBtn) {
     saveBtn.addEventListener('click', () => {
+      const editMsgEl = row.querySelector('.edit-msg');
+      const showEditError = (text) => {
+        if (editMsgEl) { editMsgEl.style.color = 'var(--red-fg)'; editMsgEl.textContent = text; }
+        else flashSaveMsg(text, true);
+      };
       const newName = row.querySelector('.edit-name').value.trim();
       let newOwner, newDept;
       if (editOwnerSelect.value === '__new__') {
         newOwner = row.querySelector('.edit-new-owner-name').value.trim();
         newDept = row.querySelector('.edit-new-crew-name').value.trim();
         if (!newOwner || !newDept) {
-          flashSaveMsg('Enter both a name and a crew for the new person.', true);
+          showEditError('Enter both a name and a crew for the new person.');
           return;
         }
       } else {
@@ -1139,7 +1145,7 @@ function makeSliderRow(t, showDeptTag) {
         if (!newDept) {
           newDept = row.querySelector('.edit-new-crew-name').value.trim();
           if (!newDept) {
-            flashSaveMsg(`${newOwner} doesn't have a crew set yet — enter one in the "Crew / area" field.`, true);
+            showEditError(`${newOwner} doesn't have a crew set yet — enter one in the "Crew / area" field.`);
             return;
           }
         }
@@ -1148,7 +1154,7 @@ function makeSliderRow(t, showDeptTag) {
       const newDue = row.querySelector('.edit-due').value || null;
       const newDescription = row.querySelector('.edit-description').value.trim();
       if (!newDescription) {
-        flashSaveMsg('Description is required.', true);
+        showEditError('Description is required.');
         return;
       }
       const isReassigning = newOwner !== t.owner;
@@ -1156,7 +1162,7 @@ function makeSliderRow(t, showDeptTag) {
       if (isReassigning) {
         reason = row.querySelector('.edit-reassign-reason').value.trim();
         if (!reason) {
-          flashSaveMsg('Enter a reason for reassigning this job.', true);
+          showEditError('Enter a reason for reassigning this job.');
           return;
         }
       }
