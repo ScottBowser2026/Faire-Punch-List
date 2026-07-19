@@ -1175,6 +1175,10 @@ function makeSliderRow(t, showDeptTag) {
         notifyAdmins(`Reassignment pending acceptance`, `${currentUser.name} wants to reassign "${t.name}" from ${t.owner} to ${newOwner} (${newDept}).\n\nReason: ${reason}\n\nWaiting on ${newOwner} to accept or decline.`);
       } else {
         t.dept = newDept;
+        if (DELETED_CATEGORIES.has(newDept)) {
+          DELETED_CATEGORIES.delete(newDept);
+          persistDeletedCategories();
+        }
         if (!deptOrder.includes(newDept)) deptOrder.push(newDept);
         if (t.dept) openDepts.add(t.dept);
         persistTask(t);
@@ -1648,6 +1652,10 @@ document.getElementById('add-job-btn').addEventListener('click', () => {
   }
   TASKS.push(newTask);
   persistTask(newTask);
+  if (DELETED_CATEGORIES.has(dept)) {
+    DELETED_CATEGORIES.delete(dept);
+    persistDeletedCategories();
+  }
   if (isNewDept && !longRange) deptOrder.push(dept);
   if (!longRange) openDepts.add(dept);
   const photoInput = document.getElementById('new-job-photo');
@@ -1698,6 +1706,8 @@ function sendJobText(ownerName, jobName, dept) {
 
 let applyingRemote = false;
 let dbRef = null;
+let DELETED_CATEGORIES = new Set();
+let deletedCategoriesRef = null;
 let directoryRef = null;
 let DIRECTORY = {};      // owner name -> email
 let PHONE_DIRECTORY = {}; // owner name -> phone number
@@ -1717,7 +1727,7 @@ let directoryOpen = false;
 
 function rebuildDerivedState() {
   deptOrder.length = 0;
-  TASKS.forEach(t => { if (!deptOrder.includes(t.dept)) deptOrder.push(t.dept); });
+  TASKS.forEach(t => { if (!deptOrder.includes(t.dept) && !DELETED_CATEGORIES.has(t.dept)) deptOrder.push(t.dept); });
   nextId = Math.max(0, ...TASKS.map(t => t.id)) + 1;
 }
 
@@ -1754,6 +1764,10 @@ function persistDirectory() {
 
 function persistPhoneDirectory() {
   if (phoneDirectoryRef) phoneDirectoryRef.set(JSON.stringify(PHONE_DIRECTORY)).catch(err => console.error('Phone directory save failed', err));
+}
+
+function persistDeletedCategories() {
+  if (deletedCategoriesRef) deletedCategoriesRef.set(JSON.stringify([...DELETED_CATEGORIES])).catch(err => console.error('Deleted categories save failed', err));
 }
 
 function findPhone(name) {
@@ -1850,19 +1864,33 @@ function renderCategoryList() {
   const allDepts = [...new Set([...deptOrder, ...TASKS.map(t => t.dept)])].sort((a, b) => a.localeCompare(b));
   list.innerHTML = '';
   allDepts.forEach(dept => {
+    const isDeleted = DELETED_CATEGORIES.has(dept);
     const active = TASKS.filter(t => t.dept === dept && !t.longRange && t.pct < 100).length;
     const completed = TASKS.filter(t => t.dept === dept && !t.longRange && t.pct >= 100).length;
     const longRangeCount = TASKS.filter(t => t.dept === dept && t.longRange).length;
     const row = document.createElement('div');
     row.style.cssText = 'display:flex;gap:8px;align-items:center;padding:6px 0;flex-wrap:wrap;border-top:1px solid var(--border)';
     row.innerHTML = `
-      <span style="font-size:13px;font-weight:600;min-width:140px">${dept}</span>
+      <span style="font-size:13px;font-weight:600;min-width:140px">${dept}${isDeleted ? ' <span style="font-weight:400;color:var(--text-muted)">(removed)</span>' : ''}</span>
       <span style="font-size:12px;color:var(--text-muted);flex:1">${active} active, ${completed} completed, ${longRangeCount} long-range</span>
-      <button class="ui cat-delete" style="font-size:12px;padding:5px 10px;border-color:var(--red-fg);color:var(--red-fg)">Delete</button>
+      ${isDeleted
+        ? `<button class="ui cat-restore" style="font-size:12px;padding:5px 10px">Restore</button>`
+        : `<button class="ui cat-delete" style="font-size:12px;padding:5px 10px;border-color:var(--red-fg);color:var(--red-fg)">Delete</button>`}
     `;
-    row.querySelector('.cat-delete').addEventListener('click', () => {
-      deleteCategory(dept, active, completed, longRangeCount);
-    });
+    if (isDeleted) {
+      row.querySelector('.cat-restore').addEventListener('click', () => {
+        DELETED_CATEGORIES.delete(dept);
+        persistDeletedCategories();
+        rebuildDerivedState();
+        renderStats();
+        renderAll();
+        flashSaveMsg(`Restored "${dept}".`);
+      });
+    } else {
+      row.querySelector('.cat-delete').addEventListener('click', () => {
+        deleteCategory(dept, active, completed, longRangeCount);
+      });
+    }
     list.appendChild(row);
   });
 }
@@ -1872,8 +1900,9 @@ function deleteCategory(dept, activeCount, completedCount, longRangeCount) {
   const msg = document.getElementById('category-msg');
   if (totalJobs === 0) {
     if (!confirm(`Remove empty category "${dept}"?`)) return;
-    const idx = deptOrder.indexOf(dept);
-    if (idx > -1) deptOrder.splice(idx, 1);
+    DELETED_CATEGORIES.add(dept);
+    persistDeletedCategories();
+    rebuildDerivedState();
     openDepts.delete(dept);
     renderAll();
     flashSaveMsg(`Removed "${dept}".`);
@@ -1885,8 +1914,9 @@ function deleteCategory(dept, activeCount, completedCount, longRangeCount) {
   if (!confirm(warning)) return;
   const activeJobs = TASKS.filter(t => t.dept === dept && !t.longRange && t.pct < 100);
   activeJobs.forEach(t => { t.longRange = true; persistTask(t); });
-  const idx = deptOrder.indexOf(dept);
-  if (idx > -1) deptOrder.splice(idx, 1);
+  DELETED_CATEGORIES.add(dept);
+  persistDeletedCategories();
+  rebuildDerivedState();
   openDepts.delete(dept);
   renderStats();
   renderAll();
@@ -2473,6 +2503,14 @@ function init() {
   phoneDirectoryRef.on('value', snap => {
     const v = snap.val();
     try { PHONE_DIRECTORY = v ? JSON.parse(v) : {}; } catch (e) { PHONE_DIRECTORY = {}; }
+  });
+  deletedCategoriesRef = firebase.database().ref('faire-punch-list-deleted-categories');
+  deletedCategoriesRef.on('value', snap => {
+    const v = snap.val();
+    try { DELETED_CATEGORIES = new Set(v ? JSON.parse(v) : []); } catch (e) { DELETED_CATEGORIES = new Set(); }
+    rebuildDerivedState();
+    renderStats();
+    renderAll();
   });
   pinDirectoryRef = firebase.database().ref('faire-punch-list-pins');
   dailySummaryEmailRef = firebase.database().ref('faire-punch-list-daily-summary-email');
