@@ -460,6 +460,13 @@
         <div id="category-list"></div>
         <div class="hint-small" id="category-msg"></div>
       </div>
+      <div style="padding:10px 0;border-bottom:1px solid var(--border);margin-bottom:10px">
+        <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:6px;font-weight:600">Bulk add phone numbers</label>
+        <div class="hint-small" style="margin:0 0 6px">Paste one person per line. Works with "Last, First, Phone" or "Name, Phone" &mdash; separated by tabs, commas, or multiple spaces.</div>
+        <textarea id="bulk-phone-input" rows="5" style="width:100%;font-size:13px;padding:8px 10px;border-radius:7px;border:1px solid var(--border);font-family:inherit;box-sizing:border-box" placeholder="Braswell	Blake	(407) 312-8373&#10;Miller	Bri	(678) 438-2504"></textarea>
+        <button class="ui" id="bulk-phone-btn" style="margin-top:8px">Match and save phone numbers</button>
+        <div class="hint-small" id="bulk-phone-msg"></div>
+      </div>
       <div style="padding:10px 0">
         <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:6px;font-weight:600">Everyone</label>
         <div id="team-list"></div>
@@ -2196,6 +2203,46 @@ function renderRenameSelect() {
   });
   if (names.includes(current)) select.value = current;
 }
+
+document.getElementById('bulk-phone-btn').addEventListener('click', () => {
+  const raw = document.getElementById('bulk-phone-input').value;
+  const msg = document.getElementById('bulk-phone-msg');
+  const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+  if (!lines.length) {
+    msg.style.color = 'var(--red-fg)';
+    msg.textContent = 'Paste at least one line first.';
+    return;
+  }
+  const knownNames = [...new Set([...TASKS.map(t => t.owner), ...Object.keys(DIRECTORY), ...Object.values(PIN_DIRECTORY).map(e => e.name)])];
+  const matched = [];
+  const unmatched = [];
+  lines.forEach(line => {
+    const parts = line.split(/\t|,|  +/).map(p => p.trim()).filter(Boolean);
+    if (parts.length < 2) { unmatched.push(line); return; }
+    const phone = parts[parts.length - 1];
+    let candidates = [];
+    if (parts.length >= 3) {
+      candidates.push(`${parts[1]} ${parts[0]}`); // "First Last" from "Last, First, Phone"
+      candidates.push(parts[1]); // first name only fallback
+    } else {
+      candidates.push(parts[0]);
+    }
+    const found = candidates
+      .map(cand => knownNames.find(n => n.toLowerCase() === cand.toLowerCase()))
+      .find(Boolean);
+    if (found) {
+      PHONE_DIRECTORY[found] = phone;
+      matched.push(found);
+    } else {
+      unmatched.push(line);
+    }
+  });
+  if (matched.length) persistPhoneDirectory();
+  renderTeamList();
+  document.getElementById('bulk-phone-input').value = unmatched.join('\n');
+  msg.style.color = unmatched.length ? 'var(--red-fg)' : 'var(--teal-fg)';
+  msg.textContent = `Saved phone numbers for ${matched.length} ${matched.length === 1 ? 'person' : 'people'}: ${matched.join(', ') || 'none'}.${unmatched.length ? ` Couldn't match ${unmatched.length} line(s) — left in the box above for you to check (maybe a new person not yet added, or a name mismatch).` : ''}`;
+});
 
 document.getElementById('rename-person-btn').addEventListener('click', () => {
   const fromName = document.getElementById('rename-from-select').value;
