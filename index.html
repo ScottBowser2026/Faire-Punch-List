@@ -423,6 +423,23 @@
       </div>
     </button>
     <div class="dept-body" id="team-body">
+      <div style="padding:16px;border:2px solid var(--red-fg);border-radius:10px;margin-bottom:16px;background:#FBE4E4">
+        <label style="font-size:14px;color:var(--red-fg);display:block;margin-bottom:8px;font-weight:700">&#128227; Send an announcement to everyone</label>
+        <input type="text" id="announce-subject" placeholder="Subject (for email)" style="width:100%;font-size:13px;padding:8px 10px;border-radius:7px;border:1px solid var(--border);margin-bottom:8px;box-sizing:border-box" />
+        <textarea id="announce-message" rows="3" style="width:100%;font-size:13px;padding:8px 10px;border-radius:7px;border:1px solid var(--border);font-family:inherit;box-sizing:border-box;margin-bottom:8px" placeholder="Message to send everyone..."></textarea>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px">
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-primary);margin:0">
+            <input type="checkbox" id="announce-email" style="width:auto" checked />
+            Email everyone with an email on file
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-primary);margin:0">
+            <input type="checkbox" id="announce-text" style="width:auto" />
+            Text everyone with a phone on file
+          </label>
+        </div>
+        <button class="ui" id="announce-send-btn" style="background:var(--red-fg);color:#fff;border-color:var(--red-fg);font-weight:600;padding:10px 18px">Send announcement</button>
+        <div class="hint-small" id="announce-msg"></div>
+      </div>
       <div style="padding:10px 0;border-bottom:1px solid var(--border);margin-bottom:10px">
         <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:6px;font-weight:600">Add a person</label>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
@@ -2242,6 +2259,60 @@ document.getElementById('bulk-phone-btn').addEventListener('click', () => {
   document.getElementById('bulk-phone-input').value = unmatched.join('\n');
   msg.style.color = unmatched.length ? 'var(--red-fg)' : 'var(--teal-fg)';
   msg.textContent = `Saved phone numbers for ${matched.length} ${matched.length === 1 ? 'person' : 'people'}: ${matched.join(', ') || 'none'}.${unmatched.length ? ` Couldn't match ${unmatched.length} line(s) — left in the box above for you to check (maybe a new person not yet added, or a name mismatch).` : ''}`;
+});
+
+document.getElementById('announce-send-btn').addEventListener('click', async () => {
+  const subject = document.getElementById('announce-subject').value.trim() || 'Announcement';
+  const message = document.getElementById('announce-message').value.trim();
+  const msg = document.getElementById('announce-msg');
+  const sendEmail = document.getElementById('announce-email').checked;
+  const sendText = document.getElementById('announce-text').checked;
+  if (!message) {
+    msg.style.color = 'var(--red-fg)';
+    msg.textContent = 'Enter a message first.';
+    return;
+  }
+  if (!sendEmail && !sendText) {
+    msg.style.color = 'var(--red-fg)';
+    msg.textContent = 'Pick at least one channel (email or text).';
+    return;
+  }
+  const emailCount = sendEmail ? Object.keys(DIRECTORY).length : 0;
+  const textCount = sendText ? Object.keys(PHONE_DIRECTORY).length : 0;
+  if (!confirm(`Send this announcement to ${emailCount} email${emailCount === 1 ? '' : 's'}${sendText ? ` and ${textCount} phone number${textCount === 1 ? '' : 's'}` : ''}? This can't be undone.`)) return;
+  msg.style.color = 'var(--text-muted)';
+  msg.textContent = 'Sending...';
+  let emailsSent = 0, textsSent = 0;
+  if (sendEmail && emailReady()) {
+    for (const [name, email] of Object.entries(DIRECTORY)) {
+      try {
+        await emailjs.send(emailjsConfig.serviceId, emailjsConfig.templateId, {
+          to_email: email,
+          to_name: name,
+          subject: `Faire Punch List: ${subject}`,
+          message: `<p style="margin:0">${message}</p><p style="margin:14px 0 0">Open the tracker: <a href="${TRACKER_URL}">${TRACKER_URL}</a></p>`,
+          cc_email: ''
+        });
+        emailsSent++;
+      } catch (err) { console.error('Announcement email failed for', name, err); }
+    }
+  }
+  if (sendText) {
+    for (const [name, phone] of Object.entries(PHONE_DIRECTORY)) {
+      try {
+        const res = await fetch('https://us-central1-faire-builder-tracker.cloudfunctions.net/sendJobText', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ to: phone, message: `Faire Punch List: ${message}` })
+        });
+        if (res.ok) textsSent++;
+      } catch (err) { console.error('Announcement text failed for', name, err); }
+    }
+  }
+  msg.style.color = 'var(--teal-fg)';
+  msg.textContent = `Sent to ${emailsSent} email${emailsSent === 1 ? '' : 's'}${sendText ? ` and ${textsSent} text${textsSent === 1 ? '' : 's'}` : ''}.`;
+  document.getElementById('announce-subject').value = '';
+  document.getElementById('announce-message').value = '';
 });
 
 document.getElementById('rename-person-btn').addEventListener('click', () => {
