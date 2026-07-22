@@ -2,9 +2,10 @@ name: Daily Summary Email
 
 on:
   schedule:
-    # 22:00 UTC = 6:00 PM Eastern Daylight Time (summer).
-    # Switch to '0 23 * * *' once EST (winter, UTC-5) is in effect.
-    - cron: '0 22 * * *'
+    # 12:00 UTC = 8:00 AM Eastern (EDT, summer). Switch to '0 13 * * *' once EST (winter, UTC-5) is in effect.
+    - cron: '0 12 * * *'
+    # 20:30 UTC = 4:30 PM Eastern (EDT, summer). Switch to '30 21 * * *' once EST (winter, UTC-5) is in effect.
+    - cron: '30 20 * * *'
   workflow_dispatch: {}
 
 jobs:
