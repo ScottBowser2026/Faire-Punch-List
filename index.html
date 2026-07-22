@@ -424,7 +424,18 @@
     </button>
     <div class="dept-body" id="team-body">
       <div style="padding:16px;border:2px solid var(--red-fg);border-radius:10px;margin-bottom:16px;background:#FBE4E4">
-        <label style="font-size:14px;color:var(--red-fg);display:block;margin-bottom:8px;font-weight:700">&#128227; Send an announcement to everyone</label>
+        <label style="font-size:14px;color:var(--red-fg);display:block;margin-bottom:8px;font-weight:700">&#128227; Send an announcement</label>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px">
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-primary);margin:0">
+            <input type="radio" name="announce-scope" id="announce-scope-all" value="all" style="width:auto" checked />
+            Everyone
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-primary);margin:0">
+            <input type="radio" name="announce-scope" id="announce-scope-some" value="some" style="width:auto" />
+            Specific people
+          </label>
+        </div>
+        <div id="announce-recipients" style="display:none;max-height:160px;overflow-y:auto;background:#fff;border-radius:7px;border:1px solid var(--border);padding:8px 10px;margin-bottom:10px"></div>
         <input type="text" id="announce-subject" placeholder="Subject (for email)" style="width:100%;font-size:13px;padding:8px 10px;border-radius:7px;border:1px solid var(--border);margin-bottom:8px;box-sizing:border-box" />
         <textarea id="announce-message" rows="3" style="width:100%;font-size:13px;padding:8px 10px;border-radius:7px;border:1px solid var(--border);font-family:inherit;box-sizing:border-box;margin-bottom:8px" placeholder="Message to send everyone..."></textarea>
         <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px">
@@ -2261,12 +2272,35 @@ document.getElementById('bulk-phone-btn').addEventListener('click', () => {
   msg.textContent = `Saved phone numbers for ${matched.length} ${matched.length === 1 ? 'person' : 'people'}: ${matched.join(', ') || 'none'}.${unmatched.length ? ` Couldn't match ${unmatched.length} line(s) — left in the box above for you to check (maybe a new person not yet added, or a name mismatch).` : ''}`;
 });
 
+function renderAnnounceRecipients() {
+  const box = document.getElementById('announce-recipients');
+  if (!box) return;
+  const names = [...new Set([...Object.keys(DIRECTORY), ...Object.keys(PHONE_DIRECTORY), ...Object.values(PIN_DIRECTORY).map(e => e.name)])]
+    .filter(n => !DELETED_PEOPLE.has(n))
+    .sort((a, b) => a.localeCompare(b));
+  box.innerHTML = names.map(n => `
+    <label style="display:flex;align-items:center;gap:6px;font-size:13px;padding:3px 0;margin:0">
+      <input type="checkbox" class="announce-recipient-box" value="${n.replace(/"/g, '&quot;')}" style="width:auto" />
+      ${n}${DIRECTORY[n] ? '' : ' <span style="color:var(--text-muted)">(no email)</span>'}${PHONE_DIRECTORY[n] ? '' : ' <span style="color:var(--text-muted)">(no phone)</span>'}
+    </label>
+  `).join('');
+}
+
+document.getElementById('announce-scope-all').addEventListener('change', () => {
+  document.getElementById('announce-recipients').style.display = 'none';
+});
+document.getElementById('announce-scope-some').addEventListener('change', () => {
+  renderAnnounceRecipients();
+  document.getElementById('announce-recipients').style.display = 'block';
+});
+
 document.getElementById('announce-send-btn').addEventListener('click', async () => {
   const subject = document.getElementById('announce-subject').value.trim() || 'Announcement';
   const message = document.getElementById('announce-message').value.trim();
   const msg = document.getElementById('announce-msg');
   const sendEmail = document.getElementById('announce-email').checked;
   const sendText = document.getElementById('announce-text').checked;
+  const sendToSome = document.getElementById('announce-scope-some').checked;
   if (!message) {
     msg.style.color = 'var(--red-fg)';
     msg.textContent = 'Enter a message first.';
@@ -2277,14 +2311,26 @@ document.getElementById('announce-send-btn').addEventListener('click', async () 
     msg.textContent = 'Pick at least one channel (email or text).';
     return;
   }
-  const emailCount = sendEmail ? Object.keys(DIRECTORY).length : 0;
-  const textCount = sendText ? Object.keys(PHONE_DIRECTORY).length : 0;
-  if (!confirm(`Send this announcement to ${emailCount} email${emailCount === 1 ? '' : 's'}${sendText ? ` and ${textCount} phone number${textCount === 1 ? '' : 's'}` : ''}? This can't be undone.`)) return;
+  let selectedNames = null;
+  if (sendToSome) {
+    selectedNames = Array.from(document.querySelectorAll('.announce-recipient-box:checked')).map(cb => cb.value);
+    if (!selectedNames.length) {
+      msg.style.color = 'var(--red-fg)';
+      msg.textContent = 'Pick at least one person, or switch to "Everyone".';
+      return;
+    }
+  }
+  const emailEntries = Object.entries(DIRECTORY).filter(([name]) => !selectedNames || selectedNames.includes(name));
+  const phoneEntries = Object.entries(PHONE_DIRECTORY).filter(([name]) => !selectedNames || selectedNames.includes(name));
+  const emailCount = sendEmail ? emailEntries.length : 0;
+  const textCount = sendText ? phoneEntries.length : 0;
+  const scopeLabel = sendToSome ? `${selectedNames.length} selected ${selectedNames.length === 1 ? 'person' : 'people'}` : 'everyone';
+  if (!confirm(`Send this announcement to ${scopeLabel} — ${emailCount} email${emailCount === 1 ? '' : 's'}${sendText ? ` and ${textCount} phone number${textCount === 1 ? '' : 's'}` : ''}? This can't be undone.`)) return;
   msg.style.color = 'var(--text-muted)';
   msg.textContent = 'Sending...';
   let emailsSent = 0, textsSent = 0;
   if (sendEmail && emailReady()) {
-    for (const [name, email] of Object.entries(DIRECTORY)) {
+    for (const [name, email] of emailEntries) {
       try {
         await emailjs.send(emailjsConfig.serviceId, emailjsConfig.templateId, {
           to_email: email,
@@ -2298,7 +2344,7 @@ document.getElementById('announce-send-btn').addEventListener('click', async () 
     }
   }
   if (sendText) {
-    for (const [name, phone] of Object.entries(PHONE_DIRECTORY)) {
+    for (const [name, phone] of phoneEntries) {
       try {
         const res = await fetch('https://us-central1-faire-builder-tracker.cloudfunctions.net/sendJobText', {
           method: 'POST',
