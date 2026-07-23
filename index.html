@@ -624,6 +624,7 @@
 =====================================================================
 -->
 <script src="firebase-app-compat.js"></script>
+<script src="firebase-auth-compat.js"></script>
 <script src="firebase-database-compat.js"></script>
 <script src="firebase-storage-compat.js"></script>
 <script>
@@ -2699,6 +2700,17 @@ function init() {
     return;
   }
   firebase.initializeApp(firebaseConfig);
+  firebase.auth().signInAnonymously().catch(err => {
+    console.error('Anonymous sign-in failed (has it been enabled in Firebase console yet?)', err);
+    startFirebaseData(); // fall back to proceeding anyway so the app doesn't break before that's set up
+  });
+  firebase.auth().onAuthStateChanged(user => {
+    if (user) startFirebaseData();
+  });
+}
+
+function startFirebaseData() {
+  if (dbRef) return; // already started
   dbRef = firebase.database().ref('faire-punch-list-tasks');
   directoryRef = firebase.database().ref('faire-punch-list-directory');
   phoneDirectoryRef = firebase.database().ref('faire-punch-list-phones');
