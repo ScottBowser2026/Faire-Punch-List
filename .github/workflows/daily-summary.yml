@@ -16,7 +16,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+      - name: Install firebase-admin
+        run: npm install firebase-admin
+      - name: Write service account key
+        run: echo "$FIREBASE_SERVICE_ACCOUNT" > /tmp/service-account.json
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
       - name: Send daily summary email
         env:
           EMAILJS_PRIVATE_KEY: ${{ secrets.EMAILJS_PRIVATE_KEY }}
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/service-account.json
         run: node scripts/send-daily-summary.js
