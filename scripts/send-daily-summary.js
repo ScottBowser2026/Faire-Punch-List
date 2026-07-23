@@ -1,4 +1,11 @@
-const DB_URL = 'https://faire-builder-tracker-default-rtdb.firebaseio.com';
+const admin = require('firebase-admin');
+
+admin.initializeApp({
+  credential: admin.credential.applicationDefault(),
+  databaseURL: 'https://faire-builder-tracker-default-rtdb.firebaseio.com'
+});
+const db = admin.database();
+
 const EMAILJS_SERVICE_ID = 'service_yutnnpk';
 const EMAILJS_TEMPLATE_ID = 'template_d39wd5a';
 const EMAILJS_PUBLIC_KEY = 'sB7w0MyBj_u6ayu_0';
@@ -7,8 +14,8 @@ const TZ = 'America/New_York';
 const SEND_SMS_URL = 'https://us-central1-faire-builder-tracker.cloudfunctions.net/sendJobText';
 
 async function sendPendingAcceptanceReminders(tasks) {
-  const phoneRes = await fetch(`${DB_URL}/faire-punch-list-phones.json`);
-  const phoneRaw = await phoneRes.json();
+  const phoneSnap = await db.ref('faire-punch-list-phones').once('value');
+  const phoneRaw = phoneSnap.val();
   let phoneDirectory = {};
   try { phoneDirectory = phoneRaw ? JSON.parse(phoneRaw) : {}; } catch (e) { phoneDirectory = {}; }
 
@@ -55,12 +62,12 @@ async function sendPendingAcceptanceReminders(tasks) {
 }
 
 async function main() {
-  const [tasksRes, emailRes] = await Promise.all([
-    fetch(`${DB_URL}/faire-punch-list-tasks.json`),
-    fetch(`${DB_URL}/faire-punch-list-daily-summary-email.json`)
+  const [tasksSnap, emailSnap] = await Promise.all([
+    db.ref('faire-punch-list-tasks').once('value'),
+    db.ref('faire-punch-list-daily-summary-email').once('value')
   ]);
-  const tasksObj = await tasksRes.json();
-  const recipient = await emailRes.json();
+  const tasksObj = tasksSnap.val();
+  const recipient = emailSnap.val();
 
   const tasks = tasksObj ? (Array.isArray(tasksObj) ? tasksObj : Object.values(tasksObj)).filter(Boolean) : [];
 
@@ -125,14 +132,7 @@ async function main() {
   console.log('Daily summary sent successfully to', recipient);
 
   const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: TZ }); // YYYY-MM-DD
-  const dateSetRes = await fetch(`${DB_URL}/faire-punch-list-last-summary-date.json`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(todayStr)
-  });
-  if (!dateSetRes.ok) {
-    console.warn('Could not update last-summary-date (non-fatal):', await dateSetRes.text());
-  }
+  await db.ref('faire-punch-list-last-summary-date').set(todayStr);
 }
 
 main().catch(err => {
