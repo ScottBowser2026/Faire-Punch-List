@@ -1527,6 +1527,15 @@ function renderLongRange() {
         </span>
         <span class="badge" style="background:var(--gray-bg);color:var(--gray-fg)">Long-range</span>
       </div>
+      ${t.pendingAcceptance ? `<div class="hint-small" style="color:var(--gray-fg);font-weight:600;padding:6px 0">&#9203; New job assigned by ${t.pendingAcceptance.requestedBy} — waiting on ${t.owner} to accept</div>` : ''}
+      ${t.pendingAcceptance && currentUser && (currentUser.name === t.owner || currentUser.role === 'admin') ? `
+      <div class="job-actions">
+        <span></span>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="mark-btn accept-job">Accept job</button>
+          <button class="mark-btn decline-job">Decline</button>
+        </div>
+      </div>` : ''}
       ${editable ? `
       <div class="job-actions">
         <button class="mark-btn done">${isActivating ? 'Cancel' : 'Make active'}</button>
@@ -1550,6 +1559,30 @@ function renderLongRange() {
         </div>
       </div>` : ''}
     `;
+    const acceptJobBtn = row.querySelector('.mark-btn.accept-job');
+    if (acceptJobBtn) {
+      acceptJobBtn.addEventListener('click', () => {
+        const requestedBy = t.pendingAcceptance ? t.pendingAcceptance.requestedBy : null;
+        delete t.pendingAcceptance;
+        persistTask(t);
+        renderStats();
+        renderAll();
+        if (requestedBy) notifyChange(requestedBy, `${t.owner} accepted "${t.name}"`);
+      });
+    }
+    const declineJobBtn = row.querySelector('.mark-btn.decline-job');
+    if (declineJobBtn) {
+      declineJobBtn.addEventListener('click', () => {
+        if (!confirm(`Decline "${t.name}"? Whoever assigned it will be notified to reassign it.`)) return;
+        const requestedBy = t.pendingAcceptance ? t.pendingAcceptance.requestedBy : null;
+        delete t.pendingAcceptance;
+        persistTask(t);
+        renderStats();
+        renderAll();
+        if (requestedBy) notifyChange(requestedBy, `${t.owner} declined "${t.name}" — needs to be reassigned`);
+        notifyAdmins(`Job declined`, `${t.owner} declined "${t.name}" (${t.dept}), assigned by ${requestedBy || 'unknown'}. It needs to be reassigned via Edit.`);
+      });
+    }
     if (editable) {
       row.querySelector('.mark-btn.done').addEventListener('click', () => {
         if (activatingIds.has(t.id)) activatingIds.delete(t.id); else activatingIds.add(t.id);
