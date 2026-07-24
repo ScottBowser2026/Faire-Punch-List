@@ -499,6 +499,10 @@
         <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:6px;font-weight:600">Everyone</label>
         <div id="team-list"></div>
       </div>
+      <div style="padding:10px 0;border-top:1px solid var(--border)">
+        <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:6px;font-weight:600">Message log (most recent 200)</label>
+        <div id="message-log-list" style="max-height:340px;overflow-y:auto"></div>
+      </div>
     </div>
   </div>
 
@@ -1744,13 +1748,13 @@ document.getElementById('add-job-btn').addEventListener('click', () => {
 function sendJobText(ownerName, jobName, dept) {
   const phone = findPhone(ownerName);
   if (!phone) return;
+  const textMessage = `Faire Punch List: you've been assigned a new job in ${dept}: "${jobName}". ${TRACKER_URL} Reply STOP to opt out.`;
   fetch('https://us-central1-faire-builder-tracker.cloudfunctions.net/sendJobText', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      to: phone,
-      message: `Faire Punch List: you've been assigned a new job in ${dept}: "${jobName}". ${TRACKER_URL} Reply STOP to opt out.`
-    })
+    body: JSON.stringify({ to: phone, message: textMessage })
+  }).then(res => {
+    if (res.ok) logMessage('text', ownerName, phone, textMessage);
   }).catch(err => console.error('Text notification failed', err));
 }
 
@@ -1760,6 +1764,8 @@ let DELETED_CATEGORIES = new Set();
 let deletedCategoriesRef = null;
 let DELETED_PEOPLE = new Set();
 let deletedPeopleRef = null;
+let messageLogRef = null;
+let MESSAGE_LOG = [];
 let directoryRef = null;
 let DIRECTORY = {};      // owner name -> email
 let PHONE_DIRECTORY = {}; // owner name -> phone number
@@ -1826,6 +1832,18 @@ function persistDeletedPeople() {
   if (deletedPeopleRef) deletedPeopleRef.set(JSON.stringify([...DELETED_PEOPLE])).catch(err => console.error('Deleted people save failed', err));
 }
 
+function logMessage(type, toName, contact, message) {
+  if (!messageLogRef) return;
+  messageLogRef.push({
+    type, // 'text' or 'email'
+    toName: toName || '',
+    contact: contact || '',
+    message: message || '',
+    sentBy: (typeof currentUser !== 'undefined' && currentUser) ? currentUser.name : 'system',
+    at: new Date().toISOString()
+  }).catch(err => console.error('Message log write failed', err));
+}
+
 function findPhone(name) {
   if (!name) return null;
   const target = name.trim().toLowerCase();
@@ -1883,7 +1901,7 @@ function notifyChange(ownerName, changeText, photoUrls) {
       subject: `Faire Punch List: ${changeText}`,
       message,
       cc_email: DAILY_SUMMARY_EMAIL || ''
-    }).catch(err => console.error('Email to owner failed', err));
+    }).then(() => logMessage('email', ownerName, ownerEmail, changeText)).catch(err => console.error('Email to owner failed', err));
   } else if (DAILY_SUMMARY_EMAIL) {
     // Owner has no email on file yet — still let the team know via Teams directly.
     emailjs.send(emailjsConfig.serviceId, emailjsConfig.templateId, {
@@ -1892,7 +1910,7 @@ function notifyChange(ownerName, changeText, photoUrls) {
       subject: `Faire Punch List: ${changeText}`,
       message: `${message}<p style="margin:10px 0 0;color:#888780">(${ownerName} doesn't have an email on file yet, so this only went to Teams.)</p>`,
       cc_email: ''
-    }).catch(err => console.error('Email to Teams failed', err));
+    }).then(() => logMessage('email', 'Teams (no email for ' + ownerName + ')', DAILY_SUMMARY_EMAIL, changeText)).catch(err => console.error('Email to Teams failed', err));
   }
 }
 
@@ -1977,6 +1995,25 @@ function deleteCategory(dept, activeCount, completedCount, longRangeCount) {
   renderStats();
   renderAll();
   flashSaveMsg(`Removed "${dept}"${activeJobs.length ? ` and parked ${activeJobs.length} job${activeJobs.length === 1 ? '' : 's'} as long-range` : ''}.`);
+}
+
+function renderMessageLog() {
+  const list = document.getElementById('message-log-list');
+  if (!list) return;
+  if (!MESSAGE_LOG.length) {
+    list.innerHTML = '<div class="hint-small">No messages logged yet.</div>';
+    return;
+  }
+  list.innerHTML = MESSAGE_LOG.map(entry => {
+    const when = entry.at ? new Date(entry.at).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : '';
+    const icon = entry.type === 'text' ? '&#128241;' : '&#9993;';
+    return `
+      <div style="padding:8px 0;border-top:1px solid var(--border);font-size:12px">
+        <div style="color:var(--text-muted)">${icon} ${when} &middot; to ${entry.toName || '?'} (${entry.contact || '?'}) &middot; sent by ${entry.sentBy || '?'}</div>
+        <div style="margin-top:2px">${(entry.message || '').replace(/</g, '&lt;')}</div>
+      </div>
+    `;
+  }).join('');
 }
 
 function renderTeamList() {
@@ -2341,18 +2378,23 @@ document.getElementById('announce-send-btn').addEventListener('click', async () 
           cc_email: ''
         });
         emailsSent++;
+        logMessage('email', name, email, `${subject}: ${message}`);
       } catch (err) { console.error('Announcement email failed for', name, err); }
     }
   }
   if (sendText) {
     for (const [name, phone] of phoneEntries) {
       try {
+        const textBody = `Faire Punch List: ${message}`;
         const res = await fetch('https://us-central1-faire-builder-tracker.cloudfunctions.net/sendJobText', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ to: phone, message: `Faire Punch List: ${message}` })
+          body: JSON.stringify({ to: phone, message: textBody })
         });
-        if (res.ok) textsSent++;
+        if (res.ok) {
+          textsSent++;
+          logMessage('text', name, phone, textBody);
+        }
       } catch (err) { console.error('Announcement text failed for', name, err); }
     }
   }
@@ -2731,6 +2773,12 @@ function startFirebaseData() {
     const v = snap.val();
     try { DELETED_PEOPLE = new Set(v ? JSON.parse(v) : []); } catch (e) { DELETED_PEOPLE = new Set(); }
     renderTeamList();
+  });
+  messageLogRef = firebase.database().ref('faire-punch-list-message-log');
+  messageLogRef.limitToLast(200).on('value', snap => {
+    const v = snap.val();
+    MESSAGE_LOG = v ? Object.values(v).sort((a, b) => (b.at || '').localeCompare(a.at || '')) : [];
+    renderMessageLog();
   });
   pinDirectoryRef = firebase.database().ref('faire-punch-list-pins');
   dailySummaryEmailRef = firebase.database().ref('faire-punch-list-daily-summary-email');
