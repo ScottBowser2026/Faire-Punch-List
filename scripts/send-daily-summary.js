@@ -52,6 +52,9 @@ async function sendPendingAcceptanceReminders(tasks) {
       });
       if (res.ok) {
         console.log(`Reminder text sent to ${owner} (${jobNames.length} pending job(s)).`);
+        await db.ref('faire-punch-list-message-log').push({
+          type: 'text', toName: owner, contact: phone, message, sentBy: 'system (daily reminder)', at: new Date().toISOString()
+        });
       } else {
         console.warn(`Reminder text failed for ${owner}:`, await res.text());
       }
@@ -130,6 +133,9 @@ async function main() {
     throw new Error(`EmailJS send failed: ${sendRes.status} ${text}`);
   }
   console.log('Daily summary sent successfully to', recipient);
+  await db.ref('faire-punch-list-message-log').push({
+    type: 'email', toName: 'Daily Summary', contact: recipient, message: `Daily Summary — ${dateLabel}: ${message.slice(0, 300)}`, sentBy: 'system (daily summary)', at: new Date().toISOString()
+  });
 
   const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: TZ }); // YYYY-MM-DD
   await db.ref('faire-punch-list-last-summary-date').set(todayStr);
