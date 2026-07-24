@@ -919,7 +919,13 @@ function makeSliderRow(t, showDeptTag) {
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="mark-btn accept-job">Accept job</button>
         <button class="mark-btn decline-job">Decline</button>
+        <button class="mark-btn ask-question">Ask a question</button>
       </div>
+    </div>
+    <div class="ask-question-row" style="display:none;margin-top:6px">
+      <input type="text" class="ask-question-input" placeholder="What do you need to know before accepting?" style="width:100%;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border);box-sizing:border-box;margin-bottom:6px" />
+      <button class="mark-btn send-question" style="width:auto">Send question</button>
+      <div class="hint-small ask-question-msg"></div>
     </div>` : ''}
     ${t.pendingDelete ? `<div class="hint-small" style="color:var(--red-fg);font-weight:600;padding:6px 0">&#9203; Delete requested by ${t.pendingDelete.requestedBy}: "${t.pendingDelete.reason}"${currentUser && currentUser.role === 'admin' ? '' : ' — waiting on admin approval'}</div>` : ''}
     ${t.pendingPark ? `<div class="hint-small" style="color:var(--gray-fg);font-weight:600;padding:6px 0">&#9203; Park (long-range) requested by ${t.pendingPark.requestedBy}${currentUser && currentUser.role === 'admin' ? '' : ' — waiting on admin approval'}</div>` : ''}
@@ -1269,6 +1275,7 @@ function makeSliderRow(t, showDeptTag) {
       notifyAdmins(`Job declined`, `${t.owner} declined "${t.name}" (${t.dept}), assigned by ${requestedBy || 'unknown'}. It needs to be reassigned via Edit.`);
     });
   }
+  wireAskQuestion(row, t);
   const reassignAcceptBtn = row.querySelector('.mark-btn.reassign-accept');
   if (reassignAcceptBtn) {
     reassignAcceptBtn.addEventListener('click', () => {
@@ -1534,7 +1541,13 @@ function renderLongRange() {
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="mark-btn accept-job">Accept job</button>
           <button class="mark-btn decline-job">Decline</button>
+          <button class="mark-btn ask-question">Ask a question</button>
         </div>
+      </div>
+      <div class="ask-question-row" style="display:none;margin-top:6px">
+        <input type="text" class="ask-question-input" placeholder="What do you need to know before accepting?" style="width:100%;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border);box-sizing:border-box;margin-bottom:6px" />
+        <button class="mark-btn send-question" style="width:auto">Send question</button>
+        <div class="hint-small ask-question-msg"></div>
       </div>` : ''}
       ${editable ? `
       <div class="job-actions">
@@ -1583,6 +1596,7 @@ function renderLongRange() {
         notifyAdmins(`Job declined`, `${t.owner} declined "${t.name}" (${t.dept}), assigned by ${requestedBy || 'unknown'}. It needs to be reassigned via Edit.`);
       });
     }
+    wireAskQuestion(row, t);
     if (editable) {
       row.querySelector('.mark-btn.done').addEventListener('click', () => {
         if (activatingIds.has(t.id)) activatingIds.delete(t.id); else activatingIds.add(t.id);
@@ -1859,6 +1873,38 @@ function persistPhoneDirectory() {
 
 function persistDeletedCategories() {
   if (deletedCategoriesRef) deletedCategoriesRef.set(JSON.stringify([...DELETED_CATEGORIES])).catch(err => console.error('Deleted categories save failed', err));
+}
+
+function wireAskQuestion(row, t) {
+  const askBtn = row.querySelector('.mark-btn.ask-question');
+  if (!askBtn) return;
+  const questionRow = row.querySelector('.ask-question-row');
+  askBtn.addEventListener('click', () => {
+    questionRow.style.display = questionRow.style.display === 'none' ? 'block' : 'none';
+  });
+  const sendBtn = row.querySelector('.mark-btn.send-question');
+  sendBtn.addEventListener('click', () => {
+    const input = row.querySelector('.ask-question-input');
+    const question = input.value.trim();
+    const msg = row.querySelector('.ask-question-msg');
+    if (!question) {
+      msg.style.color = 'var(--red-fg)';
+      msg.textContent = 'Type a question first.';
+      return;
+    }
+    const requestedBy = t.pendingAcceptance ? t.pendingAcceptance.requestedBy : null;
+    if (!t.notes) t.notes = [];
+    t.notes.push({ text: `Question for ${requestedBy || 'the assigner'}: ${question}`, by: currentUser.name, at: new Date().toISOString() });
+    persistTask(t);
+    if (requestedBy) {
+      notifyChange(requestedBy, `${currentUser.name} has a question about "${t.name}" before accepting: "${question}"`);
+    }
+    input.value = '';
+    msg.style.color = 'var(--teal-fg)';
+    msg.textContent = 'Question sent — they\'ll get an email.';
+    renderStats();
+    renderAll();
+  });
 }
 
 function persistDeletedPeople() {
