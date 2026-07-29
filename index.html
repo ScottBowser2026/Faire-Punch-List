@@ -394,6 +394,8 @@
   <h1>Faire punch list — progress tracker</h1>
   <p class="subtitle">Last updated 7/3/2026 &middot; grouped by crew &middot; drag a slider or hit "Mark complete" to move a job into the master completed list below &middot; use "Add a job" to assign new work to a person responsible</p>
 
+  <div id="staff-notes-section"></div>
+
   <div id="save-bar" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--surface-1);border-radius:10px;padding:12px 16px;margin-bottom:20px">
     <div style="font-size:13px;color:var(--text-secondary)"><span style="color:var(--teal-fg);font-weight:600">&#9679; Live</span> — changes save automatically and sync to everyone with this link instantly.</div>
     <div style="display:flex;gap:8px;flex-shrink:0">
@@ -2124,7 +2126,14 @@ function renderMessageLog() {
 }
 
 function renderTeamList() {
-  const names = [...new Set([...TASKS.map(t => t.owner), ...Object.keys(DIRECTORY), ...Object.values(PIN_DIRECTORY).map(e => e.name)])].sort((a, b) => a.localeCompare(b));
+  const roleRank = (name) => {
+    const pin = Object.values(PIN_DIRECTORY).find(e => e.name === name);
+    if (pin && pin.role === 'admin') return 0;
+    if (pin && pin.role === 'super') return 1;
+    return 2;
+  };
+  const names = [...new Set([...TASKS.map(t => t.owner), ...Object.keys(DIRECTORY), ...Object.values(PIN_DIRECTORY).map(e => e.name)])]
+    .sort((a, b) => roleRank(a) - roleRank(b) || a.localeCompare(b));
   const list = document.getElementById('team-list');
   if (!list) return;
   list.innerHTML = '';
@@ -2151,10 +2160,21 @@ function renderTeamList() {
     const isAdmin = pinEntry && pinEntry.role === 'admin';
     const isSuper = pinEntry && pinEntry.role === 'super';
     const row = document.createElement('div');
-    row.style.cssText = 'padding:10px 0;border-top:1px solid var(--border)';
+    const tierStyle = isAdmin
+      ? 'border-left:4px solid #C8891A;background:#FCF3E1;'
+      : isSuper
+      ? 'border-left:4px solid #7B4FCE;background:#F3EEFC;'
+      : 'border-left:4px solid transparent;';
+    row.style.cssText = `padding:10px 12px;margin:2px 0;border-radius:8px;border-top:1px solid var(--border);${tierStyle}`;
+    const tierBadge = isAdmin
+      ? '<span class="badge" style="background:#C8891A;color:#fff;font-weight:700;letter-spacing:.02em">&#9733; ADMIN</span>'
+      : isSuper
+      ? '<span class="badge" style="background:#7B4FCE;color:#fff;font-weight:700;letter-spacing:.02em">&#9650; SUPER USER</span>'
+      : '';
     row.innerHTML = `
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
-        <span style="font-size:13px;font-weight:600;min-width:140px">${name}${isAdmin ? ' <span style="font-weight:400;color:var(--text-muted)">(admin)</span>' : ''}${isSuper ? ' <span style="font-weight:400;color:var(--text-muted)">(super user)</span>' : ''}</span>
+        <span style="font-size:13px;font-weight:600;min-width:140px">${name}</span>
+        ${tierBadge}
         <input type="text" class="tm-email" placeholder="email address" value="${DIRECTORY[name] || ''}" style="flex:1;min-width:180px;font-size:13px;padding:6px 9px;border-radius:7px;border:1px solid var(--border)" />
         <button class="ui tm-save-email" style="font-size:12px;padding:5px 10px">Save email</button>
         <input type="tel" class="tm-phone" placeholder="phone (for texts)" value="${PHONE_DIRECTORY[name] || ''}" style="flex:1;min-width:150px;font-size:13px;padding:6px 9px;border-radius:7px;border:1px solid var(--border)" />
@@ -2165,8 +2185,8 @@ function renderTeamList() {
         <span style="font-size:11px;color:var(--text-muted);min-width:140px">${existingPin ? `PIN: ${existingPin}` : 'No PIN yet'}</span>
         <input type="text" class="tm-pin" placeholder="PIN (4 digits)" inputmode="numeric" value="${existingPin || ''}" style="width:110px;font-size:12px;padding:5px 8px;border-radius:7px;border:1px solid var(--border)" ${isAdmin ? 'disabled' : ''} />
         <input type="text" class="tm-crews" placeholder="Crews (comma separated)" value="${pinEntry ? (pinEntry.crews || []).join(', ') : ''}" style="flex:1;min-width:160px;font-size:12px;padding:5px 8px;border-radius:7px;border:1px solid var(--border)" ${(isAdmin || isSuper) ? 'disabled' : ''} />
-        <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text-secondary)" title="Full access to every job in every crew — add notes/photos, and reassign instantly without waiting on the new owner to accept">
-          <input type="checkbox" class="tm-super" ${isSuper ? 'checked' : ''} ${isAdmin ? 'disabled' : ''} /> Super user
+        <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:${isSuper ? '#7B4FCE' : 'var(--text-secondary)'};padding:5px 10px;border-radius:7px;border:1.5px solid ${isSuper ? '#7B4FCE' : 'var(--border)'};background:${isSuper ? '#F3EEFC' : 'transparent'}" title="Full access to every job in every crew — add notes/photos, and reassign instantly without waiting on the new owner to accept">
+          <input type="checkbox" class="tm-super" ${isSuper ? 'checked' : ''} ${isAdmin ? 'disabled' : ''} /> &#9650; Make Super User
         </label>
         <button class="ui tm-save-pin" style="font-size:12px;padding:5px 10px" ${isAdmin ? 'disabled title="Use Change my PIN while logged in as this admin"' : ''}>${existingPin ? 'Update' : 'Assign PIN'}</button>
       </div>
@@ -2210,6 +2230,9 @@ function renderTeamList() {
     if (superCheckbox && !isAdmin) {
       superCheckbox.addEventListener('change', () => {
         crewsInput.disabled = superCheckbox.checked;
+        row.style.borderLeft = superCheckbox.checked ? '4px solid #7B4FCE' : '4px solid transparent';
+        row.style.background = superCheckbox.checked ? '#F3EEFC' : '';
+        flashSaveMsg(superCheckbox.checked ? `${name} will become a Super User once you click Assign/Update PIN.` : `${name} will be a regular Manager once you click Assign/Update PIN.`);
       });
     }
     if (!isAdmin) {
@@ -2273,6 +2296,64 @@ function persistPinDirectory() {
   if (pinDirectoryRef) pinDirectoryRef.set(JSON.stringify(PIN_DIRECTORY)).catch(err => console.error('PIN save failed', err));
 }
 
+let STAFF_NOTES = []; // [{ id, text, by, at }] — newest first
+let staffNotesRef = null;
+function persistStaffNotes() {
+  if (staffNotesRef) staffNotesRef.set(JSON.stringify(STAFF_NOTES)).catch(err => console.error('Staff notes save failed', err));
+}
+function renderStaffNotes() {
+  const container = document.getElementById('staff-notes-section');
+  if (!container) return;
+  const canPost = isElevated(currentUser);
+  const notes = [...STAFF_NOTES].sort((a, b) => (b.at || '').localeCompare(a.at || ''));
+  if (!notes.length && !canPost) { container.innerHTML = ''; return; }
+  const notesHtml = notes.length ? notes.map(n => {
+    const when = n.at ? new Date(n.at).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : '';
+    return `
+      <div class="staff-note-item" data-id="${n.id}" style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid rgba(200,137,26,.25)">
+        <div style="flex:1;font-size:13.5px;line-height:1.4;white-space:pre-wrap">${(n.text || '').replace(/</g, '&lt;')}</div>
+        <div style="font-size:11px;color:var(--text-muted);white-space:nowrap;text-align:right">
+          ${n.by} &middot; ${when}
+          ${canPost ? `<div><button class="ui staff-note-delete" data-id="${n.id}" style="font-size:11px;padding:2px 7px;margin-top:4px;border-color:var(--red-fg);color:var(--red-fg)">Remove</button></div>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('') : `<div style="font-size:13px;color:var(--text-muted);padding:6px 0">No staff notes posted yet.</div>`;
+  container.innerHTML = `
+    <div style="background:#FCF3E1;border:1px solid #C8891A;border-radius:10px;padding:14px 16px;margin-bottom:18px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span style="font-size:14px;font-weight:700;color:#8A5A00">&#128204; Staff Notes</span>
+      </div>
+      ${canPost ? `
+        <div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:8px;flex-wrap:wrap">
+          <textarea id="staff-note-input" placeholder="Post an update for the whole crew..." style="flex:1;min-width:220px;font-size:13px;padding:8px 10px;border-radius:7px;border:1px solid var(--border);resize:vertical;min-height:38px"></textarea>
+          <button class="ui" id="staff-note-post-btn" style="font-weight:600;border-color:#C8891A;color:#8A5A00">Post note</button>
+        </div>
+      ` : ''}
+      ${notesHtml}
+    </div>
+  `;
+  if (canPost) {
+    const input = document.getElementById('staff-note-input');
+    document.getElementById('staff-note-post-btn').addEventListener('click', () => {
+      const text = input.value.trim();
+      if (!text) return;
+      STAFF_NOTES.unshift({ id: Date.now() + '-' + Math.random().toString(36).slice(2, 7), text, by: currentUser.name, at: new Date().toISOString() });
+      persistStaffNotes();
+      renderStaffNotes();
+    });
+    container.querySelectorAll('.staff-note-delete').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-id');
+        if (!confirm('Remove this staff note for everyone?')) return;
+        STAFF_NOTES = STAFF_NOTES.filter(n => String(n.id) !== String(id));
+        persistStaffNotes();
+        renderStaffNotes();
+      });
+    });
+  }
+}
+
 function showPinGate() {
   document.getElementById('forgot-pin-row').style.display = 'none';
   document.getElementById('login-panel').style.display = 'block';
@@ -2303,6 +2384,7 @@ function applyUserBar() {
   if (lrRow) lrRow.style.display = currentUser.role === 'admin' ? 'flex' : 'none';
   if (lrHint) lrHint.style.display = currentUser.role === 'admin' ? 'none' : 'block';
   updateViewAllBtnLabel();
+  renderStaffNotes();
 }
 
 function updateViewAllBtnLabel() {
@@ -2864,6 +2946,7 @@ function init() {
     renderStats();
     renderAll();
     renderTeamList();
+    renderStaffNotes();
     attemptAutoLogin();
     const bar = document.getElementById('save-bar');
     if (bar) bar.innerHTML = '<div style="font-size:13px;color:var(--red-fg);font-weight:600">&#9679; Not connected — this copy only saves in this browser tab. Add your Firebase config (see comments at the top of the file) to turn on live sync.</div>';
@@ -2909,6 +2992,12 @@ function startFirebaseData() {
     renderMessageLog();
   });
   pinDirectoryRef = firebase.database().ref('faire-punch-list-pins');
+  staffNotesRef = firebase.database().ref('faire-punch-list-staff-notes');
+  staffNotesRef.on('value', snap => {
+    const v = snap.val();
+    try { STAFF_NOTES = v ? JSON.parse(v) : []; } catch (e) { STAFF_NOTES = []; }
+    renderStaffNotes();
+  });
   dailySummaryEmailRef = firebase.database().ref('faire-punch-list-daily-summary-email');
   lastSummaryDateRef = firebase.database().ref('faire-punch-list-last-summary-date');
   forceReloadRef = firebase.database().ref('faire-punch-list-force-reload');
