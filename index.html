@@ -58,6 +58,22 @@
     cursor: pointer; color: var(--text-primary);
   }
   button.ui:hover { background: var(--surface-1); }
+  .admin-tab-bar { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+  .admin-tab-btn {
+    font-size: 13px; font-weight: 600; padding: 8px 16px; border-radius: 8px 8px 0 0;
+    border: 1px solid var(--border); border-bottom: none; background: var(--surface-1);
+    color: var(--text-secondary); cursor: pointer;
+  }
+  .admin-tab-btn.active { background: var(--surface); color: var(--text-primary); border-color: var(--blue-bar); box-shadow: inset 0 2px 0 var(--blue-bar); }
+  .admin-subtab-bar { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .admin-subtab-btn {
+    font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 7px;
+    border: 1px solid var(--border); background: var(--surface); color: var(--text-secondary); cursor: pointer;
+  }
+  .admin-subtab-btn.active { background: var(--blue-bg); color: var(--blue-fg); border-color: var(--blue-bar); }
+  .admin-tab-panel { display: none; }
+  .admin-tab-panel.active { display: block; }
+  #team-panel.active { border: 1px solid var(--border); border-radius: 12px; background: var(--surface); padding: 14px 16px; }
   .dept {
     border: 1px solid var(--border); border-radius: 12px;
     margin-bottom: 10px; overflow: hidden; background: var(--surface);
@@ -428,18 +444,25 @@
     </div>
   </div>
 
-  <div id="team-panel" class="dept" style="margin-bottom:16px;display:none">
-    <button class="dept-header" id="team-header">
-      <div class="left">
-        <span class="chev" id="team-chev">&#9656;</span>
-        <div>
-          <div class="dept-name">Team management</div>
-          <div class="dept-owner">Admin only &middot; add people, set PINs, crews, and notifications</div>
-        </div>
-      </div>
-    </button>
-    <div class="dept-body" id="team-body">
-      <div style="padding:16px;border:2px solid var(--red-fg);border-radius:10px;margin-bottom:16px;background:#FBE4E4">
+  <div class="admin-tab-bar" id="admin-tab-bar" style="display:none">
+    <button class="admin-tab-btn active" data-admin-tab="addjob">Add a Job</button>
+    <button class="admin-tab-btn" data-admin-tab="team">Team Management</button>
+  </div>
+
+  <div id="team-panel" class="admin-tab-panel" data-admin-tab-panel="team" style="margin-bottom:16px">
+    <div style="padding:4px 0 14px">
+      <div style="font-size:15px;font-weight:700">Team management</div>
+      <div class="hint-small" style="margin-top:2px">Admin only &middot; add people, set PINs, crews, and notifications</div>
+    </div>
+    <div class="admin-subtab-bar">
+      <button class="admin-subtab-btn active" data-admin-subtab="people">People &amp; PINs</button>
+      <button class="admin-subtab-btn" data-admin-subtab="announce">Announcements</button>
+      <button class="admin-subtab-btn" data-admin-subtab="categories">Categories</button>
+      <button class="admin-subtab-btn" data-admin-subtab="summary">Daily Summary</button>
+      <button class="admin-subtab-btn" data-admin-subtab="log">Message Log</button>
+    </div>
+    <div id="team-body">
+      <div class="admin-tab-panel" data-admin-subtab-panel="announce" style="padding:16px;border:2px solid var(--red-fg);border-radius:10px;margin-bottom:16px;background:#FBE4E4">
         <label style="font-size:14px;color:var(--red-fg);display:block;margin-bottom:8px;font-weight:700">&#128227; Send an announcement</label>
         <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px">
           <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-primary);margin:0">
@@ -467,62 +490,70 @@
         <button class="ui" id="announce-send-btn" style="background:var(--red-fg);color:#fff;border-color:var(--red-fg);font-weight:600;padding:10px 18px">Send announcement</button>
         <div class="hint-small" id="announce-msg"></div>
       </div>
-      <div style="padding:10px 0;border-bottom:1px solid var(--border);margin-bottom:10px">
-        <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:6px;font-weight:600">Add a person</label>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
-          <input type="text" id="np-name" placeholder="Name" style="flex:1;min-width:140px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
-          <input type="text" id="np-email" placeholder="Email address" style="flex:1;min-width:180px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
-          <input type="tel" id="np-phone" placeholder="Phone (optional, for texts)" style="flex:1;min-width:160px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
+      <div class="admin-tab-panel active" data-admin-subtab-panel="people">
+        <div style="padding:10px 0;border-bottom:1px solid var(--border);margin-bottom:10px">
+          <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:6px;font-weight:600">Add a person</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+            <input type="text" id="np-name" placeholder="Name" style="flex:1;min-width:140px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
+            <input type="text" id="np-email" placeholder="Email address" style="flex:1;min-width:180px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
+            <input type="tel" id="np-phone" placeholder="Phone (optional, for texts)" style="flex:1;min-width:160px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+            <input type="text" id="np-pin" placeholder="Temporary PIN, 4 digits (leave blank to auto-generate)" inputmode="numeric" style="flex:1;min-width:160px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
+            <input type="text" id="np-dept" placeholder="Department / crew" style="flex:1;min-width:160px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
+          </div>
+          <button class="ui" id="np-add" style="width:100%;font-weight:600">Add person &amp; email their temporary PIN</button>
+          <div class="hint-small" id="np-msg"></div>
         </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
-          <input type="text" id="np-pin" placeholder="Temporary PIN, 4 digits (leave blank to auto-generate)" inputmode="numeric" style="flex:1;min-width:160px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
-          <input type="text" id="np-dept" placeholder="Department / crew" style="flex:1;min-width:160px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
+        <div style="padding:10px 0;border-bottom:1px solid var(--border);margin-bottom:10px">
+          <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px">Rename a person (updates every job, their email, and their PIN entry at once)</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <select id="rename-from-select" style="flex:1;min-width:180px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)"></select>
+            <input type="text" id="rename-to-input" placeholder="New name" style="flex:1;min-width:150px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
+            <button class="ui" id="rename-person-btn">Rename everywhere</button>
+          </div>
+          <div class="hint-small" id="rename-msg"></div>
         </div>
-        <button class="ui" id="np-add" style="width:100%;font-weight:600">Add person &amp; email their temporary PIN</button>
-        <div class="hint-small" id="np-msg"></div>
-      </div>
-      <div style="padding:10px 0;border-bottom:1px solid var(--border);margin-bottom:10px">
-        <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px">Daily summary email (sent once per day to the Faire 2026 Teams channel)</label>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <input type="text" id="daily-summary-input" placeholder="e.g. yourchannel@amer.teams.ms" style="flex:1;min-width:220px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
-          <button class="ui" id="daily-summary-save">Save</button>
-          <button class="ui" id="daily-summary-send-now">Send now</button>
+        <div style="padding:10px 0;border-bottom:1px solid var(--border);margin-bottom:10px">
+          <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:6px;font-weight:600">Bulk add phone numbers</label>
+          <div class="hint-small" style="margin:0 0 6px">Paste one person per line. Works with "Last, First, Phone" or "Name, Phone" &mdash; separated by tabs, commas, or multiple spaces.</div>
+          <textarea id="bulk-phone-input" rows="5" style="width:100%;font-size:13px;padding:8px 10px;border-radius:7px;border:1px solid var(--border);font-family:inherit;box-sizing:border-box" placeholder="Braswell	Blake	(407) 312-8373&#10;Miller	Bri	(678) 438-2504"></textarea>
+          <button class="ui" id="bulk-phone-btn" style="margin-top:8px">Match and save phone numbers</button>
+          <div class="hint-small" id="bulk-phone-msg"></div>
         </div>
-        <div class="hint-small">This same address is also Cc'd on every individual job-update email. Auto-fires once per calendar day (your device's local time), the first time anyone opens the page that day — not at a fixed clock time. Use "Send now" to trigger one immediately, any time.</div>
-      </div>
-      <div style="padding:10px 0;border-bottom:1px solid var(--border);margin-bottom:10px">
-        <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px">Rename a person (updates every job, their email, and their PIN entry at once)</label>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <select id="rename-from-select" style="flex:1;min-width:180px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)"></select>
-          <input type="text" id="rename-to-input" placeholder="New name" style="flex:1;min-width:150px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
-          <button class="ui" id="rename-person-btn">Rename everywhere</button>
+        <div style="padding:10px 0">
+          <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:6px;font-weight:600">Everyone</label>
+          <div id="team-list"></div>
         </div>
-        <div class="hint-small" id="rename-msg"></div>
       </div>
-      <div style="padding:10px 0;border-bottom:1px solid var(--border);margin-bottom:10px">
-        <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:6px;font-weight:600">Categories (crews)</label>
-        <div id="category-list"></div>
-        <div class="hint-small" id="category-msg"></div>
+      <div class="admin-tab-panel" data-admin-subtab-panel="categories">
+        <div style="padding:10px 0">
+          <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:6px;font-weight:600">Categories (crews)</label>
+          <div id="category-list"></div>
+          <div class="hint-small" id="category-msg"></div>
+        </div>
       </div>
-      <div style="padding:10px 0;border-bottom:1px solid var(--border);margin-bottom:10px">
-        <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:6px;font-weight:600">Bulk add phone numbers</label>
-        <div class="hint-small" style="margin:0 0 6px">Paste one person per line. Works with "Last, First, Phone" or "Name, Phone" &mdash; separated by tabs, commas, or multiple spaces.</div>
-        <textarea id="bulk-phone-input" rows="5" style="width:100%;font-size:13px;padding:8px 10px;border-radius:7px;border:1px solid var(--border);font-family:inherit;box-sizing:border-box" placeholder="Braswell	Blake	(407) 312-8373&#10;Miller	Bri	(678) 438-2504"></textarea>
-        <button class="ui" id="bulk-phone-btn" style="margin-top:8px">Match and save phone numbers</button>
-        <div class="hint-small" id="bulk-phone-msg"></div>
+      <div class="admin-tab-panel" data-admin-subtab-panel="summary">
+        <div style="padding:10px 0">
+          <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px">Daily summary email (sent once per day to the Faire 2026 Teams channel)</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <input type="text" id="daily-summary-input" placeholder="e.g. yourchannel@amer.teams.ms" style="flex:1;min-width:220px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
+            <button class="ui" id="daily-summary-save">Save</button>
+            <button class="ui" id="daily-summary-send-now">Send now</button>
+          </div>
+          <div class="hint-small">This same address is also Cc'd on every individual job-update email. Auto-fires once per calendar day (your device's local time), the first time anyone opens the page that day — not at a fixed clock time. Use "Send now" to trigger one immediately, any time.</div>
+        </div>
       </div>
-      <div style="padding:10px 0">
-        <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:6px;font-weight:600">Everyone</label>
-        <div id="team-list"></div>
-      </div>
-      <div style="padding:10px 0;border-top:1px solid var(--border)">
-        <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:6px;font-weight:600">Message log (most recent 200)</label>
-        <div id="message-log-list" style="max-height:340px;overflow-y:auto"></div>
+      <div class="admin-tab-panel" data-admin-subtab-panel="log">
+        <div style="padding:10px 0">
+          <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:6px;font-weight:600">Message log (most recent 200)</label>
+          <div id="message-log-list" style="max-height:340px;overflow-y:auto"></div>
+        </div>
       </div>
     </div>
   </div>
 
-  <div id="add-job">
+  <div id="add-job" class="admin-tab-panel active" data-admin-tab-panel="addjob">
     <div class="add-title">Add a job</div>
     <div class="add-row">
       <div class="field">
@@ -2455,10 +2486,27 @@ function renderTeamList() {
   });
 }
 
-document.getElementById('team-header').addEventListener('click', () => {
-  directoryOpen = !directoryOpen;
-  document.getElementById('team-body').style.display = directoryOpen ? 'block' : 'none';
-  document.getElementById('team-chev').style.transform = directoryOpen ? 'rotate(90deg)' : 'rotate(0deg)';
+function setAdminTab(tab) {
+  document.querySelectorAll('.admin-tab-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('data-admin-tab') === tab);
+  });
+  document.querySelectorAll('[data-admin-tab-panel]').forEach(panel => {
+    panel.classList.toggle('active', panel.getAttribute('data-admin-tab-panel') === tab);
+  });
+}
+document.querySelectorAll('.admin-tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => setAdminTab(btn.getAttribute('data-admin-tab')));
+});
+function setAdminSubtab(subtab) {
+  document.querySelectorAll('.admin-subtab-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('data-admin-subtab') === subtab);
+  });
+  document.querySelectorAll('[data-admin-subtab-panel]').forEach(panel => {
+    panel.classList.toggle('active', panel.getAttribute('data-admin-subtab-panel') === subtab);
+  });
+}
+document.querySelectorAll('.admin-subtab-btn').forEach(btn => {
+  btn.addEventListener('click', () => setAdminSubtab(btn.getAttribute('data-admin-subtab')));
 });
 
 // ===================== PIN LOGIN & PERMISSIONS =====================
@@ -2711,13 +2759,13 @@ function hidePinGate() {
 
 function applyUserBar() {
   const label = document.getElementById('user-bar-label');
-  const teamPanel = document.getElementById('team-panel');
+  const adminTabBar = document.getElementById('admin-tab-bar');
   const viewAllBtn = document.getElementById('view-all-depts-btn');
   const testModeBtn = document.getElementById('test-mode-btn');
   const globalRefreshBtn = document.getElementById('global-refresh-btn');
   if (!currentUser) return;
   label.textContent = `Logged in as ${currentUser.name} (${currentUser.role === 'admin' ? 'Admin — full access' : currentUser.role === 'super' ? 'Super user — full access' : 'Manager — ' + (currentUser.crews || []).join(', ')})`;
-  teamPanel.style.display = currentUser.role === 'admin' ? 'block' : 'none';
+  if (adminTabBar) adminTabBar.style.display = currentUser.role === 'admin' ? 'flex' : 'none';
   viewAllBtn.style.display = isElevated(currentUser) ? 'none' : 'inline-block';
   testModeBtn.style.display = currentUser.role === 'admin' ? 'inline-block' : 'none';
   globalRefreshBtn.style.display = currentUser.role === 'admin' ? 'inline-block' : 'none';
