@@ -565,12 +565,7 @@
       </label>
     </div>
     <div class="hint-small" id="new-job-longrange-hint" style="display:none">Managers can request a job be parked as long-range after creating it, using the Park button — that goes to admin for approval.</div>
-    <div class="add-row" style="align-items:center">
-      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-primary);margin:0">
-        <input type="checkbox" id="new-job-needs-graphics" style="width:auto" />
-        This job also needs a Graphics/design request
-      </label>
-    </div>
+    <div class="hint-small" id="new-job-gabbi-hint" style="display:none;color:var(--text-secondary)">&#127912; Assigning this to Gabbi automatically opens the graphics/design request details below.</div>
     <div class="add-row">
       <div class="field grow">
         <label>Photo (optional — e.g. what needs repair)</label>
@@ -767,38 +762,25 @@ function photoGalleryHtml(task, editable) {
     </div>`).join('')}</div>`;
 }
 
-function createLinkedGraphicsJob(gfx, jobName, owner, dept, start, due, existingPhotos, existingFiles, rawPhotoFilesToCopy) {
-  const gfxName = gfx.projectName || jobName;
-  const gfxDeptExisting = deptOrder.includes('Graphics');
-  const gfxTask = {
-    id: nextId++,
-    dept: 'Graphics',
-    owner: 'Gabbi',
-    name: `Graphics request: ${gfxName}`,
-    status: 'next',
-    pct: 0,
-    start: start,
-    due: gfx.completionDate || due,
-    longRange: false,
-    assignedBy: currentUser.name,
-    notes: [{
-      text: `Linked to "${jobName}" (${owner}, ${dept}). ${gfx.designType} — ${gfx.projectType}${gfx.specs ? ' — ' + gfx.specs : ''}.${gfx.copies ? ' Copies: ' + gfx.copies + '.' : ''} ${gfx.needsFiles ? 'Requires new files from project contact.' : 'No new files needed.'} ${gfx.description}`,
-      by: currentUser.name,
-      at: new Date().toISOString()
-    }]
-  };
-  if (existingPhotos && existingPhotos.length) gfxTask.photos = existingPhotos.map(p => ({ ...p }));
-  if (existingFiles && existingFiles.length) gfxTask.files = existingFiles.map(f => ({ ...f }));
-  if ('Gabbi' !== currentUser.name) {
-    gfxTask.pendingAcceptance = { requestedBy: currentUser.name, requestedAt: new Date().toISOString() };
-  }
-  TASKS.push(gfxTask);
-  persistTask(gfxTask);
-  if (!gfxDeptExisting) deptOrder.push('Graphics');
-  openDepts.add('Graphics');
-  notifyChange('Gabbi', `New graphics request: "${gfxName}" (linked to "${jobName}")`);
-  if (gfx.files && gfx.files.length) uploadJobFiles(gfxTask, gfx.files, `New design files for "${gfxName}"`);
-  if (rawPhotoFilesToCopy && rawPhotoFilesToCopy.length) uploadPhotos(gfxTask, rawPhotoFilesToCopy, `Reference photo from "${jobName}"`);
+function formatGraphicsNote(gfx, jobName) {
+  const parts = [];
+  if (gfx.projectName) parts.push(`Project: ${gfx.projectName}.`);
+  parts.push(`${gfx.designType} — ${gfx.projectType}${gfx.specs ? ' — ' + gfx.specs : ''}.`);
+  if (gfx.copies) parts.push(`Copies: ${gfx.copies}.`);
+  if (gfx.completionDate) parts.push(`Requested completion: ${gfx.completionDate}.`);
+  parts.push(gfx.needsFiles ? 'Requires new files from project contact.' : 'No new files needed.');
+  if (gfx.description) parts.push(gfx.description);
+  return parts.join(' ');
+}
+
+// Attaches graphics/design request details directly onto a task that's already
+// assigned to Gabbi — no separate linked task needed since assigning to Gabbi
+// IS the graphics request now.
+function applyGraphicsDetailsToTask(task, gfx) {
+  if (!task.notes) task.notes = [];
+  task.notes.push({ text: `&#127912; Graphics request details: ${formatGraphicsNote(gfx, task.name)}`, by: currentUser.name, at: new Date().toISOString() });
+  persistTask(task);
+  if (gfx.files && gfx.files.length) uploadJobFiles(task, gfx.files, `New design files for "${gfx.projectName || task.name}"`);
 }
 
 async function uploadJobFiles(task, files, changeText) {
@@ -864,6 +846,7 @@ function portionsBlockHtml(task) {
       </div>
       ${(s.notes && s.notes.length) ? `<div class="hint-small" style="margin-top:3px">${s.notes.map(n => `${n.text} <span style="color:var(--text-muted)">— ${n.by}</span>`).join('<br>')}</div>` : ''}
       ${portionPhotoGalleryHtml(s, false)}
+      ${portionFilesHtml(s)}
     </div>
   `).join('') : '';
   const names = Object.keys(ownerToDept()).filter(n => n && n !== task.owner).sort((a, b) => a.localeCompare(b));
@@ -977,6 +960,34 @@ function portionPhotoGalleryHtml(sub, editable) {
     </div>`).join('')}</div>`;
 }
 
+async function uploadPortionFiles(task, sub, files, changeText) {
+  if (!window.firebase || !firebase.storage) return;
+  const storageRef = firebase.storage().ref();
+  let added = 0;
+  for (const file of files) {
+    try {
+      const path = `punch-list-files/${task.id}/portions/${sub.id}/${Date.now()}_${file.name}`;
+      const ref = storageRef.child(path);
+      await ref.put(file);
+      const url = await ref.getDownloadURL();
+      if (!sub.files) sub.files = [];
+      sub.files.push({ url, path, name: file.name });
+      added++;
+    } catch (err) {
+      console.error('Portion file upload failed', err);
+    }
+  }
+  if (added) persistTask(task);
+  renderStats();
+  renderAll();
+  renderMyPortions();
+}
+
+function portionFilesHtml(sub) {
+  if (!sub.files || !sub.files.length) return '';
+  return `<div class="hint-small" style="margin-top:4px"><strong>Files:</strong> ${sub.files.map(f => `<a href="${f.url}" target="_blank" rel="noopener">${f.name}</a>`).join(', ')}</div>`;
+}
+
 function makeSliderRow(t, showDeptTag) {
   const meta = statusMeta[activeStatusFor(t)];
   const isDone = t.pct >= 100;
@@ -1007,7 +1018,7 @@ function makeSliderRow(t, showDeptTag) {
     </div>
     ${t.description ? `<div class="hint-small" style="margin:2px 0 6px">${t.description}</div>` : ''}
     <div class="job-slider-row">
-      ${(() => {
+      ${isDone ? `<span class="badge" style="background:var(--teal-bg);color:var(--teal-fg);font-weight:700">&#10003; 100% — Complete</span>` : (() => {
         const buckets = [0, 25, 50, 75, 100];
         const nearest = buckets.reduce((a, b) => Math.abs(b - t.pct) < Math.abs(a - t.pct) ? b : a);
         const opt = (v, label) => `<option value="${v}" ${nearest === v ? 'selected' : ''}>${label}</option>`;
@@ -1134,12 +1145,7 @@ function makeSliderRow(t, showDeptTag) {
           <input type="date" class="edit-due" value="${t.due || ''}" />
         </div>
       </div>
-      <div class="add-row" style="align-items:center">
-        <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-primary);margin:0">
-          <input type="checkbox" class="edit-needs-graphics" style="width:auto" />
-          This job also needs a Graphics/design request
-        </label>
-      </div>
+      <div class="hint-small edit-gabbi-hint" style="display:none;color:var(--text-secondary)">&#127912; Reassigning this to Gabbi automatically opens the graphics/design request details below.</div>
       <div class="hint-small edit-msg"></div>
       <div class="job-actions">
         <button class="mark-btn save">Save changes</button>
@@ -1214,6 +1220,17 @@ function makeSliderRow(t, showDeptTag) {
     });
   }
   if (!editable) return row;
+  const portionAssigneeSelect = row.querySelector('.portion-assignee-select');
+  if (portionAssigneeSelect) {
+    portionAssigneeSelect.addEventListener('change', () => {
+      if (portionAssigneeSelect.value === 'Gabbi') {
+        graphicsModalContext = 'portion';
+        document.getElementById('graphics-modal').style.display = 'flex';
+      } else if (pendingGraphicsRequest && graphicsModalContext === 'portion') {
+        pendingGraphicsRequest = null;
+      }
+    });
+  }
   const portionAssignBtn = row.querySelector('.portion-assign-btn');
   if (portionAssignBtn) {
     portionAssignBtn.addEventListener('click', () => {
@@ -1221,13 +1238,20 @@ function makeSliderRow(t, showDeptTag) {
       const descInput = row.querySelector('.portion-desc-input');
       const msgEl = row.querySelector('.portion-assign-msg');
       const assignee = select.value;
-      const portion = descInput.value.trim();
+      let portion = descInput.value.trim();
+      const isGabbi = assignee === 'Gabbi';
+      let gfxToAttach = null;
+      if (isGabbi && pendingGraphicsRequest && graphicsModalContext === 'portion') {
+        gfxToAttach = pendingGraphicsRequest;
+        const gfxSummary = formatGraphicsNote(gfxToAttach);
+        portion = portion ? `${portion} — ${gfxSummary}` : gfxSummary;
+      }
       if (!assignee || !portion) {
-        if (msgEl) { msgEl.style.color = 'var(--red-fg)'; msgEl.textContent = 'Pick a person and describe their portion first.'; }
+        if (msgEl) { msgEl.style.color = 'var(--red-fg)'; msgEl.textContent = isGabbi ? 'Fill out the graphics request details that just opened, or describe the portion.' : 'Pick a person and describe their portion first.'; }
         return;
       }
       if (!t.subassignments) t.subassignments = [];
-      t.subassignments.push({
+      const sub = {
         id: 'sub-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
         portion,
         assignedTo: assignee,
@@ -1236,10 +1260,15 @@ function makeSliderRow(t, showDeptTag) {
         pct: 0,
         notes: [],
         createdAt: new Date().toISOString()
-      });
+      };
+      t.subassignments.push(sub);
       persistTask(t);
       notifyChange(assignee, `${currentUser.name} assigned you a portion of "${t.name}": "${portion}"`);
       notifyAdmins(`Portion assigned`, `${currentUser.name} assigned ${assignee} a portion of "${t.name}" (${t.dept}): "${portion}"`);
+      if (gfxToAttach && gfxToAttach.files && gfxToAttach.files.length) {
+        uploadPortionFiles(t, sub, gfxToAttach.files, `New design files for "${t.name}"`);
+      }
+      pendingGraphicsRequest = null;
       renderStats();
       renderAll();
       flashSaveMsg(`Assigned "${portion}" to ${assignee} — waiting on them to accept.`);
@@ -1260,23 +1289,25 @@ function makeSliderRow(t, showDeptTag) {
   });
   const pctSelect = row.querySelector('.job-pct-select');
   const pctMsgEl = row.querySelector('.pct-select-msg');
-  pctSelect.addEventListener('change', () => {
-    const v = parseInt(pctSelect.value, 10);
-    if (v === 100) {
-      if (t.pct < 100) t.prevPct = t.pct;
-      t.pct = 100;
-      persistTask(t);
-      renderStats();
-      renderAll();
-      notifyChange(t.owner, `"${t.name}" marked complete`);
-      flashSaveMsg(`&#127881; "${t.name}" marked complete!`);
-    } else {
-      t.pct = v;
-      renderStats();
-      renderAll();
-      if (pctMsgEl) pctMsgEl.textContent = 'Attach a photo or add a note, then hit Save to record this update.';
-    }
-  });
+  if (pctSelect) {
+    pctSelect.addEventListener('change', () => {
+      const v = parseInt(pctSelect.value, 10);
+      if (v === 100) {
+        if (t.pct < 100) t.prevPct = t.pct;
+        t.pct = 100;
+        persistTask(t);
+        renderStats();
+        renderAll();
+        notifyChange(t.owner, `"${t.name}" marked complete`);
+        flashSaveMsg(`&#127881; "${t.name}" marked complete!`);
+      } else {
+        t.pct = v;
+        renderStats();
+        renderAll();
+        if (pctMsgEl) pctMsgEl.textContent = 'Attach a photo or add a note, then hit Save to record this update.';
+      }
+    });
+  }
   const saveProgressBtn = row.querySelector('.mark-btn.save-progress');
   if (saveProgressBtn) {
     saveProgressBtn.addEventListener('click', () => {
@@ -1295,17 +1326,6 @@ function makeSliderRow(t, showDeptTag) {
     renderAll();
     notifyChange(t.owner, isDone ? `"${t.name}" reopened` : `"${t.name}" marked complete`);
   });
-  const editNeedsGraphics = row.querySelector('.edit-needs-graphics');
-  if (editNeedsGraphics) {
-    editNeedsGraphics.addEventListener('change', (e) => {
-      if (e.target.checked) {
-        graphicsModalContext = t.id;
-        document.getElementById('graphics-modal').style.display = 'flex';
-      } else {
-        if (graphicsModalContext === t.id) pendingGraphicsRequest = null;
-      }
-    });
-  }
   const editDescriptionField = row.querySelector('.edit-description');
   if (editDescriptionField) editDescriptionField.value = t.description || '';
   const editOwnerSelect = row.querySelector('.edit-owner-select');
@@ -1324,6 +1344,8 @@ function makeSliderRow(t, showDeptTag) {
     newOpt.textContent = 'New person...';
     editOwnerSelect.appendChild(newOpt);
     const editNewOwnerRow = row.querySelector('.edit-new-owner-row');
+    const editGabbiHint = row.querySelector('.edit-gabbi-hint');
+    let lastEditGabbiTrigger = false;
     const updateEditOwnerRow = () => {
       const isNew = editOwnerSelect.value === '__new__';
       const needsCrew = !isNew && editOwnerSelect.value && !map[editOwnerSelect.value];
@@ -1335,6 +1357,15 @@ function makeSliderRow(t, showDeptTag) {
       const isReassigning = isNew || editOwnerSelect.value !== t.owner;
       reassignRow.style.display = isReassigning ? 'flex' : 'none';
       if (!isReassigning) row.querySelector('.edit-reassign-reason').value = '';
+      const isGabbi = editOwnerSelect.value === 'Gabbi' && editOwnerSelect.value !== t.owner;
+      if (editGabbiHint) editGabbiHint.style.display = isGabbi ? 'block' : 'none';
+      if (isGabbi && !lastEditGabbiTrigger) {
+        graphicsModalContext = t.id;
+        document.getElementById('graphics-modal').style.display = 'flex';
+      } else if (!isGabbi && lastEditGabbiTrigger && graphicsModalContext === t.id) {
+        pendingGraphicsRequest = null;
+      }
+      lastEditGabbiTrigger = isGabbi;
     };
     editOwnerSelect.addEventListener('change', updateEditOwnerRow);
   }
@@ -1425,11 +1456,9 @@ function makeSliderRow(t, showDeptTag) {
         renderAll();
         notifyChange(t.owner, `"${t.name}" was edited`);
       }
-      const needsGraphicsBox = row.querySelector('.edit-needs-graphics');
-      if (needsGraphicsBox && needsGraphicsBox.checked && pendingGraphicsRequest && graphicsModalContext === t.id) {
-        createLinkedGraphicsJob(pendingGraphicsRequest, t.name, t.owner, t.dept, t.start, t.due, t.photos, t.files);
+      if (newOwner === 'Gabbi' && pendingGraphicsRequest && graphicsModalContext === t.id) {
+        applyGraphicsDetailsToTask(t, pendingGraphicsRequest);
         pendingGraphicsRequest = null;
-        needsGraphicsBox.checked = false;
         const gfxFilesInput = document.getElementById('gfx-files');
         if (gfxFilesInput) gfxFilesInput.value = '';
         renderStats();
@@ -1875,6 +1904,7 @@ function populateOwnerSelect() {
   ownerSelect.appendChild(newOpt);
 }
 
+let lastAddGabbiTrigger = false;
 ownerSelect.addEventListener('change', () => {
   const isNew = ownerSelect.value === '__new__';
   const map = ownerToDept();
@@ -1883,6 +1913,16 @@ ownerSelect.addEventListener('change', () => {
   newCrewField.style.display = (isNew || needsCrew) ? 'block' : 'none';
   document.getElementById('new-owner-name').value = '';
   document.getElementById('new-crew-name').value = '';
+  const isGabbi = ownerSelect.value === 'Gabbi';
+  const gabbiHint = document.getElementById('new-job-gabbi-hint');
+  if (gabbiHint) gabbiHint.style.display = isGabbi ? 'block' : 'none';
+  if (isGabbi && !lastAddGabbiTrigger) {
+    graphicsModalContext = 'add';
+    document.getElementById('graphics-modal').style.display = 'flex';
+  } else if (!isGabbi && lastAddGabbiTrigger && graphicsModalContext === 'add') {
+    pendingGraphicsRequest = null;
+  }
+  lastAddGabbiTrigger = isGabbi;
 });
 
 document.getElementById('add-job-btn').addEventListener('click', () => {
@@ -1967,11 +2007,10 @@ document.getElementById('add-job-btn').addEventListener('click', () => {
   } else {
     notifyChange(owner, jobAddedText);
   }
-  if (pendingGraphicsRequest && !longRange) {
-    createLinkedGraphicsJob(pendingGraphicsRequest, jobName, owner, dept, newTask.start, newTask.due, null, null, photoFiles);
+  if (owner === 'Gabbi' && pendingGraphicsRequest && !longRange) {
+    applyGraphicsDetailsToTask(newTask, pendingGraphicsRequest);
   }
   pendingGraphicsRequest = null;
-  document.getElementById('new-job-needs-graphics').checked = false;
   const gfxFilesInput = document.getElementById('gfx-files');
   if (gfxFilesInput) gfxFilesInput.value = '';
   populateOwnerSelect();
@@ -2475,6 +2514,7 @@ function renderMyPortions() {
   const buckets = [0, 25, 50, 75, 100];
   const itemsHtml = mine.map(({ task: t, sub: s }) => {
     const isPending = s.status === 'pending';
+    const isDone = s.pct >= 100;
     const nearest = buckets.reduce((a, b) => Math.abs(b - s.pct) < Math.abs(a - s.pct) ? b : a);
     const opt = (v, label) => `<option value="${v}" ${nearest === v ? 'selected' : ''}>${label}</option>`;
     return `
@@ -2487,6 +2527,14 @@ function renderMyPortions() {
             <button class="ui portion-accept" style="border-color:var(--teal-bar);color:var(--teal-fg)">Accept</button>
             <button class="ui portion-decline" style="border-color:var(--red-fg);color:var(--red-fg)">Decline</button>
           </div>
+        ` : isDone ? `
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
+            <span class="badge" style="background:var(--teal-bg);color:var(--teal-fg);font-weight:700">&#10003; 100% — Complete</span>
+            <button class="ui portion-reopen">Reopen portion</button>
+          </div>
+          ${portionPhotoGalleryHtml(s, true)}
+          ${portionFilesHtml(s)}
+          ${(s.notes && s.notes.length) ? `<div class="hint-small"><strong>Notes:</strong><br>${s.notes.map(n => `${n.text} <span style="color:var(--text-muted)">— ${n.by}</span>`).join('<br>')}</div>` : ''}
         ` : `
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
             <select class="portion-pct-select" style="font-size:13px;font-weight:600;padding:5px 9px;border-radius:7px;border:1px solid var(--border)">
@@ -2494,6 +2542,7 @@ function renderMyPortions() {
             </select>
           </div>
           ${portionPhotoGalleryHtml(s, true)}
+          ${portionFilesHtml(s)}
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:4px">
             <input type="file" class="portion-photo-input" accept="image/*" multiple style="font-size:12px" />
           </div>
@@ -2552,6 +2601,7 @@ function renderMyPortions() {
         if (msgEl) { msgEl.style.color = 'var(--red-fg)'; msgEl.textContent = 'Attach a photo or add a note before saving this update.'; }
         return;
       }
+      if (v === 100 && s.pct < 100) s.prevPct = s.pct;
       s.pct = v;
       if (hasNote) {
         if (!s.notes) s.notes = [];
@@ -2576,6 +2626,15 @@ function renderMyPortions() {
       } else {
         flashSaveMsg(`Saved your update on "${t.name}"${hasPhoto ? ' with photo' : ' with note'}.`);
       }
+      renderMyPortions();
+    });
+    const reopenBtn = item.querySelector('.portion-reopen');
+    if (reopenBtn) reopenBtn.addEventListener('click', () => {
+      s.pct = s.prevPct ?? 50;
+      persistTask(t);
+      notifyChange(s.assignedBy, `${currentUser.name} reopened their portion "${s.portion}" on "${t.name}"`);
+      renderStats();
+      renderAll();
       renderMyPortions();
     });
     item.querySelectorAll('.portion-photo-remove').forEach(btn => {
@@ -3406,31 +3465,12 @@ document.getElementById('help-modal').addEventListener('click', (e) => {
 let pendingGraphicsRequest = null;
 let graphicsModalContext = 'add'; // 'add' or a task id
 
-document.getElementById('new-job-needs-graphics').addEventListener('change', (e) => {
-  if (e.target.checked) {
-    graphicsModalContext = 'add';
-    document.getElementById('graphics-modal').style.display = 'flex';
-  } else {
-    pendingGraphicsRequest = null;
-  }
-});
-function uncheckGraphicsBoxForContext() {
-  if (graphicsModalContext === 'add') {
-    document.getElementById('new-job-needs-graphics').checked = false;
-  } else {
-    const row = document.querySelector(`[data-task-id="${graphicsModalContext}"]`);
-    const box = row ? row.querySelector('.edit-needs-graphics') : null;
-    if (box) box.checked = false;
-  }
-}
 document.getElementById('graphics-close-btn').addEventListener('click', () => {
   document.getElementById('graphics-modal').style.display = 'none';
-  if (!pendingGraphicsRequest) uncheckGraphicsBoxForContext();
 });
 document.getElementById('graphics-modal').addEventListener('click', (e) => {
   if (e.target.id === 'graphics-modal') {
     document.getElementById('graphics-modal').style.display = 'none';
-    if (!pendingGraphicsRequest) uncheckGraphicsBoxForContext();
   }
 });
 document.getElementById('gfx-save-btn').addEventListener('click', () => {
@@ -3454,7 +3494,9 @@ document.getElementById('gfx-save-btn').addEventListener('click', () => {
     files: filesInput && filesInput.files ? Array.from(filesInput.files) : []
   };
   document.getElementById('graphics-modal').style.display = 'none';
-  flashSaveMsg('Graphics request details saved — they\'ll be attached when you add the job.');
+  flashSaveMsg(graphicsModalContext === 'portion'
+    ? 'Graphics request details saved — they\'ll be attached when you assign the portion.'
+    : 'Graphics request details saved — they\'ll be attached to Gabbi\'s job.');
 });
 
 init();
