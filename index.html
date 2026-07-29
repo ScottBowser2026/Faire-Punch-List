@@ -251,7 +251,7 @@
       <p>By default you only see your own crew's jobs. Click "View all department tasks" to see everything, and again to switch back.</p>
 
       <h3>Updating a job's progress</h3>
-      <p>Drag the slider, then attach a photo or a short note and click Save (or press Enter) to actually commit the change. Without a photo or note, Save won't do anything &mdash; every update needs some evidence behind it. Notes and photos are saved permanently on the job, visible to anyone who opens it later.</p>
+      <p>Pick a percentage from the dropdown, then attach a photo or a short note and click Save (or press Enter) to actually commit the change. Without a photo or note, Save won't do anything &mdash; every update needs some evidence behind it. Notes and photos are saved permanently on the job, visible to anyone who opens it later. Picking 100% marks the job complete right away.</p>
 
       <h3>Marking complete / reopening</h3>
       <p>"Mark complete" jumps a job to 100% and moves it to Completed Projects. Reopen it from that list if it isn't actually finished.</p>
@@ -392,7 +392,7 @@
     <span class="hint-small" id="change-pin-msg"></span>
   </div>
   <h1>Faire punch list — progress tracker</h1>
-  <p class="subtitle">Last updated 7/3/2026 &middot; grouped by crew &middot; drag a slider or hit "Mark complete" to move a job into the master completed list below &middot; use "Add a job" to assign new work to a person responsible</p>
+  <p class="subtitle">Last updated 7/3/2026 &middot; grouped by crew &middot; choose a percentage or hit "Mark complete" to move a job into the master completed list below &middot; use "Add a job" to assign new work to a person responsible</p>
 
   <div id="staff-notes-section"></div>
 
@@ -917,9 +917,20 @@ function makeSliderRow(t, showDeptTag) {
     </div>
     ${t.description ? `<div class="hint-small" style="margin:2px 0 6px">${t.description}</div>` : ''}
     <div class="job-slider-row">
-      <input type="range" min="0" max="100" step="5" value="${t.pct}" ${editable ? '' : 'disabled'} />
-      <span class="pct-out">${t.pct}%</span>
+      ${(() => {
+        const buckets = [0, 25, 50, 75, 100];
+        const nearest = buckets.reduce((a, b) => Math.abs(b - t.pct) < Math.abs(a - t.pct) ? b : a);
+        const opt = (v, label) => `<option value="${v}" ${nearest === v ? 'selected' : ''}>${label}</option>`;
+        return `<select class="job-pct-select" ${editable ? '' : 'disabled'} style="font-size:13.5px;font-weight:600;padding:6px 10px;border-radius:7px;border:1px solid var(--border);background:var(--surface)">
+          ${opt(0, 'Not started')}
+          ${opt(25, '25%')}
+          ${opt(50, '50%')}
+          ${opt(75, '75%')}
+          ${opt(100, '100% — Complete')}
+        </select>`;
+      })()}
     </div>
+    <div class="hint-small pct-select-msg"></div>
     ${photoGalleryHtml(t, editable)}
     ${jobFilesHtml(t)}
     ${(t.notes && t.notes.length) ? `<div class="hint-small" style="margin-top:6px"><strong>Notes:</strong><br>${t.notes.map(n => `${n.text} <span style="color:var(--text-muted)">— ${n.by}</span>`).join('<br>')}</div>` : ''}
@@ -1112,14 +1123,24 @@ function makeSliderRow(t, showDeptTag) {
     });
   }
   if (!editable) return row;
-  const input = row.querySelector('input[type=range]');
-  const out = row.querySelector('.pct-out');
-  input.addEventListener('input', () => {
-    const v = parseInt(input.value, 10);
-    out.textContent = v + '%';
-    t.pct = v;
-    renderStats();
-    renderAll();
+  const pctSelect = row.querySelector('.job-pct-select');
+  const pctMsgEl = row.querySelector('.pct-select-msg');
+  pctSelect.addEventListener('change', () => {
+    const v = parseInt(pctSelect.value, 10);
+    if (v === 100) {
+      if (t.pct < 100) t.prevPct = t.pct;
+      t.pct = 100;
+      persistTask(t);
+      renderStats();
+      renderAll();
+      notifyChange(t.owner, `"${t.name}" marked complete`);
+      flashSaveMsg(`&#127881; "${t.name}" marked complete!`);
+    } else {
+      t.pct = v;
+      renderStats();
+      renderAll();
+      if (pctMsgEl) pctMsgEl.textContent = 'Attach a photo or add a note, then hit Save to record this update.';
+    }
   });
   const saveProgressBtn = row.querySelector('.mark-btn.save-progress');
   if (saveProgressBtn) {
@@ -1133,7 +1154,7 @@ function makeSliderRow(t, showDeptTag) {
   });
   row.querySelector(`.mark-btn.${isDone ? 'reopen' : 'done'}`).addEventListener('click', () => {
     t.pct = isDone ? (t.prevPct ?? 50) : 100;
-    if (!isDone) t.prevPct = input.value < 100 ? parseInt(input.value, 10) : 50;
+    if (!isDone) t.prevPct = pctSelect.value < 100 ? parseInt(pctSelect.value, 10) : 50;
     persistTask(t);
     renderStats();
     renderAll();
