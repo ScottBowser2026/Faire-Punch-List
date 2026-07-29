@@ -395,6 +395,7 @@
   <p class="subtitle">Last updated 7/3/2026 &middot; grouped by crew &middot; choose a percentage or hit "Mark complete" to move a job into the master completed list below &middot; use "Add a job" to assign new work to a person responsible</p>
 
   <div id="staff-notes-section"></div>
+  <div id="my-portions-section"></div>
 
   <div id="save-bar" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--surface-1);border-radius:10px;padding:12px 16px;margin-bottom:20px">
     <div style="font-size:13px;color:var(--text-secondary)"><span style="color:var(--teal-fg);font-weight:600">&#9679; Live</span> — changes save automatically and sync to everyone with this link instantly.</div>
@@ -847,6 +848,43 @@ function jobFilesHtml(task) {
   return `<div class="hint-small" style="margin-top:6px"><strong>Files:</strong> ${task.files.map(f => `<a href="${f.url}" target="_blank" rel="noopener">${f.name}</a>`).join(', ')}</div>`;
 }
 
+function portionsBlockHtml(task) {
+  const subs = task.subassignments || [];
+  const statusLabel = { pending: 'Pending acceptance', active: 'In progress', declined: 'Declined' };
+  const statusColor = { pending: 'var(--gray-fg)', active: '#5B3A9E', declined: 'var(--red-fg)' };
+  const listHtml = subs.length ? subs.map(s => `
+    <div class="portion-owner-item" data-sub-id="${s.id}" style="padding:6px 0;border-top:1px solid rgba(123,79,206,.2)">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <div style="flex:1;min-width:160px;font-size:12.5px">
+          <strong>${s.assignedTo}</strong> &middot; ${(s.portion || '').replace(/</g, '&lt;')}
+          <span style="color:${statusColor[s.status] || 'var(--text-muted)'};font-weight:600"> &middot; ${statusLabel[s.status] || s.status}</span>
+          ${s.status !== 'declined' ? ` &middot; ${s.pct}%` : ''}
+        </div>
+        <button class="ui portion-owner-remove" style="font-size:11px;padding:3px 8px;border-color:var(--red-fg);color:var(--red-fg)">Remove</button>
+      </div>
+      ${(s.notes && s.notes.length) ? `<div class="hint-small" style="margin-top:3px">${s.notes.map(n => `${n.text} <span style="color:var(--text-muted)">— ${n.by}</span>`).join('<br>')}</div>` : ''}
+      ${portionPhotoGalleryHtml(s, false)}
+    </div>
+  `).join('') : '';
+  const names = Object.keys(ownerToDept()).filter(n => n && n !== task.owner).sort((a, b) => a.localeCompare(b));
+  const optionsHtml = names.map(n => `<option value="${n}">${n}</option>`).join('');
+  return `
+    <div class="portions-block" style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--border)">
+      <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:2px">&#9650; Portions assigned to others</div>
+      ${listHtml}
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px">
+        <select class="portion-assignee-select" style="font-size:12px;padding:5px 8px;border-radius:7px;border:1px solid var(--border)">
+          <option value="">Assign a portion to...</option>
+          ${optionsHtml}
+        </select>
+        <input type="text" class="portion-desc-input" placeholder="What portion of this job are they doing?" style="flex:1;min-width:160px;font-size:12px;padding:6px 9px;border-radius:7px;border:1px solid var(--border)" />
+        <button class="ui portion-assign-btn" style="font-size:12px;padding:5px 10px">Assign portion</button>
+      </div>
+      <div class="hint-small portion-assign-msg"></div>
+    </div>
+  `;
+}
+
 async function uploadPhotos(task, files, changeText) {
   if (!window.firebase || !firebase.storage) {
     alert("Photo storage isn't connected yet.");
@@ -885,6 +923,58 @@ function deletePhoto(task, photo) {
   persistTask(task);
   renderStats();
   renderAll();
+}
+
+async function uploadPortionPhotos(task, sub, files, changeText) {
+  if (!window.firebase || !firebase.storage) {
+    alert("Photo storage isn't connected yet.");
+    return;
+  }
+  const storageRef = firebase.storage().ref();
+  const newUrls = [];
+  for (const file of files) {
+    try {
+      const path = `punch-list-photos/${task.id}/portions/${sub.id}/${Date.now()}_${file.name}`;
+      const ref = storageRef.child(path);
+      await ref.put(file);
+      const url = await ref.getDownloadURL();
+      if (!sub.photos) sub.photos = [];
+      sub.photos.push({ url, path });
+      newUrls.push(url);
+    } catch (err) {
+      console.error('Portion photo upload failed', err);
+    }
+  }
+  if (newUrls.length) persistTask(task);
+  renderStats();
+  renderAll();
+  renderMyPortions();
+  if (newUrls.length) {
+    const text = changeText || `${newUrls.length} photo${newUrls.length === 1 ? '' : 's'} added to their portion of "${task.name}"`;
+    notifyChange(sub.assignedBy, text, newUrls);
+  }
+}
+
+function deletePortionPhoto(task, sub, photo) {
+  if (!confirm('Delete this photo?')) return;
+  if (window.firebase && firebase.storage && photo.path) {
+    firebase.storage().ref().child(photo.path).delete().catch(() => {});
+  }
+  sub.photos = (sub.photos || []).filter(p => p.url !== photo.url);
+  persistTask(task);
+  renderStats();
+  renderAll();
+  renderMyPortions();
+}
+
+function portionPhotoGalleryHtml(sub, editable) {
+  const photos = sub.photos || [];
+  if (!photos.length) return '';
+  return `<div class="photo-gallery">${photos.map((p, i) => `
+    <div style="position:relative">
+      <img src="${p.url}" data-idx="${i}" class="photo-thumb portion-photo-thumb" />
+      ${editable ? `<button class="photo-remove portion-photo-remove" data-idx="${i}" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:var(--red-fg);color:#fff;border:none;font-size:11px;line-height:1;cursor:pointer">&times;</button>` : ''}
+    </div>`).join('')}</div>`;
 }
 
 function makeSliderRow(t, showDeptTag) {
@@ -934,6 +1024,7 @@ function makeSliderRow(t, showDeptTag) {
     ${photoGalleryHtml(t, editable)}
     ${jobFilesHtml(t)}
     ${(t.notes && t.notes.length) ? `<div class="hint-small" style="margin-top:6px"><strong>Notes:</strong><br>${t.notes.map(n => `${n.text} <span style="color:var(--text-muted)">— ${n.by}</span>`).join('<br>')}</div>` : ''}
+    ${editable ? portionsBlockHtml(t) : ''}
     ${editable ? `<div class="photo-upload-row"><input type="file" class="photo-input" accept="image/*" multiple /></div>
     <div class="photo-upload-row"><input type="text" class="progress-note" placeholder="Or add a quick note instead of a photo..." style="flex:1;font-size:13px;padding:6px 9px;border-radius:7px;border:1px solid var(--border)" /></div>
     <div class="hint-small">Attach a photo or add a note, then hit Save or press Enter</div>
@@ -1123,6 +1214,50 @@ function makeSliderRow(t, showDeptTag) {
     });
   }
   if (!editable) return row;
+  const portionAssignBtn = row.querySelector('.portion-assign-btn');
+  if (portionAssignBtn) {
+    portionAssignBtn.addEventListener('click', () => {
+      const select = row.querySelector('.portion-assignee-select');
+      const descInput = row.querySelector('.portion-desc-input');
+      const msgEl = row.querySelector('.portion-assign-msg');
+      const assignee = select.value;
+      const portion = descInput.value.trim();
+      if (!assignee || !portion) {
+        if (msgEl) { msgEl.style.color = 'var(--red-fg)'; msgEl.textContent = 'Pick a person and describe their portion first.'; }
+        return;
+      }
+      if (!t.subassignments) t.subassignments = [];
+      t.subassignments.push({
+        id: 'sub-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
+        portion,
+        assignedTo: assignee,
+        assignedBy: currentUser.name,
+        status: 'pending',
+        pct: 0,
+        notes: [],
+        createdAt: new Date().toISOString()
+      });
+      persistTask(t);
+      notifyChange(assignee, `${currentUser.name} assigned you a portion of "${t.name}": "${portion}"`);
+      notifyAdmins(`Portion assigned`, `${currentUser.name} assigned ${assignee} a portion of "${t.name}" (${t.dept}): "${portion}"`);
+      renderStats();
+      renderAll();
+      flashSaveMsg(`Assigned "${portion}" to ${assignee} — waiting on them to accept.`);
+    });
+  }
+  row.querySelectorAll('.portion-owner-remove').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const subId = btn.closest('.portion-owner-item').getAttribute('data-sub-id');
+      const sub = (t.subassignments || []).find(s => String(s.id) === String(subId));
+      if (!sub) return;
+      if (!confirm(`Remove ${sub.assignedTo}'s portion ("${sub.portion}")? This can't be undone.`)) return;
+      t.subassignments = t.subassignments.filter(s => String(s.id) !== String(subId));
+      persistTask(t);
+      notifyChange(sub.assignedTo, `Your portion of "${t.name}" ("${sub.portion}") was removed by ${currentUser.name}`);
+      renderStats();
+      renderAll();
+    });
+  });
   const pctSelect = row.querySelector('.job-pct-select');
   const pctMsgEl = row.querySelector('.pct-select-msg');
   pctSelect.addEventListener('change', () => {
@@ -1494,6 +1629,7 @@ function sortByDueDate(list) {
 }
 
 function renderAll() {
+  renderMyPortions();
   deptsEl.innerHTML = '';
   const showOnlyOwnCrews = currentUser && !isElevated(currentUser) && !viewAllDepts;
   deptOrder.forEach(dept => {
@@ -2322,6 +2458,136 @@ let staffNotesRef = null;
 function persistStaffNotes() {
   if (staffNotesRef) staffNotesRef.set(JSON.stringify(STAFF_NOTES)).catch(err => console.error('Staff notes save failed', err));
 }
+function renderMyPortions() {
+  const container = document.getElementById('my-portions-section');
+  if (!container) return;
+  if (!currentUser) { container.innerHTML = ''; return; }
+  const mine = [];
+  TASKS.forEach(t => {
+    (t.subassignments || []).forEach(s => {
+      if (s.assignedTo === currentUser.name && s.status !== 'declined') {
+        mine.push({ task: t, sub: s });
+      }
+    });
+  });
+  if (!mine.length) { container.innerHTML = ''; return; }
+  mine.sort((a, b) => (a.sub.status === 'pending' ? 0 : 1) - (b.sub.status === 'pending' ? 0 : 1));
+  const buckets = [0, 25, 50, 75, 100];
+  const itemsHtml = mine.map(({ task: t, sub: s }) => {
+    const isPending = s.status === 'pending';
+    const nearest = buckets.reduce((a, b) => Math.abs(b - s.pct) < Math.abs(a - s.pct) ? b : a);
+    const opt = (v, label) => `<option value="${v}" ${nearest === v ? 'selected' : ''}>${label}</option>`;
+    return `
+      <div class="my-portion-item" data-task-id="${t.id}" data-sub-id="${s.id}" style="padding:10px 0;border-top:1px solid rgba(123,79,206,.2)">
+        <div style="font-size:13.5px;font-weight:600">${t.name} <span style="font-weight:400;color:var(--text-muted)">(${t.dept} &middot; owned by ${t.owner})</span></div>
+        <div style="font-size:13px;margin:4px 0"><strong>Your portion:</strong> ${(s.portion || '').replace(/</g, '&lt;')}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Assigned by ${s.assignedBy}</div>
+        ${isPending ? `
+          <div style="display:flex;gap:8px">
+            <button class="ui portion-accept" style="border-color:var(--teal-bar);color:var(--teal-fg)">Accept</button>
+            <button class="ui portion-decline" style="border-color:var(--red-fg);color:var(--red-fg)">Decline</button>
+          </div>
+        ` : `
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
+            <select class="portion-pct-select" style="font-size:13px;font-weight:600;padding:5px 9px;border-radius:7px;border:1px solid var(--border)">
+              ${opt(0, 'Not started')}${opt(25, '25%')}${opt(50, '50%')}${opt(75, '75%')}${opt(100, '100% — Complete')}
+            </select>
+          </div>
+          ${portionPhotoGalleryHtml(s, true)}
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:4px">
+            <input type="file" class="portion-photo-input" accept="image/*" multiple style="font-size:12px" />
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
+            <input type="text" class="portion-note" placeholder="Or add a quick note instead of a photo..." style="flex:1;min-width:180px;font-size:13px;padding:6px 9px;border-radius:7px;border:1px solid var(--border)" />
+            <button class="ui portion-save">Save update</button>
+          </div>
+          <div class="hint-small">Attach a photo or add a note, then hit Save &mdash; every update needs some evidence behind it.</div>
+          <div class="hint-small portion-save-msg"></div>
+          ${(s.notes && s.notes.length) ? `<div class="hint-small"><strong>Notes:</strong><br>${s.notes.map(n => `${n.text} <span style="color:var(--text-muted)">— ${n.by}</span>`).join('<br>')}</div>` : ''}
+        `}
+      </div>
+    `;
+  }).join('');
+  container.innerHTML = `
+    <div style="background:#F3EEFC;border:1px solid #7B4FCE;border-radius:10px;padding:14px 16px;margin-bottom:18px">
+      <div style="font-size:14px;font-weight:700;color:#5B3A9E;margin-bottom:4px">&#9650; Portions assigned to you</div>
+      ${itemsHtml}
+    </div>
+  `;
+  container.querySelectorAll('.my-portion-item').forEach(item => {
+    const taskId = item.getAttribute('data-task-id');
+    const subId = item.getAttribute('data-sub-id');
+    const t = TASKS.find(tt => String(tt.id) === String(taskId));
+    if (!t) return;
+    const s = (t.subassignments || []).find(ss => String(ss.id) === String(subId));
+    if (!s) return;
+    const acceptBtn = item.querySelector('.portion-accept');
+    if (acceptBtn) acceptBtn.addEventListener('click', () => {
+      s.status = 'active';
+      s.respondedAt = new Date().toISOString();
+      persistTask(t);
+      notifyChange(s.assignedBy, `${currentUser.name} accepted the portion "${s.portion}" on "${t.name}"`);
+      renderMyPortions();
+    });
+    const declineBtn = item.querySelector('.portion-decline');
+    if (declineBtn) declineBtn.addEventListener('click', () => {
+      if (!confirm('Decline this portion? The assigner will be notified.')) return;
+      s.status = 'declined';
+      s.respondedAt = new Date().toISOString();
+      persistTask(t);
+      notifyChange(s.assignedBy, `${currentUser.name} declined the portion "${s.portion}" on "${t.name}"`);
+      renderMyPortions();
+    });
+    const saveBtn = item.querySelector('.portion-save');
+    if (saveBtn) saveBtn.addEventListener('click', async () => {
+      const select = item.querySelector('.portion-pct-select');
+      const noteInput = item.querySelector('.portion-note');
+      const photoInput = item.querySelector('.portion-photo-input');
+      const msgEl = item.querySelector('.portion-save-msg');
+      const v = parseInt(select.value, 10);
+      const noteText = noteInput ? noteInput.value.trim() : '';
+      const hasNote = noteText.length > 0;
+      const hasPhoto = photoInput && photoInput.files && photoInput.files.length > 0;
+      if (!hasNote && !hasPhoto) {
+        if (msgEl) { msgEl.style.color = 'var(--red-fg)'; msgEl.textContent = 'Attach a photo or add a note before saving this update.'; }
+        return;
+      }
+      s.pct = v;
+      if (hasNote) {
+        if (!s.notes) s.notes = [];
+        s.notes.push({ text: noteText, by: currentUser.name, at: new Date().toISOString() });
+      }
+      const completeText = v === 100
+        ? `${currentUser.name} marked their portion "${s.portion}" on "${t.name}" complete`
+        : `${currentUser.name} updated their portion "${s.portion}" on "${t.name}" to ${v}%${hasNote ? ' — ' + noteText : ''}`;
+      if (hasPhoto) {
+        if (msgEl) { msgEl.style.color = 'var(--text-muted)'; msgEl.textContent = 'Uploading photo...'; }
+        const files = Array.from(photoInput.files);
+        await uploadPortionPhotos(t, s, files, completeText);
+        photoInput.value = '';
+      } else {
+        persistTask(t);
+        notifyChange(s.assignedBy, completeText);
+        renderStats();
+        renderAll();
+      }
+      if (v === 100) {
+        flashSaveMsg(`&#127881; Your portion of "${t.name}" marked complete!`);
+      } else {
+        flashSaveMsg(`Saved your update on "${t.name}"${hasPhoto ? ' with photo' : ' with note'}.`);
+      }
+      renderMyPortions();
+    });
+    item.querySelectorAll('.portion-photo-remove').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = parseInt(btn.getAttribute('data-idx'), 10);
+        const photo = (s.photos || [])[idx];
+        if (photo) deletePortionPhoto(t, s, photo);
+      });
+    });
+  });
+}
+
 function renderStaffNotes() {
   const container = document.getElementById('staff-notes-section');
   if (!container) return;
