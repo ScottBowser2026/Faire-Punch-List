@@ -729,7 +729,7 @@ function activeStatusFor(t) {
 }
 
 function renderStats() {
-  const showOnlyOwnCrews = currentUser && currentUser.role !== 'admin' && !viewAllDepts;
+  const showOnlyOwnCrews = currentUser && !isElevated(currentUser) && !viewAllDepts;
   const visibleTasks = showOnlyOwnCrews ? TASKS.filter(t => (currentUser.crews || []).includes(t.dept)) : TASKS;
   const scheduled = visibleTasks.filter(t => !t.longRange);
   const total = scheduled.length;
@@ -1231,7 +1231,22 @@ function makeSliderRow(t, showDeptTag) {
       t.start = newStart;
       t.due = newDue;
       editingIds.delete(t.id);
-      if (isReassigning) {
+      if (isReassigning && isElevated(currentUser)) {
+        // Elevated users (admin/super) step in and reassign immediately — no acceptance step.
+        const oldOwner = t.owner;
+        t.owner = newOwner;
+        t.dept = newDept;
+        delete t.pendingReassign;
+        if (!deptOrder.includes(newDept)) deptOrder.push(newDept);
+        openDepts.add(newDept);
+        persistTask(t);
+        populateOwnerSelect();
+        renderStats();
+        renderAll();
+        notifyChange(newOwner, `"${t.name}" was reassigned to you by ${currentUser.name}`);
+        notifyChange(oldOwner, `"${t.name}" was reassigned from you to ${newOwner} by ${currentUser.name}`);
+        notifyAdmins(`Job reassigned`, `"${t.name}" moved from ${oldOwner} to ${newOwner} (${newDept}) by ${currentUser.name}.\n\nReason: ${reason}`);
+      } else if (isReassigning) {
         t.pendingReassign = { newOwner, newDept, reason, requestedBy: currentUser.name, requestedAt: new Date().toISOString() };
         persistTask(t);
         renderStats();
@@ -1457,7 +1472,7 @@ function sortByDueDate(list) {
 
 function renderAll() {
   deptsEl.innerHTML = '';
-  const showOnlyOwnCrews = currentUser && currentUser.role !== 'admin' && !viewAllDepts;
+  const showOnlyOwnCrews = currentUser && !isElevated(currentUser) && !viewAllDepts;
   deptOrder.forEach(dept => {
     if (showOnlyOwnCrews && !(currentUser.crews || []).includes(dept)) return;
     const items = TASKS.filter(t => t.dept === dept && !t.longRange);
@@ -1523,7 +1538,7 @@ function renderAll() {
 const activatingIds = new Set();
 
 function renderLongRange() {
-  const showOnlyOwnCrews = currentUser && currentUser.role !== 'admin' && !viewAllDepts;
+  const showOnlyOwnCrews = currentUser && !isElevated(currentUser) && !viewAllDepts;
   const items = TASKS.filter(t => t.longRange && (!showOnlyOwnCrews || (currentUser.crews || []).includes(t.dept))).sort((a, b) => a.dept.localeCompare(b.dept) || a.name.localeCompare(b.name));
   longRangeEl.innerHTML = '';
   if (items.length === 0) {
@@ -2134,11 +2149,12 @@ function renderTeamList() {
     const existingPin = matchingPins.find(p => PIN_DIRECTORY[p].role === 'admin') || matchingPins[0];
     const pinEntry = existingPin ? PIN_DIRECTORY[existingPin] : null;
     const isAdmin = pinEntry && pinEntry.role === 'admin';
+    const isSuper = pinEntry && pinEntry.role === 'super';
     const row = document.createElement('div');
     row.style.cssText = 'padding:10px 0;border-top:1px solid var(--border)';
     row.innerHTML = `
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
-        <span style="font-size:13px;font-weight:600;min-width:140px">${name}${isAdmin ? ' <span style="font-weight:400;color:var(--text-muted)">(admin)</span>' : ''}</span>
+        <span style="font-size:13px;font-weight:600;min-width:140px">${name}${isAdmin ? ' <span style="font-weight:400;color:var(--text-muted)">(admin)</span>' : ''}${isSuper ? ' <span style="font-weight:400;color:var(--text-muted)">(super user)</span>' : ''}</span>
         <input type="text" class="tm-email" placeholder="email address" value="${DIRECTORY[name] || ''}" style="flex:1;min-width:180px;font-size:13px;padding:6px 9px;border-radius:7px;border:1px solid var(--border)" />
         <button class="ui tm-save-email" style="font-size:12px;padding:5px 10px">Save email</button>
         <input type="tel" class="tm-phone" placeholder="phone (for texts)" value="${PHONE_DIRECTORY[name] || ''}" style="flex:1;min-width:150px;font-size:13px;padding:6px 9px;border-radius:7px;border:1px solid var(--border)" />
@@ -2148,7 +2164,10 @@ function renderTeamList() {
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <span style="font-size:11px;color:var(--text-muted);min-width:140px">${existingPin ? `PIN: ${existingPin}` : 'No PIN yet'}</span>
         <input type="text" class="tm-pin" placeholder="PIN (4 digits)" inputmode="numeric" value="${existingPin || ''}" style="width:110px;font-size:12px;padding:5px 8px;border-radius:7px;border:1px solid var(--border)" ${isAdmin ? 'disabled' : ''} />
-        <input type="text" class="tm-crews" placeholder="Crews (comma separated)" value="${pinEntry ? (pinEntry.crews || []).join(', ') : ''}" style="flex:1;min-width:160px;font-size:12px;padding:5px 8px;border-radius:7px;border:1px solid var(--border)" ${isAdmin ? 'disabled' : ''} />
+        <input type="text" class="tm-crews" placeholder="Crews (comma separated)" value="${pinEntry ? (pinEntry.crews || []).join(', ') : ''}" style="flex:1;min-width:160px;font-size:12px;padding:5px 8px;border-radius:7px;border:1px solid var(--border)" ${(isAdmin || isSuper) ? 'disabled' : ''} />
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text-secondary)" title="Full access to every job in every crew — add notes/photos, and reassign instantly without waiting on the new owner to accept">
+          <input type="checkbox" class="tm-super" ${isSuper ? 'checked' : ''} ${isAdmin ? 'disabled' : ''} /> Super user
+        </label>
         <button class="ui tm-save-pin" style="font-size:12px;padding:5px 10px" ${isAdmin ? 'disabled title="Use Change my PIN while logged in as this admin"' : ''}>${existingPin ? 'Update' : 'Assign PIN'}</button>
       </div>
     `;
@@ -2186,10 +2205,18 @@ function renderTeamList() {
       flashSaveMsg(`Removed ${name}.${openJobs.length ? ` Parked ${openJobs.length} of their job${openJobs.length === 1 ? '' : 's'} as long-range.` : ''}`);
     });
     const pinBtn = row.querySelector('.tm-save-pin');
+    const superCheckbox = row.querySelector('.tm-super');
+    const crewsInput = row.querySelector('.tm-crews');
+    if (superCheckbox && !isAdmin) {
+      superCheckbox.addEventListener('change', () => {
+        crewsInput.disabled = superCheckbox.checked;
+      });
+    }
     if (!isAdmin) {
       pinBtn.addEventListener('click', () => {
         const newPin = row.querySelector('.tm-pin').value.trim();
-        const crews = row.querySelector('.tm-crews').value.split(',').map(s => s.trim()).filter(Boolean);
+        const makeSuper = superCheckbox && superCheckbox.checked;
+        const crews = makeSuper ? [] : crewsInput.value.split(',').map(s => s.trim()).filter(Boolean);
         if (!/^\d{4}$/.test(newPin)) {
           flashSaveMsg('PIN must be 4 digits.', true);
           return;
@@ -2199,10 +2226,10 @@ function renderTeamList() {
           return;
         }
         if (existingPin && existingPin !== newPin) delete PIN_DIRECTORY[existingPin];
-        PIN_DIRECTORY[newPin] = { name, role: 'manager', crews };
+        PIN_DIRECTORY[newPin] = { name, role: makeSuper ? 'super' : 'manager', crews };
         persistPinDirectory();
         renderTeamList();
-        flashSaveMsg(`PIN ${newPin} saved for ${name}.`);
+        flashSaveMsg(`PIN ${newPin} saved for ${name}${makeSuper ? ' as a super user' : ''}.`);
       });
     }
     list.appendChild(row);
@@ -2235,8 +2262,11 @@ let currentPin = null;
 
 function canEdit(task) {
   if (!currentUser) return false;
-  if (currentUser.role === 'admin') return true;
+  if (currentUser.role === 'admin' || currentUser.role === 'super') return true;
   return (currentUser.crews || []).includes(task.dept);
+}
+function isElevated(user) {
+  return !!user && (user.role === 'admin' || user.role === 'super');
 }
 
 function persistPinDirectory() {
@@ -2259,9 +2289,9 @@ function applyUserBar() {
   const testModeBtn = document.getElementById('test-mode-btn');
   const globalRefreshBtn = document.getElementById('global-refresh-btn');
   if (!currentUser) return;
-  label.textContent = `Logged in as ${currentUser.name} (${currentUser.role === 'admin' ? 'Admin — full access' : 'Manager — ' + (currentUser.crews || []).join(', ')})`;
+  label.textContent = `Logged in as ${currentUser.name} (${currentUser.role === 'admin' ? 'Admin — full access' : currentUser.role === 'super' ? 'Super user — full access' : 'Manager — ' + (currentUser.crews || []).join(', ')})`;
   teamPanel.style.display = currentUser.role === 'admin' ? 'block' : 'none';
-  viewAllBtn.style.display = currentUser.role === 'admin' ? 'none' : 'inline-block';
+  viewAllBtn.style.display = isElevated(currentUser) ? 'none' : 'inline-block';
   testModeBtn.style.display = currentUser.role === 'admin' ? 'inline-block' : 'none';
   globalRefreshBtn.style.display = currentUser.role === 'admin' ? 'inline-block' : 'none';
   const downloadBackupBtn = document.getElementById('save-progress-btn');
