@@ -3267,7 +3267,8 @@ function collectCompletedInRange(fromStr, toStr) {
   const fromDate = fromStr ? new Date(fromStr + 'T00:00:00') : null;
   const toDate = toStr ? new Date(toStr + 'T23:59:59') : null;
   const inRange = (isoStr) => {
-    if (!isoStr) return false;
+    if (!fromDate && !toDate) return true; // "All time" — no date filter, so an unknown date still counts
+    if (!isoStr) return false; // a bounded range needs an actual date to check against
     const d = new Date(isoStr);
     if (fromDate && d < fromDate) return false;
     if (toDate && d > toDate) return false;
@@ -3291,7 +3292,7 @@ function collectCompletedInRange(fromStr, toStr) {
 }
 
 function fmtReportDate(isoStr) {
-  if (!isoStr) return '';
+  if (!isoStr) return 'date not recorded';
   return new Date(isoStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
