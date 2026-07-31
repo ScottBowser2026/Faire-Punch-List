@@ -175,6 +175,7 @@
   #photo-lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.85); z-index: 2000; display: none; align-items: center; justify-content: center; cursor: zoom-out; }
   #help-modal { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 2100; display: none; align-items: center; justify-content: center; padding: 20px; }
   #graphics-modal { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 2100; display: none; align-items: center; justify-content: center; padding: 20px; }
+  #reports-modal { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 2100; display: none; align-items: center; justify-content: center; padding: 20px; }
   #graphics-modal .help-modal-body { padding: 16px 20px 20px; }
   .help-modal-card { background: var(--surface); border-radius: 14px; max-width: 640px; width: 100%; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; }
   .help-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
@@ -390,6 +391,40 @@
     </div>
   </div>
 </div>
+<div id="reports-modal">
+  <div class="help-modal-card" style="max-width:640px">
+    <div class="help-modal-header">
+      <h2>Completion report</h2>
+      <button id="reports-close-btn" aria-label="Close">&times;</button>
+    </div>
+    <div class="help-modal-body">
+      <div class="add-row">
+        <div class="field narrow">
+          <label>From</label>
+          <input type="date" id="report-from" />
+        </div>
+        <div class="field narrow">
+          <label>To</label>
+          <input type="date" id="report-to" />
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 14px">
+        <button class="ui" id="report-preset-week">Last 7 days</button>
+        <button class="ui" id="report-preset-month">This month</button>
+        <button class="ui" id="report-preset-all">All time</button>
+      </div>
+      <div class="add-actions" style="justify-content:flex-start">
+        <button class="add-btn" id="report-generate-btn">Generate report</button>
+      </div>
+      <div class="hint-small" id="report-msg"></div>
+      <div id="report-preview" style="margin-top:16px"></div>
+      <div id="report-output-actions" style="display:none;gap:8px;flex-wrap:wrap;margin-top:14px">
+        <button class="ui" id="report-print-btn">Print / Save as PDF</button>
+        <button class="ui" id="report-download-btn">Download as HTML file</button>
+      </div>
+    </div>
+  </div>
+</div>
 <div class="wrap">
   <div id="user-bar">
     <span id="user-bar-label"></span>
@@ -439,6 +474,7 @@
     <span class="hint">Click a crew to expand its jobs</span>
     <div class="btns">
       <button class="ui" id="help-btn">Help</button>
+      <button class="ui" id="reports-btn" style="display:none">Reports</button>
       <button class="ui" id="view-all-depts-btn" style="display:none">View all department tasks</button>
       <button class="ui" id="expand-all">Expand all</button>
       <button class="ui" id="collapse-all">Collapse all</button>
@@ -1071,6 +1107,7 @@ function makeSliderRow(t, showDeptTag) {
     ${jobFilesHtml(t)}
     ${(t.notes && t.notes.length) ? `<div class="hint-small" style="margin-top:6px"><strong>Notes:</strong><br>${t.notes.map(n => `${n.text} <span style="color:var(--text-muted)">— ${n.by}</span>`).join('<br>')}</div>` : ''}
     ${editable ? portionsBlockHtml(t) : ''}
+    ${isDone ? `<div class="hint-small" style="margin-top:6px">You can still add photos or notes to a completed job any time.</div>` : ''}
     ${editable ? `<div class="photo-upload-row"><input type="file" class="photo-input" accept="image/*" multiple /></div>
     <div class="photo-upload-row"><input type="text" class="progress-note" placeholder="Or add a quick note instead of a photo..." style="flex:1;font-size:13px;padding:6px 9px;border-radius:7px;border:1px solid var(--border)" /></div>
     <div class="hint-small">Attach a photo or add a note, then hit Save or press Enter</div>
@@ -1328,13 +1365,19 @@ function makeSliderRow(t, showDeptTag) {
     pctSelect.addEventListener('change', () => {
       const v = parseInt(pctSelect.value, 10);
       if (v === 100) {
+        if (!confirm(`Mark "${t.name}" as 100% complete? This is truly done?`)) {
+          pctSelect.value = t.pct;
+          return;
+        }
         if (t.pct < 100) t.prevPct = t.pct;
         t.pct = 100;
+        t.completedAt = new Date().toISOString();
         persistTask(t);
         renderStats();
         renderAll();
         notifyChange(t.owner, `"${t.name}" marked complete`);
         flashSaveMsg(`&#127881; "${t.name}" marked complete!`);
+        showCompletionCelebration(t.name);
       } else {
         t.pct = v;
         renderStats();
@@ -1354,12 +1397,15 @@ function makeSliderRow(t, showDeptTag) {
     renderAll();
   });
   row.querySelector(`.mark-btn.${isDone ? 'reopen' : 'done'}`).addEventListener('click', () => {
+    if (!isDone && !confirm(`Mark "${t.name}" as complete? This is truly done?`)) return;
     t.pct = isDone ? (t.prevPct ?? 50) : 100;
     if (!isDone) t.prevPct = pctSelect.value < 100 ? parseInt(pctSelect.value, 10) : 50;
+    t.completedAt = isDone ? null : new Date().toISOString();
     persistTask(t);
     renderStats();
     renderAll();
     notifyChange(t.owner, isDone ? `"${t.name}" reopened` : `"${t.name}" marked complete`);
+    if (!isDone) showCompletionCelebration(t.name);
   });
   const editDescriptionField = row.querySelector('.edit-description');
   if (editDescriptionField) editDescriptionField.value = t.description || '';
@@ -2587,6 +2633,12 @@ function renderMyPortions() {
           ${portionPhotoGalleryHtml(s, true)}
           ${portionFilesHtml(s)}
           ${(s.notes && s.notes.length) ? `<div class="hint-small"><strong>Notes:</strong><br>${s.notes.map(n => `${n.text} <span style="color:var(--text-muted)">— ${n.by}</span>`).join('<br>')}</div>` : ''}
+          <div class="hint-small" style="margin-top:6px">You can still add photos to a completed portion any time.</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0">
+            <input type="file" class="portion-photo-input-done" accept="image/*" multiple style="font-size:12px" />
+            <button class="ui portion-add-photo-done">Add photo</button>
+          </div>
+          <div class="hint-small portion-add-photo-msg"></div>
         ` : `
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
             <select class="portion-pct-select" style="font-size:13px;font-weight:600;padding:5px 9px;border-radius:7px;border:1px solid var(--border)">
@@ -2653,7 +2705,9 @@ function renderMyPortions() {
         if (msgEl) { msgEl.style.color = 'var(--red-fg)'; msgEl.textContent = 'Attach a photo or add a note before saving this update.'; }
         return;
       }
+      if (v === 100 && !confirm(`Mark your portion of "${t.name}" as complete? This is truly done?`)) return;
       if (v === 100 && s.pct < 100) s.prevPct = s.pct;
+      s.completedAt = v === 100 ? new Date().toISOString() : null;
       s.pct = v;
       if (hasNote) {
         if (!s.notes) s.notes = [];
@@ -2675,6 +2729,7 @@ function renderMyPortions() {
       }
       if (v === 100) {
         flashSaveMsg(`&#127881; Your portion of "${t.name}" marked complete!`);
+        showCompletionCelebration(`${s.portion} — ${t.name}`);
       } else {
         flashSaveMsg(`Saved your update on "${t.name}"${hasPhoto ? ' with photo' : ' with note'}.`);
       }
@@ -2683,11 +2738,25 @@ function renderMyPortions() {
     const reopenBtn = item.querySelector('.portion-reopen');
     if (reopenBtn) reopenBtn.addEventListener('click', () => {
       s.pct = s.prevPct ?? 50;
+      s.completedAt = null;
       persistTask(t);
       notifyChange(s.assignedBy, `${currentUser.name} reopened their portion "${s.portion}" on "${t.name}"`);
       renderStats();
       renderAll();
       renderMyPortions();
+    });
+    const addPhotoDoneBtn = item.querySelector('.portion-add-photo-done');
+    if (addPhotoDoneBtn) addPhotoDoneBtn.addEventListener('click', async () => {
+      const photoInputDone = item.querySelector('.portion-photo-input-done');
+      const addMsgEl = item.querySelector('.portion-add-photo-msg');
+      if (!photoInputDone || !photoInputDone.files || !photoInputDone.files.length) {
+        if (addMsgEl) { addMsgEl.style.color = 'var(--red-fg)'; addMsgEl.textContent = 'Choose a photo first.'; }
+        return;
+      }
+      if (addMsgEl) { addMsgEl.style.color = 'var(--text-muted)'; addMsgEl.textContent = 'Uploading photo...'; }
+      const files = Array.from(photoInputDone.files);
+      await uploadPortionPhotos(t, s, files, `${currentUser.name} added a photo to their completed portion "${s.portion}" on "${t.name}"`);
+      photoInputDone.value = '';
     });
     item.querySelectorAll('.portion-photo-remove').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -2771,6 +2840,8 @@ function applyUserBar() {
   label.textContent = `Logged in as ${currentUser.name} (${currentUser.role === 'admin' ? 'Admin — full access' : currentUser.role === 'super' ? 'Super user — full access' : 'Manager — ' + (currentUser.crews || []).join(', ')})`;
   if (adminTabBar) adminTabBar.style.display = currentUser.role === 'admin' ? 'flex' : 'none';
   viewAllBtn.style.display = isElevated(currentUser) ? 'none' : 'inline-block';
+  const reportsBtn = document.getElementById('reports-btn');
+  if (reportsBtn) reportsBtn.style.display = isElevated(currentUser) ? 'inline-block' : 'none';
   testModeBtn.style.display = currentUser.role === 'admin' ? 'inline-block' : 'none';
   globalRefreshBtn.style.display = currentUser.role === 'admin' ? 'inline-block' : 'none';
   const downloadBackupBtn = document.getElementById('save-progress-btn');
@@ -3191,6 +3262,169 @@ document.getElementById('daily-summary-send-now').addEventListener('click', () =
   flashSaveMsg('Daily summary sent.');
 });
 
+// ===================== COMPLETION REPORT =====================
+function collectCompletedInRange(fromStr, toStr) {
+  const fromDate = fromStr ? new Date(fromStr + 'T00:00:00') : null;
+  const toDate = toStr ? new Date(toStr + 'T23:59:59') : null;
+  const inRange = (isoStr) => {
+    if (!isoStr) return false;
+    const d = new Date(isoStr);
+    if (fromDate && d < fromDate) return false;
+    if (toDate && d > toDate) return false;
+    return true;
+  };
+  const jobs = TASKS.filter(t => t.pct >= 100 && inRange(t.completedAt))
+    .sort((a, b) => (a.completedAt || '').localeCompare(b.completedAt || ''));
+  const portions = [];
+  TASKS.forEach(t => {
+    (t.subassignments || []).forEach(s => {
+      if (s.pct >= 100 && inRange(s.completedAt)) portions.push({ task: t, sub: s });
+    });
+  });
+  portions.sort((a, b) => (a.sub.completedAt || '').localeCompare(b.sub.completedAt || ''));
+  const byCrew = {};
+  jobs.forEach(t => {
+    if (!byCrew[t.dept]) byCrew[t.dept] = [];
+    byCrew[t.dept].push(t);
+  });
+  return { jobs, portions, byCrew, fromStr, toStr };
+}
+
+function fmtReportDate(isoStr) {
+  if (!isoStr) return '';
+  return new Date(isoStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function reportRangeLabel(fromStr, toStr) {
+  if (!fromStr && !toStr) return 'All time';
+  if (fromStr && toStr) return `${formatDue(fromStr)} – ${formatDue(toStr)}`;
+  if (fromStr) return `Since ${formatDue(fromStr)}`;
+  return `Through ${formatDue(toStr)}`;
+}
+
+function reportPhotosHtml(photos) {
+  if (!photos || !photos.length) return '';
+  return `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">${photos.map(p => `<img src="${p.url}" style="width:110px;height:110px;object-fit:cover;border-radius:6px;border:1px solid #ddd" />`).join('')}</div>`;
+}
+
+function buildReportBodyHtml(data) {
+  const { jobs, portions, byCrew, fromStr, toStr } = data;
+  const crewNames = Object.keys(byCrew).sort((a, b) => a.localeCompare(b));
+  const crewRows = crewNames.map(dept => `<tr><td style="padding:6px 10px;border-bottom:1px solid #ddd">${dept}</td><td style="padding:6px 10px;border-bottom:1px solid #ddd;text-align:right">${byCrew[dept].length}</td></tr>`).join('');
+  const jobItems = jobs.map(t => `
+    <div class="report-item" style="padding:10px 0;border-top:1px solid #ddd">
+      <div style="font-weight:700;font-size:14px">${t.name}</div>
+      <div style="font-size:12px;color:#666">${t.dept} &middot; ${t.owner} &middot; completed ${fmtReportDate(t.completedAt)}</div>
+      ${t.description ? `<div style="font-size:12.5px;color:#444;margin-top:4px">${t.description}</div>` : ''}
+      ${reportPhotosHtml(t.photos)}
+    </div>
+  `).join('');
+  const portionItems = portions.map(({ task, sub }) => `
+    <div class="report-item" style="padding:10px 0;border-top:1px solid #ddd">
+      <div style="font-weight:700;font-size:14px">${sub.portion}</div>
+      <div style="font-size:12px;color:#666">Portion of "${task.name}" (${task.dept}) &middot; ${sub.assignedTo} &middot; completed ${fmtReportDate(sub.completedAt)}</div>
+      ${reportPhotosHtml(sub.photos)}
+    </div>
+  `).join('');
+  return `
+    <h1 style="font-size:20px;margin:0 0 4px">Faire Punch List — Completion Report</h1>
+    <div style="font-size:13px;color:#666;margin-bottom:18px">${reportRangeLabel(fromStr, toStr)} &middot; generated ${new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}</div>
+    <div style="font-size:15px;font-weight:700;margin-bottom:10px">${jobs.length} job${jobs.length === 1 ? '' : 's'} completed${portions.length ? `, ${portions.length} portion${portions.length === 1 ? '' : 's'} completed` : ''}</div>
+    ${crewNames.length ? `
+      <table style="width:100%;border-collapse:collapse;margin-bottom:18px;font-size:13px">
+        <thead><tr><th style="text-align:left;padding:6px 10px;border-bottom:2px solid #333">Crew</th><th style="text-align:right;padding:6px 10px;border-bottom:2px solid #333">Jobs completed</th></tr></thead>
+        <tbody>${crewRows}</tbody>
+      </table>
+    ` : ''}
+    ${jobs.length ? `<h2 style="font-size:15px;margin:18px 0 4px">Completed jobs</h2>${jobItems}` : '<div style="font-size:13px;color:#666;padding:10px 0">No jobs completed in this range.</div>'}
+    ${portions.length ? `<h2 style="font-size:15px;margin:22px 0 4px">Completed portions</h2>${portionItems}` : ''}
+  `;
+}
+
+function buildStandaloneReportHtml(data) {
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Faire Punch List — Completion Report</title>
+<style>
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:#1e1e1c;max-width:720px;margin:32px auto;padding:0 20px}
+  img{max-width:100%}
+  @media print {
+    .report-item { break-inside: avoid; page-break-inside: avoid; }
+  }
+</style>
+</head><body>${buildReportBodyHtml(data)}</body></html>`;
+}
+
+let lastReportData = null;
+
+document.getElementById('reports-btn').addEventListener('click', () => {
+  document.getElementById('report-from').value = '';
+  document.getElementById('report-to').value = '';
+  document.getElementById('report-preview').innerHTML = '';
+  document.getElementById('report-output-actions').style.display = 'none';
+  document.getElementById('report-msg').textContent = '';
+  document.getElementById('reports-modal').style.display = 'flex';
+});
+document.getElementById('reports-close-btn').addEventListener('click', () => {
+  document.getElementById('reports-modal').style.display = 'none';
+});
+document.getElementById('reports-modal').addEventListener('click', (e) => {
+  if (e.target.id === 'reports-modal') document.getElementById('reports-modal').style.display = 'none';
+});
+document.getElementById('report-preset-week').addEventListener('click', () => {
+  const to = new Date();
+  const from = new Date(); from.setDate(from.getDate() - 6);
+  document.getElementById('report-from').value = localDateStrOf(from);
+  document.getElementById('report-to').value = localDateStrOf(to);
+});
+document.getElementById('report-preset-month').addEventListener('click', () => {
+  const now = new Date();
+  const from = new Date(now.getFullYear(), now.getMonth(), 1);
+  document.getElementById('report-from').value = localDateStrOf(from);
+  document.getElementById('report-to').value = localDateStrOf(now);
+});
+document.getElementById('report-preset-all').addEventListener('click', () => {
+  document.getElementById('report-from').value = '';
+  document.getElementById('report-to').value = '';
+});
+function localDateStrOf(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+document.getElementById('report-generate-btn').addEventListener('click', () => {
+  const fromStr = document.getElementById('report-from').value || null;
+  const toStr = document.getElementById('report-to').value || null;
+  if (fromStr && toStr && toStr < fromStr) {
+    document.getElementById('report-msg').style.color = 'var(--red-fg)';
+    document.getElementById('report-msg').textContent = '"To" date needs to be on or after "From".';
+    return;
+  }
+  document.getElementById('report-msg').textContent = '';
+  lastReportData = collectCompletedInRange(fromStr, toStr);
+  document.getElementById('report-preview').innerHTML = `<div style="border:1px solid var(--border);border-radius:10px;padding:14px 16px;background:var(--surface-1)">${buildReportBodyHtml(lastReportData)}</div>`;
+  document.getElementById('report-output-actions').style.display = 'flex';
+});
+document.getElementById('report-print-btn').addEventListener('click', () => {
+  if (!lastReportData) return;
+  const win = window.open('', '_blank');
+  win.document.write(buildStandaloneReportHtml(lastReportData));
+  win.document.close();
+  win.focus();
+  setTimeout(() => win.print(), 300);
+});
+document.getElementById('report-download-btn').addEventListener('click', () => {
+  if (!lastReportData) return;
+  const html = buildStandaloneReportHtml(lastReportData);
+  const blob = new Blob([html], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const stamp = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `Faire_Punch_List_Completion_Report_${stamp}.html`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+});
+// =================== END COMPLETION REPORT ===================
+
 function buildDailySummaryText() {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const scheduled = TASKS.filter(t => !t.longRange);
@@ -3558,6 +3792,24 @@ function flashSaveMsg(text, isError) {
   saveMsg.style.display = 'block';
   saveMsg.style.color = isError ? 'var(--red-fg)' : 'var(--teal-fg)';
   saveMsg.textContent = text;
+}
+
+function showCompletionCelebration(jobName) {
+  const existing = document.getElementById('completion-celebration');
+  if (existing) existing.remove();
+  const toast = document.createElement('div');
+  toast.id = 'completion-celebration';
+  toast.style.cssText = 'position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(0);z-index:3000;background:var(--teal-bar);color:#fff;padding:16px 24px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.25);font-size:15px;font-weight:600;text-align:center;max-width:min(90vw,420px);opacity:0;transition:opacity .25s ease,transform .25s ease';
+  toast.innerHTML = `&#127881; Congrats! <div style="font-weight:700;margin-top:2px">"${jobName}"</div> is complete!`;
+  document.body.appendChild(toast);
+  requestAnimationFrame(() => {
+    toast.style.opacity = '1';
+    toast.style.transform = 'translateX(-50%) translateY(-6px)';
+  });
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    setTimeout(() => toast.remove(), 300);
+  }, 3800);
 }
 
 document.getElementById('save-progress-btn').addEventListener('click', () => {
