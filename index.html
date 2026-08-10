@@ -538,8 +538,9 @@
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
             <input type="text" id="np-pin" placeholder="Temporary PIN, 4 digits (leave blank to auto-generate)" inputmode="numeric" style="flex:1;min-width:160px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
-            <input type="text" id="np-dept" placeholder="Department / crew" style="flex:1;min-width:160px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
+            <select id="np-dept" size="6" style="flex:1;min-width:160px;font-size:13px;padding:4px;border-radius:7px;border:1px solid var(--border);overflow-y:auto"></select>
           </div>
+          <div class="hint-small" style="margin-bottom:8px">Pick an existing department above &mdash; to add a brand-new department, use the "Categories" tab instead.</div>
           <button class="ui" id="np-add" style="width:100%;font-weight:600">Add person &amp; email their temporary PIN</button>
           <div class="hint-small" id="np-msg"></div>
         </div>
@@ -1802,6 +1803,7 @@ function renderAll() {
   renderTeamList();
   renderRenameSelect();
   renderCategoryList();
+  populateNpDeptSelect();
 }
 
 const activatingIds = new Set();
@@ -2353,6 +2355,17 @@ function renderCategoryList() {
     }
     list.appendChild(row);
   });
+}
+
+function populateNpDeptSelect() {
+  const sel = document.getElementById('np-dept');
+  if (!sel) return;
+  const prev = sel.value;
+  const allDepts = [...new Set([...deptOrder, ...TASKS.map(t => t.dept)])]
+    .filter(d => !DELETED_CATEGORIES.has(d))
+    .sort((a, b) => a.localeCompare(b));
+  sel.innerHTML = allDepts.map(d => `<option value="${d}">${d}</option>`).join('');
+  if (allDepts.includes(prev)) sel.value = prev;
 }
 
 function deleteCategory(dept, activeCount, completedCount, longRangeCount) {
