@@ -21,7 +21,7 @@ async function sendPendingAcceptanceReminders(tasks) {
 
   const pendingByOwner = {};
   tasks.forEach(t => {
-    if (t.pendingAcceptance && t.owner) {
+    if (t.pendingAcceptance && t.owner && t.pct < 100) {
       if (!pendingByOwner[t.owner]) pendingByOwner[t.owner] = [];
       pendingByOwner[t.owner].push(t.name);
     }
