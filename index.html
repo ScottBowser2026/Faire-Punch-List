@@ -2083,15 +2083,20 @@ document.getElementById('add-job-btn').addEventListener('click', () => {
   addMsg.textContent = longRange
     ? `Parked "${jobName}" under long-range projects for ${owner}.`
     : `Added to ${dept} (${owner}).`;
-  const jobAddedText = longRange ? `New long-range job added: "${jobName}"` : `New job added: "${jobName}"`;
-  if (!longRange) sendJobText(owner, jobName, dept);
+  const jobAddedTextBase = longRange ? `New long-range job added: "${jobName}"` : `New job added: "${jobName}"`;
+  let jobAddedText = jobAddedTextBase;
+  let gfxSmsNote = '';
+  if (owner === 'Gabbi' && pendingGraphicsRequest && !longRange) {
+    applyGraphicsDetailsToTask(newTask, pendingGraphicsRequest);
+    const gfxDetails = formatGraphicsNote(pendingGraphicsRequest, jobName);
+    jobAddedText = `${jobAddedTextBase}<br/><br/><strong>Design request details:</strong> ${gfxDetails}`;
+    gfxSmsNote = 'Full design details are on the tracker.';
+  }
+  if (!longRange) sendJobText(owner, jobName, dept, gfxSmsNote);
   if (photoFiles.length) {
     uploadPhotos(newTask, photoFiles, jobAddedText);
   } else {
     notifyChange(owner, jobAddedText);
-  }
-  if (owner === 'Gabbi' && pendingGraphicsRequest && !longRange) {
-    applyGraphicsDetailsToTask(newTask, pendingGraphicsRequest);
   }
   pendingGraphicsRequest = null;
   const gfxFilesInput = document.getElementById('gfx-files');
@@ -2101,10 +2106,10 @@ document.getElementById('add-job-btn').addEventListener('click', () => {
   renderAll();
 });
 
-function sendJobText(ownerName, jobName, dept) {
+function sendJobText(ownerName, jobName, dept, extraNote) {
   const phone = findPhone(ownerName);
   if (!phone) return;
-  const textMessage = `Faire Punch List: you've been assigned a new job in ${dept}: "${jobName}". ${TRACKER_URL} Reply STOP to opt out.`;
+  const textMessage = `Faire Punch List: you've been assigned a new job in ${dept}: "${jobName}".${extraNote ? ' ' + extraNote : ''} ${TRACKER_URL} Reply STOP to opt out.`;
   fetch('https://us-central1-faire-builder-tracker.cloudfunctions.net/sendJobText', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
