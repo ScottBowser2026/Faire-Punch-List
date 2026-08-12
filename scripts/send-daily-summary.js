@@ -7,7 +7,7 @@ admin.initializeApp({
 const db = admin.database();
 
 const EMAILJS_SERVICE_ID = 'service_yutnnpk';
-const EMAILJS_TEMPLATE_ID = 'template_d39wd5a';
+const EMAILJS_TEMPLATE_ID = 'template_ph5468d';
 const EMAILJS_PUBLIC_KEY = 'sB7w0MyBj_u6ayu_0';
 const TRACKER_URL = 'https://scottbowser2026.github.io/Faire-Punch-List/';
 const TZ = 'America/New_York';
