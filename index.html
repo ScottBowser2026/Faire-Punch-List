@@ -665,6 +665,9 @@
         </div>
       </div>
     </button>
+    <div id="master-search-row" style="display:none;padding:10px 16px 0">
+      <input type="text" id="master-search-input" placeholder="Search completed jobs by name, crew, owner, or description..." style="width:100%;font-size:13px;padding:8px 10px;border-radius:7px;border:1px solid var(--border);box-sizing:border-box" />
+    </div>
     <div id="master-body"></div>
   </div>
   </div>
@@ -791,6 +794,9 @@ document.getElementById('master-header').addEventListener('click', () => {
   masterOpen = !masterOpen;
   renderAll();
 });
+document.getElementById('master-search-input').addEventListener('input', () => {
+  renderMasterList();
+});
 
 function activeStatusFor(t) {
   if (t.pct >= 100) return 'completed';
@@ -848,10 +854,13 @@ function formatGraphicsNote(gfx, jobName) {
 // Attaches graphics/design request details directly onto a task that's already
 // assigned to Gabbi — no separate linked task needed since assigning to Gabbi
 // IS the graphics request now.
-function applyGraphicsDetailsToTask(task, gfx) {
+function applyGraphicsDetailsToTask(task, gfx, recipientOverride) {
   if (!task.notes) task.notes = [];
-  task.notes.push({ text: `&#127912; Graphics request details: ${formatGraphicsNote(gfx, task.name)}`, by: currentUser.name, at: new Date().toISOString() });
+  const noteText = `&#127912; Graphics request details: ${formatGraphicsNote(gfx, task.name)}`;
+  task.notes.push({ text: noteText, by: currentUser.name, at: new Date().toISOString() });
   persistTask(task);
+  const recipient = recipientOverride || task.owner;
+  notifyChange(recipient, `&#127912; Graphics request: "${task.name}" — ${formatGraphicsNote(gfx, task.name)}`);
   if (gfx.files && gfx.files.length) uploadJobFiles(task, gfx.files, `New design files for "${gfx.projectName || task.name}"`);
 }
 
@@ -1114,7 +1123,7 @@ function makeSliderRow(t, showDeptTag) {
     <div class="hint-small">Attach a photo or add a note, then hit Save or press Enter</div>
     <div class="hint-small save-progress-msg"></div>` : ''}
     ${t.pendingAcceptance ? `<div class="hint-small" style="color:var(--gray-fg);font-weight:600;padding:6px 0">&#9203; New job assigned by ${t.pendingAcceptance.requestedBy} — waiting on ${t.owner} to accept</div>` : ''}
-    ${t.pendingAcceptance && currentUser && (currentUser.name === t.owner || currentUser.role === 'admin') ? `
+    ${t.pendingAcceptance && currentUser && (currentUser.name === t.owner || isElevated(currentUser)) ? `
     <div class="job-actions">
       <span></span>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -1128,10 +1137,10 @@ function makeSliderRow(t, showDeptTag) {
       <button class="mark-btn send-question" style="width:auto">Send question</button>
       <div class="hint-small ask-question-msg"></div>
     </div>` : ''}
-    ${t.pendingDelete ? `<div class="hint-small" style="color:var(--red-fg);font-weight:600;padding:6px 0">&#9203; Delete requested by ${t.pendingDelete.requestedBy}: "${t.pendingDelete.reason}"${currentUser && currentUser.role === 'admin' ? '' : ' — waiting on admin approval'}</div>` : ''}
-    ${t.pendingPark ? `<div class="hint-small" style="color:var(--gray-fg);font-weight:600;padding:6px 0">&#9203; Park (long-range) requested by ${t.pendingPark.requestedBy}${currentUser && currentUser.role === 'admin' ? '' : ' — waiting on admin approval'}</div>` : ''}
+    ${t.pendingDelete ? `<div class="hint-small" style="color:var(--red-fg);font-weight:600;padding:6px 0">&#9203; Delete requested by ${t.pendingDelete.requestedBy}: "${t.pendingDelete.reason}"${currentUser && isElevated(currentUser) ? '' : ' — waiting on approval'}</div>` : ''}
+    ${t.pendingPark ? `<div class="hint-small" style="color:var(--gray-fg);font-weight:600;padding:6px 0">&#9203; Park (long-range) requested by ${t.pendingPark.requestedBy}${currentUser && isElevated(currentUser) ? '' : ' — waiting on approval'}</div>` : ''}
     ${t.pendingReassign ? `<div class="hint-small" style="color:var(--gray-fg);font-weight:600;padding:6px 0">&#9203; ${t.pendingReassign.requestedBy} wants to reassign this to ${t.pendingReassign.newOwner} (${t.pendingReassign.newDept}): "${t.pendingReassign.reason}"</div>` : ''}
-    ${t.pendingReassign && currentUser && (currentUser.name === t.pendingReassign.newOwner || currentUser.role === 'admin') ? `
+    ${t.pendingReassign && currentUser && (currentUser.name === t.pendingReassign.newOwner || isElevated(currentUser)) ? `
     <div class="job-actions">
       <span></span>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -1143,7 +1152,7 @@ function makeSliderRow(t, showDeptTag) {
     <div class="job-actions">
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="mark-btn edit">${isEditing ? 'Cancel' : 'Edit'}</button>
-        ${t.pendingPark && currentUser && currentUser.role === 'admin' ? `
+        ${t.pendingPark && currentUser && isElevated(currentUser) ? `
           <button class="mark-btn park-approve">Approve park</button>
           <button class="mark-btn park-deny">Deny</button>
         ` : !t.pendingPark ? `<button class="mark-btn park">Park (long-range)</button>` : ''}
@@ -1151,7 +1160,7 @@ function makeSliderRow(t, showDeptTag) {
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="mark-btn save-progress">Save</button>
         <button class="mark-btn ${isDone ? 'reopen' : 'done'}">${isDone ? 'Reopen job' : 'Mark complete'}</button>
-        ${t.pendingDelete && currentUser && currentUser.role === 'admin' ? `
+        ${t.pendingDelete && currentUser && isElevated(currentUser) ? `
           <button class="mark-btn delete-approve" style="border-color:var(--red-fg);color:var(--red-fg)">Approve delete</button>
           <button class="mark-btn delete-deny">Deny</button>
         ` : !t.pendingDelete ? `<button class="mark-btn delete">${isDeleting ? 'Cancel' : 'Delete'}</button>` : ''}
@@ -1168,7 +1177,7 @@ function makeSliderRow(t, showDeptTag) {
       <div class="hint-small delete-msg"></div>
       <div class="job-actions">
         <span></span>
-        <button class="mark-btn delete-confirm" style="border-color:var(--red-fg);color:var(--red-fg)">${currentUser && currentUser.role === 'admin' ? 'Confirm delete' : 'Send delete request to admin'}</button>
+        <button class="mark-btn delete-confirm" style="border-color:var(--red-fg);color:var(--red-fg)">${currentUser && isElevated(currentUser) ? 'Confirm delete' : 'Send delete request to admin'}</button>
       </div>
     </div>` : ''}
     ` : `<div class="locked-note">&#128274; View only — this job belongs to a different crew</div>`}
@@ -1539,7 +1548,7 @@ function makeSliderRow(t, showDeptTag) {
         notifyChange(t.owner, `"${t.name}" was edited`);
       }
       if (newOwner === 'Gabbi' && pendingGraphicsRequest && graphicsModalContext === t.id) {
-        applyGraphicsDetailsToTask(t, pendingGraphicsRequest);
+        applyGraphicsDetailsToTask(t, pendingGraphicsRequest, newOwner);
         pendingGraphicsRequest = null;
         const gfxFilesInput = document.getElementById('gfx-files');
         if (gfxFilesInput) gfxFilesInput.value = '';
@@ -1630,7 +1639,7 @@ function makeSliderRow(t, showDeptTag) {
         return;
       }
       deletingIds.delete(t.id);
-      if (currentUser.role === 'admin') {
+      if (isElevated(currentUser)) {
         if (!confirm(`Delete "${t.name}"? This can't be undone.`)) { deletingIds.add(t.id); renderAll(); return; }
         const idx = TASKS.indexOf(t);
         if (idx > -1) TASKS.splice(idx, 1);
@@ -1679,7 +1688,7 @@ function makeSliderRow(t, showDeptTag) {
   const parkBtn = row.querySelector('.mark-btn.park');
   if (parkBtn) {
     parkBtn.addEventListener('click', () => {
-      if (currentUser.role === 'admin') {
+      if (isElevated(currentUser)) {
         if (!confirm(`Park "${t.name}" as a long-range project? It'll move out of the active list until it's made active again.`)) return;
         t.longRange = true;
         editingIds.delete(t.id);
@@ -1739,7 +1748,35 @@ function sortByDueDate(list) {
   });
 }
 
+function renderMasterList() {
+  const showOnlyOwnCrews = currentUser && !isElevated(currentUser) && !viewAllDepts;
+  const masterSearchInput = document.getElementById('master-search-input');
+  const masterSearchQuery = (masterSearchInput ? masterSearchInput.value : '').trim().toLowerCase();
+  let done = TASKS.filter(t => t.pct >= 100 && !t.longRange && (!showOnlyOwnCrews || (currentUser.crews || []).includes(t.dept)))
+    .sort((a, b) => {
+      if (a.completedAt && b.completedAt) return b.completedAt.localeCompare(a.completedAt); // newest first
+      if (a.completedAt && !b.completedAt) return -1; // dated ones before undated ones
+      if (!a.completedAt && b.completedAt) return 1;
+      return a.dept.localeCompare(b.dept) || a.name.localeCompare(b.name); // both undated — fall back to alphabetical
+    });
+  if (masterSearchQuery) {
+    done = done.filter(t => [t.name, t.description, t.owner, t.dept].some(f => (f || '').toLowerCase().includes(masterSearchQuery)));
+  }
+  masterBody.innerHTML = '';
+  if (done.length === 0) {
+    masterBody.innerHTML = masterSearchQuery ? '<div class="empty-note">No completed jobs match that search.</div>' : '<div class="empty-note">No jobs marked complete yet.</div>';
+  } else {
+    done.forEach(t => masterBody.appendChild(makeSliderRow(t, true)));
+  }
+  masterBody.style.display = masterOpen ? 'block' : 'none';
+  const masterSearchRow = document.getElementById('master-search-row');
+  if (masterSearchRow) masterSearchRow.style.display = masterOpen ? 'block' : 'none';
+  document.getElementById('master-chev').style.transform = masterOpen ? 'rotate(90deg)' : 'rotate(0deg)';
+  document.getElementById('master-subtitle').textContent = `${done.length} job${done.length === 1 ? '' : 's'} completed${masterSearchQuery ? ' (filtered)' : ''}`;
+}
+
 function renderAll() {
+  invalidateOwnerToDeptCache();
   renderMyPortions();
   deptsEl.innerHTML = '';
   const showOnlyOwnCrews = currentUser && !isElevated(currentUser) && !viewAllDepts;
@@ -1788,16 +1825,7 @@ function renderAll() {
     deptsEl.appendChild(wrap);
   });
 
-  const done = TASKS.filter(t => t.pct >= 100 && !t.longRange && (!showOnlyOwnCrews || (currentUser.crews || []).includes(t.dept))).sort((a, b) => a.dept.localeCompare(b.dept) || a.name.localeCompare(b.name));
-  masterBody.innerHTML = '';
-  if (done.length === 0) {
-    masterBody.innerHTML = '<div class="empty-note">No jobs marked complete yet.</div>';
-  } else {
-    done.forEach(t => masterBody.appendChild(makeSliderRow(t, true)));
-  }
-  masterBody.style.display = masterOpen ? 'block' : 'none';
-  document.getElementById('master-chev').style.transform = masterOpen ? 'rotate(90deg)' : 'rotate(0deg)';
-  document.getElementById('master-subtitle').textContent = `${done.length} job${done.length === 1 ? '' : 's'} completed`;
+  renderMasterList();
 
   renderLongRange();
   renderTeamList();
@@ -1834,7 +1862,7 @@ function renderLongRange() {
         <span class="badge" style="background:var(--gray-bg);color:var(--gray-fg)">Long-range</span>
       </div>
       ${t.pendingAcceptance ? `<div class="hint-small" style="color:var(--gray-fg);font-weight:600;padding:6px 0">&#9203; New job assigned by ${t.pendingAcceptance.requestedBy} — waiting on ${t.owner} to accept</div>` : ''}
-      ${t.pendingAcceptance && currentUser && (currentUser.name === t.owner || currentUser.role === 'admin') ? `
+      ${t.pendingAcceptance && currentUser && (currentUser.name === t.owner || isElevated(currentUser)) ? `
       <div class="job-actions">
         <span></span>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -1959,7 +1987,10 @@ const newCrewField = document.getElementById('new-crew-field');
 const addMsg = document.getElementById('add-job-msg');
 let nextId = 1;
 
+let _ownerToDeptCache = null;
+function invalidateOwnerToDeptCache() { _ownerToDeptCache = null; }
 function ownerToDept() {
+  if (_ownerToDeptCache) return _ownerToDeptCache;
   const map = {};
   Object.values(PIN_DIRECTORY).forEach(entry => {
     if (entry.crews && entry.crews.length) {
@@ -1968,6 +1999,7 @@ function ownerToDept() {
   });
   TASKS.forEach(t => { if (!(t.owner in map)) map[t.owner] = t.dept; });
   Object.keys(DIRECTORY).forEach(name => { if (!(name in map)) map[name] = ''; });
+  _ownerToDeptCache = map;
   return map;
 }
 
@@ -2311,7 +2343,7 @@ function notifyAdmins(subject, message) {
   if (!emailReady()) return;
   const seen = new Set();
   Object.values(PIN_DIRECTORY).forEach(entry => {
-    if (entry.role !== 'admin' || seen.has(entry.name)) return;
+    if (!isElevated(entry) || seen.has(entry.name)) return;
     seen.add(entry.name);
     const email = findDirectoryEmail(entry.name);
     if (!email) return;
