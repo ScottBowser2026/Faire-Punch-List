@@ -367,14 +367,14 @@
     <span class="hint-small" id="change-pin-msg"></span>
   </div>
   <h1>Faire punch list — progress tracker</h1>
-  <p class="subtitle">Last updated 7/3/2026 &middot; grouped by crew &middot; choose a percentage or hit "Mark complete" to move a job into the master completed list below &middot; use "Add a job" to assign new work to a person responsible</p>
+  <p class="subtitle">Grouped by crew &middot; choose a percentage or hit "Mark complete" to move a job into the master completed list below &middot; use "Add a job" to assign new work to a person responsible</p>
 
   <div id="priority-section"></div>
   <div id="staff-notes-section"></div>
   <div id="my-portions-section"></div>
 
   <div id="save-bar" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--surface-1);border-radius:10px;padding:12px 16px;margin-bottom:20px">
-    <div style="font-size:13px;color:var(--text-secondary)"><span style="color:var(--teal-fg);font-weight:600">&#9679; Live</span> — changes save automatically and sync to everyone with this link instantly.</div>
+    <div style="font-size:13px;color:var(--text-secondary)"><span style="color:var(--teal-fg);font-weight:600">&#9679; Live</span> — changes save automatically and sync to everyone with this link instantly. <span id="build-version-label" style="color:var(--text-muted);font-size:11.5px"></span></div>
     <div style="display:flex;gap:8px;flex-shrink:0">
       <button class="ui" id="refresh-now-btn">Refresh now</button>
       <button class="ui" id="save-progress-btn" style="display:none">Download backup</button>
@@ -560,6 +560,12 @@
       </label>
     </div>
     <div class="hint-small" id="new-job-longrange-hint" style="display:none">Managers can request a job be parked as long-range after creating it, using the Park button — that goes to admin for approval.</div>
+    <div class="add-row" style="align-items:center">
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--red-fg);font-weight:600;margin:0">
+        <input type="checkbox" id="new-job-priority" style="width:auto" />
+        &#128293; Mark as Priority (sends an immediate email + text alert to the assignee)
+      </label>
+    </div>
     <div class="gfx-fields" id="new-job-gfx-fields" style="display:none">
       <div class="gfx-fields-title">&#127912; Graphics/design request details</div>
       <div class="add-row">
@@ -754,6 +760,11 @@ const emailjsConfig = {
   templateId: "template_ph5468d"
 };
 const TRACKER_URL = "https://punchlist.lancelotbiz.com/";
+const BUILD_VERSION = "v20 — Aug 19, 2026 (Priority at creation)";
+document.addEventListener('DOMContentLoaded', () => {
+  const el = document.getElementById('build-version-label');
+  if (el) el.textContent = `· Build ${BUILD_VERSION}`;
+});
 </script>
 
 <script>
@@ -2209,6 +2220,12 @@ document.getElementById('add-job-btn').addEventListener('click', () => {
   if (owner !== currentUser.name) {
     newTask.pendingAcceptance = { requestedBy: currentUser.name, requestedAt: new Date().toISOString() };
   }
+  const isPriority = !longRange && document.getElementById('new-job-priority').checked;
+  if (isPriority) {
+    newTask.priority = true;
+    newTask.priorityFlaggedBy = currentUser.name;
+    newTask.priorityFlaggedAt = new Date().toISOString();
+  }
   TASKS.push(newTask);
   persistTask(newTask);
   if (DELETED_CATEGORIES.has(dept)) {
@@ -2226,27 +2243,31 @@ document.getElementById('add-job-btn').addEventListener('click', () => {
   document.getElementById('new-job-start').value = '';
   document.getElementById('new-job-due').value = '';
   document.getElementById('new-job-longrange').checked = false;
+  document.getElementById('new-job-priority').checked = false;
   if (photoInput) photoInput.value = '';
   addMsg.style.color = 'var(--teal-fg)';
   addMsg.textContent = longRange
     ? `Parked "${jobName}" under long-range projects for ${owner}.`
     : `Added to ${dept} (${owner}).`;
-  const jobAddedTextBase = longRange ? `New long-range job added: "${jobName}"` : `New job added: "${jobName}"`;
+  const jobAddedTextBase = longRange ? `New long-range job added: "${jobName}"` : (isPriority ? `&#128293; PRIORITY: New job added: "${jobName}" — please redirect your priority to this now` : `New job added: "${jobName}"`);
   let jobAddedText = jobAddedTextBase;
-  let gfxSmsNote = '';
+  let gfxSmsNote = isPriority ? '\u{1F525} This is a PRIORITY job — please redirect your priority to it now.' : '';
   if (owner === 'Gabbi' && !longRange) {
     const gfx = readAddGfxFields();
     gfx.description = description;
     applyGraphicsDetailsToTask(newTask, gfx);
     const gfxDetails = formatGraphicsNote(gfx, jobName);
     jobAddedText = `${jobAddedTextBase}<br/><br/><strong>Design request details:</strong> ${gfxDetails}`;
-    gfxSmsNote = 'Full design details are on the tracker.';
+    gfxSmsNote = gfxSmsNote ? `${gfxSmsNote} Full design details are on the tracker.` : 'Full design details are on the tracker.';
   }
   if (!longRange) sendJobText(owner, jobName, dept, gfxSmsNote);
   if (photoFiles.length) {
     uploadPhotos(newTask, photoFiles, jobAddedText);
   } else {
     notifyChange(owner, jobAddedText);
+  }
+  if (isPriority) {
+    notifyAdmins(`Priority job created`, `${currentUser.name} created "${jobName}" (${dept}, assigned to ${owner}) as a Faire Campus Priority.`);
   }
   clearAddGfxFields();
   populateOwnerSelect();
