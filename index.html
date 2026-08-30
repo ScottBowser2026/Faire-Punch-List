@@ -369,6 +369,7 @@
   <h1>Faire punch list — progress tracker</h1>
   <p class="subtitle">Last updated 7/3/2026 &middot; grouped by crew &middot; choose a percentage or hit "Mark complete" to move a job into the master completed list below &middot; use "Add a job" to assign new work to a person responsible</p>
 
+  <div id="priority-section"></div>
   <div id="staff-notes-section"></div>
   <div id="my-portions-section"></div>
 
@@ -1136,7 +1137,10 @@ function makeSliderRow(t, showDeptTag) {
         ${dueHtml}
         ${t.assignedBy ? `<span class="hint-small" style="display:inline;margin:0"> &middot; assigned by ${t.assignedBy}</span>` : ''}
       </span>
-      <span class="badge" style="background:${meta.bg};color:${meta.fg}">${meta.label}</span>
+      <span style="display:flex;gap:6px;flex-shrink:0">
+        ${t.priority ? `<span class="badge" style="background:var(--red-fg);color:#fff;font-weight:700">&#128293; PRIORITY</span>` : ''}
+        <span class="badge" style="background:${meta.bg};color:${meta.fg}">${meta.label}</span>
+      </span>
     </div>
     ${t.description ? `<div class="hint-small" style="margin:2px 0 6px">${t.description}</div>` : ''}
     <div class="job-slider-row">
@@ -1193,6 +1197,9 @@ function makeSliderRow(t, showDeptTag) {
     <div class="job-actions">
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="mark-btn edit">${isEditing ? 'Cancel' : 'Edit'}</button>
+        ${t.priority
+          ? `<button class="mark-btn priority-clear-inline" style="border-color:var(--red-fg);color:var(--red-fg)">Clear priority</button>`
+          : `<button class="mark-btn priority-alert" style="border-color:var(--red-fg);color:var(--red-fg)">&#128293; Priority Alert</button>`}
         ${t.pendingPark && currentUser && isElevated(currentUser) ? `
           <button class="mark-btn park-approve">Approve park</button>
           <button class="mark-btn park-deny">Deny</button>
@@ -1501,11 +1508,41 @@ function makeSliderRow(t, showDeptTag) {
     if (editingIds.has(t.id)) editingIds.delete(t.id); else editingIds.add(t.id);
     renderAll();
   });
+  const priorityAlertBtn = row.querySelector('.priority-alert');
+  if (priorityAlertBtn) {
+    priorityAlertBtn.addEventListener('click', () => {
+      if (!confirm(`Send a priority alert to ${t.owner} on "${t.name}"? This tells them to redirect their priority to this job right now.`)) return;
+      t.priority = true;
+      t.priorityFlaggedBy = currentUser.name;
+      t.priorityFlaggedAt = new Date().toISOString();
+      persistTask(t);
+      notifyChange(t.owner, `&#128293; PRIORITY ALERT: "${t.name}" needs your immediate attention — please redirect your priority to this job now. Flagged by ${currentUser.name}.`);
+      sendPriorityText(t.owner, t.name, t.dept);
+      notifyAdmins(`Priority alert sent`, `${currentUser.name} flagged "${t.name}" (${t.dept}, assigned to ${t.owner}) as a Faire Campus Priority.`);
+      renderStats();
+      renderAll();
+      flashSaveMsg(`Priority alert sent to ${t.owner} for "${t.name}".`);
+    });
+  }
+  const priorityClearInlineBtn = row.querySelector('.priority-clear-inline');
+  if (priorityClearInlineBtn) {
+    priorityClearInlineBtn.addEventListener('click', () => {
+      if (!confirm(`Clear the priority flag on "${t.name}"?`)) return;
+      t.priority = false;
+      delete t.priorityFlaggedBy;
+      delete t.priorityFlaggedAt;
+      persistTask(t);
+      notifyChange(t.owner, `Priority flag cleared on "${t.name}"`);
+      renderStats();
+      renderAll();
+    });
+  }
   row.querySelector(`.mark-btn.${isDone ? 'reopen' : 'done'}`).addEventListener('click', () => {
     if (!isDone && !confirm(`Mark "${t.name}" as complete? This is truly done?`)) return;
     t.pct = isDone ? (t.prevPct ?? 50) : 100;
     if (!isDone) t.prevPct = pctSelect.value < 100 ? parseInt(pctSelect.value, 10) : 50;
     t.completedAt = isDone ? null : new Date().toISOString();
+    if (!isDone && t.priority) { t.priority = false; delete t.priorityFlaggedBy; delete t.priorityFlaggedAt; }
     persistTask(t);
     renderStats();
     renderAll();
@@ -1863,6 +1900,7 @@ function renderMasterList() {
 
 function renderAll() {
   invalidateOwnerToDeptCache();
+  renderPrioritySection();
   renderMyPortions();
   deptsEl.innerHTML = '';
   const showOnlyOwnCrews = currentUser && !isElevated(currentUser) && !viewAllDepts;
@@ -2284,6 +2322,19 @@ function sendJobText(ownerName, jobName, dept, extraNote) {
   }).then(res => {
     if (res.ok) logMessage('text', ownerName, phone, textMessage);
   }).catch(err => console.error('Text notification failed', err));
+}
+
+function sendPriorityText(ownerName, jobName, dept) {
+  const phone = findPhone(ownerName);
+  if (!phone) return;
+  const textMessage = `\u{1F525} FAIRE CAMPUS PRIORITY: "${jobName}" (${dept}) needs your immediate attention — please redirect your priority to this job now. ${TRACKER_URL}`;
+  fetch('https://us-central1-faire-builder-tracker.cloudfunctions.net/sendJobText', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ to: phone, message: textMessage })
+  }).then(res => {
+    if (res.ok) logMessage('text', ownerName, phone, textMessage);
+  }).catch(err => console.error('Priority text notification failed', err));
 }
 
 let applyingRemote = false;
@@ -2780,6 +2831,48 @@ let staffNotesRef = null;
 function persistStaffNotes() {
   if (staffNotesRef) staffNotesRef.set(JSON.stringify(STAFF_NOTES)).catch(err => console.error('Staff notes save failed', err));
 }
+function renderPrioritySection() {
+  const container = document.getElementById('priority-section');
+  if (!container) return;
+  if (!currentUser) { container.innerHTML = ''; return; }
+  const flagged = TASKS.filter(t => t.priority).sort((a, b) => (b.priorityFlaggedAt || '').localeCompare(a.priorityFlaggedAt || ''));
+  if (!flagged.length) { container.innerHTML = ''; return; }
+  const itemsHtml = flagged.map(t => {
+    const when = t.priorityFlaggedAt ? new Date(t.priorityFlaggedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+    const canClear = canEdit(t);
+    return `
+      <div class="priority-item" data-task-id="${t.id}" style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid rgba(163,45,45,.25)">
+        <div style="flex:1;font-size:13.5px">
+          <strong>${t.name}</strong> <span style="color:var(--text-muted);font-weight:400">&middot; ${t.dept} &middot; ${t.owner}</span>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Flagged by ${t.priorityFlaggedBy || 'someone'} &middot; ${when}</div>
+        </div>
+        ${canClear ? `<button class="ui priority-clear-btn" data-task-id="${t.id}" style="font-size:11px;padding:4px 10px;flex-shrink:0">Clear priority</button>` : ''}
+      </div>
+    `;
+  }).join('');
+  container.innerHTML = `
+    <div style="background:#FBE4E4;border:1px solid var(--red-fg);border-radius:10px;padding:14px 16px;margin-bottom:18px">
+      <div style="font-size:14px;font-weight:700;color:var(--red-fg);margin-bottom:4px">&#128293; Faire Campus Priority</div>
+      ${itemsHtml}
+    </div>
+  `;
+  container.querySelectorAll('.priority-clear-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const taskId = btn.getAttribute('data-task-id');
+      const t = TASKS.find(tt => String(tt.id) === String(taskId));
+      if (!t) return;
+      if (!confirm(`Clear the priority flag on "${t.name}"?`)) return;
+      t.priority = false;
+      delete t.priorityFlaggedBy;
+      delete t.priorityFlaggedAt;
+      persistTask(t);
+      notifyChange(t.owner, `Priority flag cleared on "${t.name}"`);
+      renderStats();
+      renderAll();
+    });
+  });
+}
+
 function renderMyPortions() {
   const container = document.getElementById('my-portions-section');
   if (!container) return;
