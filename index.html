@@ -760,7 +760,7 @@ const emailjsConfig = {
   templateId: "template_ph5468d"
 };
 const TRACKER_URL = "https://punchlist.lancelotbiz.com/";
-const BUILD_VERSION = "v23 — Aug 30, 2026 (Service worker auto-update)";
+const BUILD_VERSION = "v24 — Aug 30, 2026 (Completed portions collapse by default)";
 document.addEventListener('DOMContentLoaded', () => {
   const el = document.getElementById('build-version-label');
   if (el) el.textContent = `· Build ${BUILD_VERSION}`;
@@ -3000,6 +3000,7 @@ function renderPrioritySection() {
   });
 }
 
+let myPortionsShowCompleted = false;
 function renderMyPortions() {
   const container = document.getElementById('my-portions-section');
   if (!container) return;
@@ -3013,9 +3014,11 @@ function renderMyPortions() {
     });
   });
   if (!mine.length) { container.innerHTML = ''; return; }
-  mine.sort((a, b) => (a.sub.status === 'pending' ? 0 : 1) - (b.sub.status === 'pending' ? 0 : 1));
+  const activeMine = mine.filter(({ sub }) => sub.status === 'pending' || sub.pct < 100);
+  const completedMine = mine.filter(({ sub }) => sub.status !== 'pending' && sub.pct >= 100);
+  activeMine.sort((a, b) => (a.sub.status === 'pending' ? 0 : 1) - (b.sub.status === 'pending' ? 0 : 1));
   const buckets = [0, 25, 50, 75, 100];
-  const itemsHtml = mine.map(({ task: t, sub: s }) => {
+  const portionItemHtml = ({ task: t, sub: s }) => {
     const isPending = s.status === 'pending';
     const isDone = s.pct >= 100;
     const nearest = buckets.reduce((a, b) => Math.abs(b - s.pct) < Math.abs(a - s.pct) ? b : a);
@@ -3065,13 +3068,23 @@ function renderMyPortions() {
         `}
       </div>
     `;
-  }).join('');
+  };
+  const itemsHtml = activeMine.map(portionItemHtml).join('');
+  const completedToggleHtml = completedMine.length
+    ? `<button class="ui my-portions-completed-toggle" style="font-size:11.5px;padding:3px 9px;margin-top:6px">${myPortionsShowCompleted ? 'Hide' : 'Show'} ${completedMine.length} completed portion${completedMine.length === 1 ? '' : 's'}</button>`
+    : '';
+  const completedItemsHtml = myPortionsShowCompleted ? completedMine.map(portionItemHtml).join('') : '';
   container.innerHTML = `
     <div style="background:#F3EEFC;border:1px solid #7B4FCE;border-radius:10px;padding:14px 16px;margin-bottom:18px">
       <div style="font-size:14px;font-weight:700;color:#5B3A9E;margin-bottom:4px">&#9650; Portions assigned to you</div>
       ${itemsHtml}
+      ${!activeMine.length ? '<div class="hint-small" style="padding:4px 0">Nothing active right now.</div>' : ''}
+      ${completedToggleHtml}
+      ${completedItemsHtml}
     </div>
   `;
+  const completedToggleBtn = container.querySelector('.my-portions-completed-toggle');
+  if (completedToggleBtn) completedToggleBtn.addEventListener('click', () => { myPortionsShowCompleted = !myPortionsShowCompleted; renderMyPortions(); });
   container.querySelectorAll('.my-portion-item').forEach(item => {
     const taskId = item.getAttribute('data-task-id');
     const subId = item.getAttribute('data-sub-id');
