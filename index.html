@@ -760,7 +760,7 @@ const emailjsConfig = {
   templateId: "template_ph5468d"
 };
 const TRACKER_URL = "https://punchlist.lancelotbiz.com/";
-const BUILD_VERSION = "v20 — Aug 19, 2026 (Priority at creation)";
+const BUILD_VERSION = "v22 — Aug 30, 2026 (Texts logged in job notes)";
 document.addEventListener('DOMContentLoaded', () => {
   const el = document.getElementById('build-version-label');
   if (el) el.textContent = `· Build ${BUILD_VERSION}`;
@@ -907,14 +907,15 @@ function jobFilesHtml(task) {
 
 function portionsBlockHtml(task) {
   const subs = task.subassignments || [];
-  const statusLabel = { pending: 'Pending acceptance', active: 'In progress', declined: 'Declined' };
-  const statusColor = { pending: 'var(--gray-fg)', active: '#5B3A9E', declined: 'var(--red-fg)' };
+  const statusLabel = { pending: 'Pending acceptance', active: 'In progress', complete: 'Complete', declined: 'Declined' };
+  const statusColor = { pending: 'var(--gray-fg)', active: '#5B3A9E', complete: 'var(--teal-fg)', declined: 'var(--red-fg)' };
+  const displayStatus = (s) => s.status === 'declined' ? 'declined' : (s.pct >= 100 ? 'complete' : s.status);
   const listHtml = subs.length ? subs.map(s => `
     <div class="portion-owner-item" data-sub-id="${s.id}" style="padding:6px 0;border-top:1px solid rgba(123,79,206,.2)">
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <div style="flex:1;min-width:160px;font-size:12.5px">
           <strong>${s.assignedTo}</strong> &middot; ${(s.portion || '').replace(/</g, '&lt;')}
-          <span style="color:${statusColor[s.status] || 'var(--text-muted)'};font-weight:600"> &middot; ${statusLabel[s.status] || s.status}</span>
+          <span style="color:${statusColor[displayStatus(s)] || 'var(--text-muted)'};font-weight:600"> &middot; ${statusLabel[displayStatus(s)] || s.status}</span>
           ${s.status !== 'declined' ? ` &middot; ${s.pct}%` : ''}
         </div>
         <button class="ui portion-owner-remove" style="font-size:11px;padding:3px 8px;border-color:var(--red-fg);color:var(--red-fg)">Remove</button>
@@ -1208,6 +1209,7 @@ function makeSliderRow(t, showDeptTag) {
     <div class="job-actions">
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="mark-btn edit">${isEditing ? 'Cancel' : 'Edit'}</button>
+        <button class="mark-btn text-owner">&#128172; Text</button>
         ${t.priority
           ? `<button class="mark-btn priority-clear-inline" style="border-color:var(--red-fg);color:var(--red-fg)">Clear priority</button>`
           : `<button class="mark-btn priority-alert" style="border-color:var(--red-fg);color:var(--red-fg)">&#128293; Priority Alert</button>`}
@@ -1224,6 +1226,11 @@ function makeSliderRow(t, showDeptTag) {
           <button class="mark-btn delete-deny">Deny</button>
         ` : !t.pendingDelete ? `<button class="mark-btn delete">${isDeleting ? 'Cancel' : 'Delete'}</button>` : ''}
       </div>
+    </div>
+    <div class="text-owner-row" style="display:none;margin-top:6px">
+      <input type="text" class="text-owner-input" placeholder="Message to ${t.owner}..." style="width:100%;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border);box-sizing:border-box;margin-bottom:6px" />
+      <button class="mark-btn send-text-owner" style="width:auto">Send text</button>
+      <div class="hint-small text-owner-msg"></div>
     </div>
     ${isDeleting ? `
     <div class="edit-form">
@@ -1460,6 +1467,7 @@ function makeSliderRow(t, showDeptTag) {
       t.subassignments.push(sub);
       persistTask(t);
       notifyChange(assignee, `${currentUser.name} assigned you a portion of "${t.name}": "${portion}"`);
+      sendJobText(assignee, `portion of "${t.name}"`, t.dept, `${currentUser.name} assigned you: "${portion}"`);
       notifyAdmins(`Portion assigned`, `${currentUser.name} assigned ${assignee} a portion of "${t.name}" (${t.dept}): "${portion}"`);
       if (gfxToAttach && gfxToAttach.files && gfxToAttach.files.length) {
         uploadPortionFiles(t, sub, gfxToAttach.files, `New design files for "${t.name}"`);
@@ -1519,6 +1527,43 @@ function makeSliderRow(t, showDeptTag) {
     if (editingIds.has(t.id)) editingIds.delete(t.id); else editingIds.add(t.id);
     renderAll();
   });
+  const textOwnerBtn = row.querySelector('.text-owner');
+  if (textOwnerBtn) {
+    textOwnerBtn.addEventListener('click', () => {
+      const textRow = row.querySelector('.text-owner-row');
+      if (!textRow) return;
+      const isOpen = textRow.style.display !== 'none';
+      textRow.style.display = isOpen ? 'none' : 'block';
+      if (!isOpen) row.querySelector('.text-owner-input').focus();
+    });
+  }
+  const sendTextOwnerBtn = row.querySelector('.send-text-owner');
+  if (sendTextOwnerBtn) {
+    sendTextOwnerBtn.addEventListener('click', async () => {
+      const input = row.querySelector('.text-owner-input');
+      const msgEl = row.querySelector('.text-owner-msg');
+      const message = input.value.trim();
+      if (!message) {
+        if (msgEl) { msgEl.style.color = 'var(--red-fg)'; msgEl.textContent = 'Type a message first.'; }
+        return;
+      }
+      if (msgEl) { msgEl.style.color = 'var(--text-muted)'; msgEl.textContent = 'Sending...'; }
+      const result = await sendCustomText(t.owner, `Re: "${t.name}" — ${message}`);
+      if (result.ok) {
+        input.value = '';
+        if (!t.notes) t.notes = [];
+        t.notes.push({ text: `&#128172; Texted ${t.owner}: "${message}"`, by: currentUser.name, at: new Date().toISOString() });
+        persistTask(t);
+        renderStats();
+        renderAll();
+        flashSaveMsg(`Text sent to ${t.owner} — logged in this job's notes.`);
+      } else if (result.reason === 'no-phone') {
+        if (msgEl) { msgEl.style.color = 'var(--red-fg)'; msgEl.textContent = `${t.owner} doesn't have a phone number on file.`; }
+      } else {
+        if (msgEl) { msgEl.style.color = 'var(--red-fg)'; msgEl.textContent = "Couldn't send — try again in a moment."; }
+      }
+    });
+  }
   const priorityAlertBtn = row.querySelector('.priority-alert');
   if (priorityAlertBtn) {
     priorityAlertBtn.addEventListener('click', () => {
@@ -1660,6 +1705,7 @@ function makeSliderRow(t, showDeptTag) {
         renderAll();
         notifyChange(newOwner, `"${t.name}" was reassigned to you by ${currentUser.name}`);
         notifyChange(oldOwner, `"${t.name}" was reassigned from you to ${newOwner} by ${currentUser.name}`);
+        sendJobText(newOwner, t.name, newDept, 'This was just reassigned to you.');
         notifyAdmins(`Job reassigned`, `"${t.name}" moved from ${oldOwner} to ${newOwner} (${newDept}) by ${currentUser.name}.\n\nReason: ${reason}`);
       } else if (isReassigning) {
         t.pendingReassign = { newOwner, newDept, reason, requestedBy: currentUser.name, requestedAt: new Date().toISOString() };
@@ -1667,6 +1713,7 @@ function makeSliderRow(t, showDeptTag) {
         renderStats();
         renderAll();
         notifyChange(newOwner, `${currentUser.name} wants to reassign "${t.name}" to you`);
+        sendJobText(newOwner, t.name, newDept, `${currentUser.name} wants to reassign this to you — open the tracker to accept or decline.`);
         notifyAdmins(`Reassignment pending acceptance`, `${currentUser.name} wants to reassign "${t.name}" from ${t.owner} to ${newOwner} (${newDept}).\n\nReason: ${reason}\n\nWaiting on ${newOwner} to accept or decline.`);
       } else {
         t.dept = newDept;
@@ -2358,6 +2405,26 @@ function sendPriorityText(ownerName, jobName, dept) {
   }).catch(err => console.error('Priority text notification failed', err));
 }
 
+// General-purpose: text any person directly with a custom message. Returns
+// { ok, reason } so calling UI can show the right feedback ('no-phone' vs a send failure).
+async function sendCustomText(toName, message) {
+  const phone = findPhone(toName);
+  if (!phone) return { ok: false, reason: 'no-phone' };
+  const fullMessage = `Faire Punch List: ${message} — sent by ${currentUser ? currentUser.name : 'a manager'}. Reply STOP to opt out.`;
+  try {
+    const res = await fetch('https://us-central1-faire-builder-tracker.cloudfunctions.net/sendJobText', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to: phone, message: fullMessage })
+    });
+    if (res.ok) logMessage('text', toName, phone, fullMessage);
+    return { ok: res.ok, reason: res.ok ? null : 'send-failed' };
+  } catch (err) {
+    console.error('Custom text failed', err);
+    return { ok: false, reason: 'error' };
+  }
+}
+
 let applyingRemote = false;
 let dbRef = null;
 let DELETED_CATEGORIES = new Set();
@@ -2723,8 +2790,44 @@ function renderTeamList() {
           <input type="checkbox" class="tm-super" ${isSuper ? 'checked' : ''} ${isAdmin ? 'disabled' : ''} /> &#9650; Make Super User
         </label>
         <button class="ui tm-save-pin" style="font-size:12px;padding:5px 10px" ${isAdmin ? 'disabled title="Use Change my PIN while logged in as this admin"' : ''}>${existingPin ? 'Update' : 'Assign PIN'}</button>
+        <button class="ui tm-text" style="font-size:12px;padding:5px 10px">&#128172; Text</button>
+      </div>
+      <div class="tm-text-row" style="display:none;margin-top:8px">
+        <input type="text" class="tm-text-input" placeholder="Message to ${name}..." style="width:100%;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border);box-sizing:border-box;margin-bottom:6px" />
+        <button class="ui tm-send-text" style="font-size:12px;padding:5px 10px">Send text</button>
+        <span class="hint-small tm-text-msg"></span>
       </div>
     `;
+    row.querySelector('.tm-text').addEventListener('click', () => {
+      const textRow = row.querySelector('.tm-text-row');
+      const isOpen = textRow.style.display !== 'none';
+      textRow.style.display = isOpen ? 'none' : 'block';
+      if (!isOpen) row.querySelector('.tm-text-input').focus();
+    });
+    row.querySelector('.tm-send-text').addEventListener('click', async () => {
+      const input = row.querySelector('.tm-text-input');
+      const msgEl = row.querySelector('.tm-text-msg');
+      const message = input.value.trim();
+      if (!message) {
+        msgEl.style.color = 'var(--red-fg)';
+        msgEl.textContent = 'Type a message first.';
+        return;
+      }
+      msgEl.style.color = 'var(--text-muted)';
+      msgEl.textContent = 'Sending...';
+      const result = await sendCustomText(name, message);
+      if (result.ok) {
+        input.value = '';
+        msgEl.style.color = 'var(--teal-fg)';
+        msgEl.textContent = `Text sent to ${name}.`;
+      } else if (result.reason === 'no-phone') {
+        msgEl.style.color = 'var(--red-fg)';
+        msgEl.textContent = `${name} doesn't have a phone number on file.`;
+      } else {
+        msgEl.style.color = 'var(--red-fg)';
+        msgEl.textContent = "Couldn't send — try again in a moment.";
+      }
+    });
     row.querySelector('.tm-save-email').addEventListener('click', () => {
       const val = row.querySelector('.tm-email').value.trim();
       if (val) DIRECTORY[name] = val; else delete DIRECTORY[name];
