@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Faire Punch List — Progress Tracker</title>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#1D9E75">
+<meta name="theme-color" content="#04342C">
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -13,18 +13,22 @@
 <meta name="apple-mobile-web-app-title" content="Punch List">
 <style>
   :root {
-    --bg: #f7f6f2;
+    --bg: #F2F5F1;
     --surface: #ffffff;
-    --surface-1: #f1efe8;
-    --border: #ddd9cd;
-    --text-primary: #1e1e1c;
-    --text-secondary: #5f5e5a;
-    --text-muted: #888780;
-    --teal-bg: #E1F5EE; --teal-fg: #085041; --teal-bar: #1D9E75;
+    --surface-1: #EAEFE9;
+    --border: #C3CBC1;
+    --text-primary: #142822;
+    --text-secondary: #4A5C52;
+    --text-muted: #7C8B83;
+    --teal-bg: #E1F5EE; --teal-fg: #0F6E56; --teal-bar: #1D9E75;
     --blue-bg: #E6F1FB; --blue-fg: #0C447C; --blue-bar: #378ADD;
     --gray-bg: #F1EFE8; --gray-fg: #444441; --gray-bar: #B4B2A9;
     --red-fg: #A32D2D;
+    --brand-dark: #04342C;
+    --brand-mid: #0F6E56;
+    --brand-light: #5DCAA5;
   }
+  ::selection { background: var(--brand-light); color: var(--brand-dark); }
   * { box-sizing: border-box; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
@@ -42,7 +46,7 @@
   }
   .stat {
     flex: 1; min-width: 110px;
-    background: var(--surface-1); border-radius: 10px; padding: 14px 16px;
+    background: var(--surface-1); border-radius: 10px; padding: 14px 16px; border: 1px solid var(--border);
   }
   .stat .label { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
   .stat .value { font-size: 22px; font-weight: 600; }
@@ -55,9 +59,9 @@
   button.ui {
     font-size: 13px; padding: 7px 14px; border-radius: 8px;
     border: 1px solid var(--border); background: var(--surface);
-    cursor: pointer; color: var(--text-primary);
+    cursor: pointer; color: var(--text-primary); transition: background .12s, border-color .12s;
   }
-  button.ui:hover { background: var(--surface-1); }
+  button.ui:hover { background: var(--surface-1); border-color: var(--brand-mid); }
   .admin-tab-bar { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
   .admin-tab-btn {
     font-size: 13px; font-weight: 600; padding: 8px 16px; border-radius: 8px 8px 0 0;
@@ -75,7 +79,7 @@
   .admin-tab-panel.active { display: block; }
   #team-panel.active { border: 1px solid var(--border); border-radius: 12px; background: var(--surface); padding: 14px 16px; }
   .dept {
-    border: 1px solid var(--border); border-radius: 12px;
+    border: 1px solid var(--border); border-top: 3px solid var(--brand-mid); border-radius: 12px;
     margin-bottom: 10px; overflow: hidden; background: var(--surface);
   }
   .dept-header {
@@ -89,7 +93,7 @@
   .dept-owner { font-size: 12px; color: var(--text-secondary); }
   .dept-header .right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
   .dept-bar-track { width: 80px; height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; }
-  .dept-bar-fill { height: 100%; background: var(--blue-bar); width: 0%; }
+  .dept-bar-fill { height: 100%; background: var(--brand-mid); width: 0%; }
   .dept-pct { font-size: 13px; font-weight: 600; min-width: 34px; text-align: right; }
   .dept-body { display: none; padding: 4px 16px 12px; }
   .job-row { padding: 10px 0; border-top: 1px solid var(--border); }
@@ -146,10 +150,10 @@
   #add-job .add-actions { display: flex; justify-content: flex-end; margin-top: 10px; }
   button.add-btn {
     font-size: 13px; padding: 8px 16px; border-radius: 8px;
-    border: 1px solid var(--blue-bar); background: var(--blue-bg); color: var(--blue-fg);
-    cursor: pointer; font-weight: 500;
+    border: 1px solid var(--brand-mid); background: var(--teal-bg); color: var(--brand-dark);
+    cursor: pointer; font-weight: 500; transition: background .12s, color .12s;
   }
-  button.add-btn:hover { background: var(--blue-bar); color: #fff; }
+  button.add-btn:hover { background: var(--brand-mid); color: #fff; }
   .hint-small { font-size: 12px; color: var(--text-muted); margin-top: 6px; overflow-wrap: break-word; }
   footer { text-align: center; font-size: 12px; color: var(--text-muted); margin-top: 24px; }
   #pin-gate {
@@ -163,7 +167,7 @@
     width: 100%; font-size: 22px; text-align: center; letter-spacing: 6px;
     padding: 10px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 12px;
   }
-  #pin-submit { width: 100%; padding: 10px; border-radius: 8px; border: none; background: var(--blue-bar); color: #fff; font-weight: 600; font-size: 14px; cursor: pointer; }
+  #pin-submit { width: 100%; padding: 10px; border-radius: 8px; border: none; background: var(--brand-dark); color: #fff; font-weight: 600; font-size: 14px; cursor: pointer; }
   #pin-error { font-size: 13px; color: var(--red-fg); margin-top: 10px; min-height: 16px; }
   #user-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size: 13px; color: var(--text-secondary); margin-bottom: 12px; }
   #user-bar button.ui { font-size: 12px; padding: 5px 10px; }
@@ -366,8 +370,10 @@
     <button class="ui" id="change-pin-save">Save new PIN</button>
     <span class="hint-small" id="change-pin-msg"></span>
   </div>
-  <h1>Faire punch list — progress tracker <span id="appVersionBadge" style="font-size:.55em;font-weight:400;opacity:.55;vertical-align:middle;margin-left:6px"></span></h1>
-  <p class="subtitle">Grouped by crew &middot; choose a percentage or hit "Mark complete" to move a job into the master completed list below &middot; use "Add a job" to assign new work to a person responsible</p>
+  <div style="background: var(--brand-dark); border-radius: 12px; padding: 18px 20px; margin-bottom: 20px">
+    <h1 style="color: #F2F5F1; margin: 0 0 4px">Faire punch list — progress tracker <span id="appVersionBadge" style="font-size:.55em;font-weight:400;opacity:.6;vertical-align:middle;margin-left:6px;color:#9FE1CB"></span></h1>
+    <p class="subtitle" style="color: #9FCFBB; margin: 0">Grouped by crew &middot; choose a percentage or hit "Mark complete" to move a job into the master completed list below &middot; use "Add a job" to assign new work to a person responsible</p>
+  </div>
 
   <div id="priority-section"></div>
   <div id="staff-notes-section"></div>
@@ -760,7 +766,7 @@ const emailjsConfig = {
   templateId: "template_ph5468d"
 };
 const TRACKER_URL = "https://punchlist.lancelotbiz.com/";
-const BUILD_VERSION = "v24 — Aug 30, 2026 (Completed portions collapse by default)";
+const BUILD_VERSION = "v25 — Aug 30, 2026 (Field Ready theme + visible upload errors)";
 document.addEventListener('DOMContentLoaded', () => {
   const el = document.getElementById('build-version-label');
   if (el) el.textContent = `· Build ${BUILD_VERSION}`;
@@ -868,6 +874,7 @@ async function uploadJobFiles(task, files, changeText) {
   }
   const storageRef = firebase.storage().ref();
   let added = 0;
+  let failCount = 0;
   const newFiles = [];
   for (const file of files) {
     try {
@@ -882,11 +889,13 @@ async function uploadJobFiles(task, files, changeText) {
       added++;
     } catch (err) {
       console.error('File upload failed', err);
+      failCount++;
     }
   }
   if (added) persistTask(task);
   renderStats();
   renderAll();
+  if (failCount) flashSaveMsg(`&#9888; ${failCount} file${failCount === 1 ? '' : 's'} failed to upload — try again, or tell Scott if it keeps happening.`, true);
   if (added && emailReady()) {
     const ownerEmail = findDirectoryEmail(task.owner);
     if (ownerEmail) {
@@ -1013,6 +1022,8 @@ async function uploadPhotos(task, files, changeText) {
   }
   const storageRef = firebase.storage().ref();
   const newUrls = [];
+  let failCount = 0;
+  let lastErr = null;
   for (const file of files) {
     try {
       const path = `punch-list-photos/${task.id}/${Date.now()}_${file.name}`;
@@ -1024,11 +1035,16 @@ async function uploadPhotos(task, files, changeText) {
       newUrls.push(url);
     } catch (err) {
       console.error('Photo upload failed', err);
+      failCount++;
+      lastErr = err;
     }
   }
   if (newUrls.length) persistTask(task);
   renderStats();
   renderAll();
+  if (failCount) {
+    flashSaveMsg(`&#9888; ${failCount} photo${failCount === 1 ? '' : 's'} failed to upload${lastErr && lastErr.code ? ` (${lastErr.code})` : ''} — try again, or tell Scott if it keeps happening.`, true);
+  }
   if (newUrls.length) {
     const text = changeText || `${newUrls.length} photo${newUrls.length === 1 ? '' : 's'} added to "${task.name}"`;
     notifyChange(task.owner, text, newUrls);
@@ -1053,6 +1069,7 @@ async function uploadPortionPhotos(task, sub, files, changeText) {
   }
   const storageRef = firebase.storage().ref();
   const newUrls = [];
+  let failCount = 0;
   for (const file of files) {
     try {
       const path = `punch-list-photos/${task.id}/portions/${sub.id}/${Date.now()}_${file.name}`;
@@ -1064,11 +1081,13 @@ async function uploadPortionPhotos(task, sub, files, changeText) {
       newUrls.push(url);
     } catch (err) {
       console.error('Portion photo upload failed', err);
+      failCount++;
     }
   }
   if (newUrls.length) persistTask(task);
   renderStats();
   renderAll();
+  if (failCount) flashSaveMsg(`&#9888; ${failCount} photo${failCount === 1 ? '' : 's'} failed to upload — try again, or tell Scott if it keeps happening.`, true);
   renderMyPortions();
   if (newUrls.length) {
     const text = changeText || `${newUrls.length} photo${newUrls.length === 1 ? '' : 's'} added to their portion of "${task.name}"`;
@@ -1102,6 +1121,7 @@ async function uploadPortionFiles(task, sub, files, changeText) {
   if (!window.firebase || !firebase.storage) return;
   const storageRef = firebase.storage().ref();
   let added = 0;
+  let failCount = 0;
   for (const file of files) {
     try {
       const path = `punch-list-files/${task.id}/portions/${sub.id}/${Date.now()}_${file.name}`;
@@ -1113,12 +1133,14 @@ async function uploadPortionFiles(task, sub, files, changeText) {
       added++;
     } catch (err) {
       console.error('Portion file upload failed', err);
+      failCount++;
     }
   }
   if (added) persistTask(task);
   renderStats();
   renderAll();
   renderMyPortions();
+  if (failCount) flashSaveMsg(`&#9888; ${failCount} file${failCount === 1 ? '' : 's'} failed to upload — try again, or tell Scott if it keeps happening.`, true);
 }
 
 function portionFilesHtml(sub) {
