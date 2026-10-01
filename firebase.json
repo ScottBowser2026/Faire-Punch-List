@@ -12,7 +12,7 @@
     }
   ],
   "hosting": {
-    "site": "faire-builder-tracker",
+    "site": "punchlist-tracker",
     "public": ".",
     "ignore": [
       "firebase.json",
