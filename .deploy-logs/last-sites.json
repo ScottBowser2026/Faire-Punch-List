@@ -1,0 +1,12 @@
+{
+  "status": "success",
+  "result": {
+    "sites": [
+      {
+        "name": "projects/faire-builder-tracker/sites/faire-builder-tracker",
+        "defaultUrl": "https://faire-builder-tracker.web.app",
+        "type": "DEFAULT_SITE"
+      }
+    ]
+  }
+}
