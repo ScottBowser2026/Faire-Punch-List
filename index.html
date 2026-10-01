@@ -23,9 +23,25 @@
     --teal-bg: #E1F5EE; --teal-fg: #0F6E56; --teal-bar: #1D9E75;
     --blue-bg: #E6F1FB; --blue-fg: #0C447C; --blue-bar: #378ADD;
     --gray-bg: #F1EFE8; --gray-fg: #444441; --gray-bar: #B4B2A9;
-    --red-fg: #A32D2D;
+    --red-fg: #A32D2D; --red-bg: #FBE4E4; --red-bar: #A32D2D;
     --brand-dark: #04342C;
     --brand-mid: #0F6E56;
+    --brand-light: #5DCAA5;
+  }
+  :root[data-theme="dark"] {
+    --bg: #11201B;
+    --surface: #182C25;
+    --surface-1: #1F3A30;
+    --border: #2E4B3F;
+    --text-primary: #EAF3EE;
+    --text-secondary: #B7CCC1;
+    --text-muted: #87A094;
+    --teal-bg: #163C30; --teal-fg: #5DCAA5; --teal-bar: #1D9E75;
+    --blue-bg: #122C44; --blue-fg: #7FB8ED; --blue-bar: #378ADD;
+    --gray-bg: #273229; --gray-fg: #C7CBC0; --gray-bar: #8A8F82;
+    --red-fg: #F0908A; --red-bg: #3A1C1C; --red-bar: #D16A64;
+    --brand-dark: #0B241D;
+    --brand-mid: #1D9E75;
     --brand-light: #5DCAA5;
   }
   ::selection { background: var(--brand-light); color: var(--brand-dark); }
@@ -82,6 +98,7 @@
     border: 1px solid var(--border); border-top: 3px solid var(--brand-mid); border-radius: 12px;
     margin-bottom: 10px; overflow: hidden; background: var(--surface);
   }
+  .dept-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
   .dept-header {
     width: 100%; display: flex; align-items: center; justify-content: space-between;
     padding: 13px 16px; background: var(--surface-1); border: none; cursor: pointer;
@@ -96,10 +113,14 @@
   .dept-bar-fill { height: 100%; background: var(--brand-mid); width: 0%; }
   .dept-pct { font-size: 13px; font-weight: 600; min-width: 34px; text-align: right; }
   .dept-body { display: none; padding: 4px 16px 12px; }
-  .job-row { padding: 10px 0; border-top: 1px solid var(--border); }
+  .job-row { padding: 10px 0 10px 10px; border-top: 1px solid var(--border); border-left: 3px solid transparent; margin-left: -2px; }
+  .job-row.status-completed { border-left-color: var(--teal-bar); }
+  .job-row.status-current { border-left-color: var(--blue-bar); }
+  .job-row.status-next { border-left-color: var(--gray-bar); }
+  .job-row.status-overdue { border-left-color: var(--red-bar); }
   .job-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
   .job-name { font-size: 15px; font-weight: 700; line-height: 1.4; }
-  .job-dept-tag { font-size: 11px; color: var(--text-muted); }
+  .job-dept-tag { font-size: 11px; color: var(--text-muted); font-weight: 600; }
   .due-tag { font-size: 11px; color: var(--text-muted); }
   .due-tag.overdue { color: var(--red-fg); font-weight: 600; }
   .due-tag.overdue::before { content: "\26A0 "; }
@@ -370,6 +391,7 @@
   <div id="user-bar">
     <span id="user-bar-label"></span>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="ui" id="dark-mode-btn">&#127769; Dark mode</button>
       <button class="ui" id="test-mode-btn" style="display:none">Enable test mode</button>
       <button class="ui" id="global-refresh-btn" style="display:none;border-color:var(--red-fg);color:var(--red-fg)">Refresh everyone</button>
       <button class="ui" id="change-pin-btn">Change my PIN</button>
@@ -779,7 +801,7 @@ const emailjsConfig = {
   templateId: "template_ph5468d"
 };
 const TRACKER_URL = "https://punchlist.lancelotbiz.com/";
-const BUILD_VERSION = "v26 — Oct 1, 2026 (Firebase Hosting migration + PIN+SMS login)";
+const BUILD_VERSION = "v27 — Oct 1, 2026 (status colors, crew colors, dark mode)";
 document.addEventListener('DOMContentLoaded', () => {
   const el = document.getElementById('build-version-label');
   if (el) el.textContent = `· Build ${BUILD_VERSION}`;
@@ -797,8 +819,30 @@ const SEED_TASKS = [{"id": 1, "dept": "Carpentry", "owner": "Michael Hess", "nam
 const statusMeta = {
   completed: { label: 'Done', bg: 'var(--teal-bg)', fg: 'var(--teal-fg)' },
   current: { label: 'In progress', bg: 'var(--blue-bg)', fg: 'var(--blue-fg)' },
-  next: { label: 'Queued', bg: 'var(--gray-bg)', fg: 'var(--gray-fg)' }
+  next: { label: 'Queued', bg: 'var(--gray-bg)', fg: 'var(--gray-fg)' },
+  overdue: { label: 'Overdue', bg: 'var(--red-bg)', fg: 'var(--red-fg)' }
 };
+
+const DEPT_COLOR_PALETTE = ['#0F6E56', '#0C447C', '#8A5A00', '#7B3F96', '#B2456E', '#2D6A4F', '#555B10', '#9B4F0F', '#2B5E8C', '#8C3B2B'];
+function colorForDept(dept) {
+  const name = dept || '';
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+  return DEPT_COLOR_PALETTE[hash % DEPT_COLOR_PALETTE.length];
+}
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  const btn = document.getElementById('dark-mode-btn');
+  if (btn) btn.innerHTML = theme === 'dark' ? '&#9728;&#65039; Light mode' : '&#127769; Dark mode';
+  try { localStorage.setItem('punchlist_theme', theme); } catch (e) {}
+}
+function initTheme() {
+  let saved = null;
+  try { saved = localStorage.getItem('punchlist_theme'); } catch (e) {}
+  applyTheme(saved === 'dark' ? 'dark' : 'light');
+}
+initTheme();
 
 let TASKS = [];
 let deptOrder = [];
@@ -818,6 +862,10 @@ document.getElementById('master-search-input').addEventListener('input', () => {
 
 function activeStatusFor(t) {
   if (t.pct >= 100) return 'completed';
+  if (t.due) {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    if (new Date(t.due + 'T00:00:00') < today) return 'overdue';
+  }
   if (t.pct > 0) return 'current';
   return 'next';
 }
@@ -1178,13 +1226,13 @@ function makeSliderRow(t, showDeptTag) {
   const isDeleting = deletingIds.has(t.id);
   const editable = canEdit(t);
   const row = document.createElement('div');
-  row.className = 'job-row';
+  row.className = `job-row status-${activeStatusFor(t)}`;
   row.dataset.taskId = t.id;
   row.innerHTML = `
     <div class="job-top">
       <span>
         <span class="job-name">${t.name}</span>
-        ${showDeptTag ? `<span class="job-dept-tag"> &middot; ${t.dept}</span>` : ''}
+        ${showDeptTag ? `<span class="job-dept-tag" style="color:${colorForDept(t.dept)}"> &middot; ${t.dept}</span>` : ''}
         ${startHtml}
         ${dueHtml}
         ${t.assignedBy ? `<span class="hint-small" style="display:inline;margin:0"> &middot; assigned by ${t.assignedBy}</span>` : ''}
@@ -2011,6 +2059,7 @@ function renderAll() {
     const active = sortByDueDate(items.filter(t => t.pct < 100));
     const wrap = document.createElement('div');
     wrap.className = 'dept';
+    wrap.style.borderTopColor = colorForDept(dept);
     const isOpen = openDepts.has(dept);
 
     const header = document.createElement('button');
@@ -2018,6 +2067,7 @@ function renderAll() {
     header.innerHTML = `
       <div class="left">
         <span class="chev" style="transform:${isOpen ? 'rotate(90deg)' : 'rotate(0deg)'}">&#9656;</span>
+        <span class="dept-dot" style="background:${colorForDept(dept)}"></span>
         <div>
           <div class="dept-name">${dept}</div>
           <div class="dept-owner">${owner || 'Unassigned'} &middot; ${active.length} open of ${items.length}</div>
@@ -3481,6 +3531,11 @@ document.getElementById('logout-btn').addEventListener('click', () => {
   document.getElementById('pin-input').value = '';
   document.getElementById('pin-error').textContent = '';
   showPinGate();
+});
+
+document.getElementById('dark-mode-btn').addEventListener('click', () => {
+  const current = document.documentElement.getAttribute('data-theme');
+  applyTheme(current === 'dark' ? 'light' : 'dark');
 });
 
 document.getElementById('test-mode-btn').addEventListener('click', () => {
