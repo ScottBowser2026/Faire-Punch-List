@@ -4,11 +4,11 @@ cache-control: max-age=0
 content-type: text/html; charset=utf-8
 strict-transport-security: max-age=31556926; includeSubDomains; preload
 accept-ranges: bytes
-date: Thu, 01 Oct 2026 20:17:53 GMT
-x-served-by: cache-chi-kmdw8640036-CHI
+date: Thu, 01 Oct 2026 20:22:55 GMT
+x-served-by: cache-bfi-krnt7300042-BFI
 x-cache: MISS
 x-cache-hits: 0
-x-timer: S1790885874.748393,VS0,VE23
+x-timer: S1790886176.859999,VS0,VE16
 vary: x-fh-requested-host, accept-encoding
 alt-svc: h3=":443";ma=86400,h3-29=":443";ma=86400,h3-27=":443";ma=86400
 content-length: 21265
@@ -33,18 +33,3 @@ content-length: 21265
         font-size: 16px;
         line-height: 24px;
         color: rgba(0,
-=== retry after 15s ===
-HTTP/2 404 
-cache-control: max-age=0
-content-type: text/html; charset=utf-8
-strict-transport-security: max-age=31556926; includeSubDomains; preload
-accept-ranges: bytes
-date: Thu, 01 Oct 2026 20:18:08 GMT
-x-served-by: cache-chi-kmdw8640036-CHI
-x-cache: MISS
-x-cache-hits: 0
-x-timer: S1790885889.808410,VS0,VE31
-vary: x-fh-requested-host, accept-encoding
-alt-svc: h3=":443";ma=86400,h3-29=":443";ma=86400,h3-27=":443";ma=86400
-content-length: 21265
-
