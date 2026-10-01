@@ -4,11 +4,11 @@ cache-control: max-age=0
 content-type: text/html; charset=utf-8
 strict-transport-security: max-age=31556926; includeSubDomains; preload
 accept-ranges: bytes
-date: Thu, 01 Oct 2026 20:22:55 GMT
-x-served-by: cache-bfi-krnt7300042-BFI
+date: Thu, 01 Oct 2026 20:33:28 GMT
+x-served-by: cache-phx1710119-PHX
 x-cache: MISS
 x-cache-hits: 0
-x-timer: S1790886176.859999,VS0,VE16
+x-timer: S1790886808.249307,VS0,VE40
 vary: x-fh-requested-host, accept-encoding
 alt-svc: h3=":443";ma=86400,h3-29=":443";ma=86400,h3-27=":443";ma=86400
 content-length: 21265
