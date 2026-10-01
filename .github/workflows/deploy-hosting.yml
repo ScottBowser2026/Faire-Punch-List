@@ -28,7 +28,27 @@ jobs:
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
 
+      - name: List hosting sites (diagnostic)
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/service-account.json
+        run: firebase hosting:sites:list --project faire-builder-tracker --json > /tmp/sites.json 2>&1 || true
+
       - name: Deploy hosting
         env:
           GOOGLE_APPLICATION_CREDENTIALS: /tmp/service-account.json
-        run: firebase deploy --only hosting --project faire-builder-tracker --non-interactive --force
+        run: firebase deploy --only hosting --project faire-builder-tracker --non-interactive --force --json > /tmp/deploy-output.json 2>&1 || echo "DEPLOY_FAILED=1" >> $GITHUB_ENV
+
+      - name: Save diagnostic output
+        run: |
+          mkdir -p .deploy-logs
+          cp /tmp/sites.json .deploy-logs/last-sites.json || true
+          cp /tmp/deploy-output.json .deploy-logs/last-deploy.json || true
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .deploy-logs
+          git commit -m "chore: record hosting deploy diagnostic output [skip ci]" || echo "no changes to commit"
+          git push
+
+      - name: Fail job if deploy failed
+        if: env.DEPLOY_FAILED == '1'
+        run: exit 1
