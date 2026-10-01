@@ -20,12 +20,14 @@
       "firebase-debug.log",
       "firebase-debug.*.log",
       "**/.*",
+      "**/.*/**",
       "**/node_modules/**",
       "functions/**",
       "scripts/**",
       ".github/**",
       "README.md",
-      "CNAME"
+      "CNAME",
+      ".deploy-logs/**"
     ]
   }
 }

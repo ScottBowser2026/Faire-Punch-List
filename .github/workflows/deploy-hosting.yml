@@ -44,12 +44,25 @@ jobs:
           GOOGLE_APPLICATION_CREDENTIALS: /tmp/service-account.json
         run: firebase deploy --only hosting --project faire-builder-tracker --non-interactive --force --debug > /tmp/deploy-output.json 2>&1 || echo "DEPLOY_FAILED=1" >> $GITHUB_ENV
 
+      - name: Curl live site (diagnostic)
+        run: |
+          echo "=== / ===" > /tmp/curl-test.txt
+          curl -sS -D - -o /tmp/body.html "https://faire-builder-tracker.web.app/" >> /tmp/curl-test.txt 2>&1
+          echo "" >> /tmp/curl-test.txt
+          echo "=== body (first 500 chars) ===" >> /tmp/curl-test.txt
+          head -c 500 /tmp/body.html >> /tmp/curl-test.txt
+          sleep 15
+          echo "" >> /tmp/curl-test.txt
+          echo "=== retry after 15s ===" >> /tmp/curl-test.txt
+          curl -sS -D - -o /tmp/body2.html "https://faire-builder-tracker.web.app/" >> /tmp/curl-test.txt 2>&1
+
       - name: Save diagnostic output
         run: |
           mkdir -p .deploy-logs
           cp /tmp/sites.json .deploy-logs/last-sites.json || true
           cp /tmp/deploy-output.json .deploy-logs/last-deploy.json || true
           cp /tmp/public-dir-listing.txt .deploy-logs/last-public-dir-listing.txt || true
+          cp /tmp/curl-test.txt .deploy-logs/last-curl-test.txt || true
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add .deploy-logs
