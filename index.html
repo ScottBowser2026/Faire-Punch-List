@@ -240,6 +240,7 @@
       <div style="margin-top:14px">
         <a href="#" id="forgot-pin-link" style="font-size:12.5px;color:var(--text-secondary);text-decoration:underline">Forgot PIN?</a>
       </div>
+      <div id="login-version-label" style="margin-top:18px;font-size:11px;color:var(--text-muted)"></div>
     </div>
     <div id="forgot-pin-row" style="display:none">
       <h2 style="margin-bottom:2px">Reset Your PIN</h2>
@@ -249,6 +250,18 @@
       <button id="forgot-pin-send" style="width:100%;padding:10px;border-radius:8px;border:none;background:var(--teal-bar);color:#fff;font-weight:600;font-size:14px;cursor:pointer">Send New PIN</button>
       <div style="margin-top:14px">
         <a href="#" id="back-to-login-link" style="font-size:12.5px;color:var(--text-secondary);text-decoration:underline">Back to login</a>
+      </div>
+    </div>
+    <div id="verify-code-panel" style="display:none">
+      <h2 style="margin-bottom:2px">Verify It's You</h2>
+      <p id="verify-code-sub" style="margin-bottom:16px">We texted a 6-digit code to your phone on file</p>
+      <input type="text" id="verify-code-input" inputmode="numeric" maxlength="6" placeholder="Code" style="width:100%;font-size:1.3rem;letter-spacing:.3em;text-align:center;padding:10px;border-radius:8px;border:1px solid var(--border);margin-bottom:12px;box-sizing:border-box" />
+      <div id="verify-code-error" style="min-height:18px;margin-bottom:6px;font-size:13px;color:var(--red-fg)"></div>
+      <button id="verify-code-submit" style="width:100%;padding:10px;border-radius:8px;border:none;background:var(--brand-dark);color:#fff;font-weight:600;font-size:14px;cursor:pointer">Verify &amp; Log In</button>
+      <div style="margin-top:14px;display:flex;flex-direction:column;gap:6px">
+        <a href="#" id="resend-code-link" style="font-size:12.5px;color:var(--text-secondary);text-decoration:underline">Resend code</a>
+        <a href="#" id="skip-code-link" style="font-size:12.5px;color:var(--text-secondary);text-decoration:underline">Not receiving it? Continue with PIN only</a>
+        <a href="#" id="cancel-code-link" style="font-size:12.5px;color:var(--text-secondary);text-decoration:underline">Cancel, back to PIN</a>
       </div>
     </div>
   </div>
@@ -766,12 +779,14 @@ const emailjsConfig = {
   templateId: "template_ph5468d"
 };
 const TRACKER_URL = "https://punchlist.lancelotbiz.com/";
-const BUILD_VERSION = "v25 — Aug 30, 2026 (Field Ready theme + visible upload errors)";
+const BUILD_VERSION = "v26 — Oct 1, 2026 (Firebase Hosting migration + PIN+SMS login)";
 document.addEventListener('DOMContentLoaded', () => {
   const el = document.getElementById('build-version-label');
   if (el) el.textContent = `· Build ${BUILD_VERSION}`;
   const badge = document.getElementById('appVersionBadge');
   if (badge) badge.textContent = BUILD_VERSION.split(' — ')[0];
+  const loginLabel = document.getElementById('login-version-label');
+  if (loginLabel) loginLabel.textContent = BUILD_VERSION.split(' — ')[0];
 });
 </script>
 
@@ -3263,6 +3278,7 @@ function renderStaffNotes() {
 
 function showPinGate() {
   document.getElementById('forgot-pin-row').style.display = 'none';
+  document.getElementById('verify-code-panel').style.display = 'none';
   document.getElementById('login-panel').style.display = 'block';
   document.getElementById('pin-gate').style.display = 'flex';
 }
@@ -3310,15 +3326,57 @@ document.getElementById('view-all-depts-btn').addEventListener('click', () => {
 
 const MASTER_RECOVERY_PIN = '861029'; // hardcoded safety net — always logs in as admin, never stored in Firebase, can't be overwritten
 
+// --- PIN + SMS verification code login ---
+// pendingLogin holds the state between "PIN accepted" and "code verified":
+// { match, pin, code, expiresAt, attempts }
+let pendingLogin = null;
+let resendCooldownUntil = 0;
+
+function finishLogin(match, pin) {
+  currentUser = match;
+  currentPin = pin;
+  try { if (pin) localStorage.setItem('punchlist_pin', pin); } catch (e) {}
+  pendingLogin = null;
+  hidePinGate();
+  applyUserBar();
+  renderStats();
+  renderAll();
+}
+
+function generateLoginCode() {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+function sendLoginCode(phone, code, name) {
+  const textMessage = `Faire Punch List: your login verification code is ${code}. It expires in 10 minutes. Didn't request this? Ignore this text. Reply STOP to opt out.`;
+  return fetch('https://us-central1-faire-builder-tracker.cloudfunctions.net/sendJobText', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ to: phone, message: textMessage })
+  }).then(res => {
+    if (res.ok) logMessage('text', name, phone, '[login verification code]');
+    return res.ok;
+  }).catch(err => {
+    console.error('Login code text failed', err);
+    return false;
+  });
+}
+
+function showVerifyCodePanel(phone) {
+  document.getElementById('login-panel').style.display = 'none';
+  document.getElementById('forgot-pin-row').style.display = 'none';
+  document.getElementById('verify-code-panel').style.display = 'block';
+  const masked = phone ? phone.replace(/\d(?=\d{2})/g, '•') : 'your phone';
+  document.getElementById('verify-code-sub').textContent = `We texted a 6-digit code to ${masked}`;
+  document.getElementById('verify-code-input').value = '';
+  document.getElementById('verify-code-error').textContent = '';
+  document.getElementById('verify-code-input').focus();
+}
+
 function tryLogin(pin) {
   const trimmed = pin.trim();
   if (trimmed === MASTER_RECOVERY_PIN) {
-    currentUser = { name: 'Scott Bowser (recovery admin)', role: 'admin' };
-    currentPin = null; // not a real directory entry — "Change my PIN" will add one properly
-    hidePinGate();
-    applyUserBar();
-    renderStats();
-    renderAll();
+    finishLogin({ name: 'Scott Bowser (recovery admin)', role: 'admin' }, null);
     return;
   }
   const match = PIN_DIRECTORY[trimmed];
@@ -3331,13 +3389,23 @@ function tryLogin(pin) {
     errorEl.textContent = "The tracker is in test mode right now — only admin can sign in. Try again shortly.";
     return;
   }
-  currentUser = match;
-  currentPin = trimmed;
-  try { localStorage.setItem('punchlist_pin', trimmed); } catch (e) {}
-  hidePinGate();
-  applyUserBar();
-  renderStats();
-  renderAll();
+
+  const phone = findPhone(match.name);
+  if (!phone) {
+    // No phone on file — nothing to verify against, log in on PIN alone.
+    finishLogin(match, trimmed);
+    return;
+  }
+
+  const code = generateLoginCode();
+  pendingLogin = { match, pin: trimmed, code, expiresAt: Date.now() + 10 * 60 * 1000, attempts: 0, phone };
+  showVerifyCodePanel(phone);
+  sendLoginCode(phone, code, match.name).then(ok => {
+    if (!pendingLogin || pendingLogin.code !== code) return; // superseded by a resend/cancel
+    if (!ok) {
+      document.getElementById('verify-code-sub').textContent = "Couldn't send a text just now — you can continue with PIN only below.";
+    }
+  });
 }
 
 document.getElementById('pin-submit').addEventListener('click', () => {
@@ -3345,6 +3413,66 @@ document.getElementById('pin-submit').addEventListener('click', () => {
 });
 document.getElementById('pin-input').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') tryLogin(document.getElementById('pin-input').value);
+});
+
+document.getElementById('verify-code-submit').addEventListener('click', () => {
+  const errorEl = document.getElementById('verify-code-error');
+  if (!pendingLogin) { errorEl.textContent = 'Something went wrong — go back and try your PIN again.'; return; }
+  const entered = document.getElementById('verify-code-input').value.trim();
+  if (Date.now() > pendingLogin.expiresAt) {
+    errorEl.textContent = 'That code expired. Tap "Resend code" for a new one.';
+    return;
+  }
+  pendingLogin.attempts++;
+  if (pendingLogin.attempts > 6) {
+    errorEl.textContent = 'Too many tries. Tap "Resend code" for a new one, or continue with PIN only.';
+    return;
+  }
+  if (entered !== pendingLogin.code) {
+    errorEl.textContent = "That code isn't right. Try again.";
+    return;
+  }
+  finishLogin(pendingLogin.match, pendingLogin.pin);
+});
+document.getElementById('verify-code-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('verify-code-submit').click();
+});
+
+document.getElementById('resend-code-link').addEventListener('click', (e) => {
+  e.preventDefault();
+  if (!pendingLogin) return;
+  const errorEl = document.getElementById('verify-code-error');
+  if (Date.now() < resendCooldownUntil) {
+    errorEl.textContent = 'Give it a few seconds before resending.';
+    return;
+  }
+  resendCooldownUntil = Date.now() + 30 * 1000;
+  const code = generateLoginCode();
+  pendingLogin.code = code;
+  pendingLogin.expiresAt = Date.now() + 10 * 60 * 1000;
+  pendingLogin.attempts = 0;
+  errorEl.textContent = '';
+  document.getElementById('verify-code-sub').textContent = 'Sending a new code…';
+  sendLoginCode(pendingLogin.phone, code, pendingLogin.match.name).then(ok => {
+    if (!pendingLogin || pendingLogin.code !== code) return;
+    document.getElementById('verify-code-sub').textContent = ok
+      ? `We texted a new code to ${pendingLogin.phone.replace(/\d(?=\d{2})/g, '•')}`
+      : "Couldn't send a text just now — you can continue with PIN only below.";
+  });
+});
+
+document.getElementById('skip-code-link').addEventListener('click', (e) => {
+  e.preventDefault();
+  if (!pendingLogin) return;
+  finishLogin(pendingLogin.match, pendingLogin.pin);
+});
+
+document.getElementById('cancel-code-link').addEventListener('click', (e) => {
+  e.preventDefault();
+  pendingLogin = null;
+  document.getElementById('pin-input').value = '';
+  document.getElementById('pin-error').textContent = '';
+  showPinGate();
 });
 document.getElementById('logout-btn').addEventListener('click', () => {
   currentUser = null;
