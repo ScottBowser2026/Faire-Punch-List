@@ -41,6 +41,11 @@ jobs:
           GOOGLE_APPLICATION_CREDENTIALS: /tmp/service-account.json
         run: firebase hosting:sites:create punchlist-tracker --project faire-builder-tracker --json > /tmp/site-create.json 2>&1 || true
 
+      - name: Test cross-project auth (diagnostic - faire-food-qc)
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/service-account.json
+        run: firebase hosting:sites:list --project faire-food-qc --json > /tmp/crossproject.json 2>&1 || true
+
       - name: List public dir contents (diagnostic)
         run: find . -maxdepth 1 -not -path './.git*' > /tmp/public-dir-listing.txt 2>&1
 
@@ -66,6 +71,7 @@ jobs:
           mkdir -p .deploy-logs
           cp /tmp/sites.json .deploy-logs/last-sites.json || true
           cp /tmp/site-create.json .deploy-logs/last-site-create.json || true
+          cp /tmp/crossproject.json .deploy-logs/last-crossproject.json || true
           cp /tmp/deploy-output.json .deploy-logs/last-deploy.json || true
           cp /tmp/public-dir-listing.txt .deploy-logs/last-public-dir-listing.txt || true
           cp /tmp/curl-test.txt .deploy-logs/last-curl-test.txt || true
