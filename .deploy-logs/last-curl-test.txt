@@ -1,35 +1,31 @@
 === / ===
-HTTP/2 404 
-cache-control: max-age=0
+HTTP/2 200 
+cache-control: max-age=3600
 content-type: text/html; charset=utf-8
+etag: "de81bc52eebe49a894a1759f6fd9905c3019642295e4472d41121b7a50fe4a90"
+last-modified: Thu, 01 Oct 2026 20:40:43 GMT
 strict-transport-security: max-age=31556926; includeSubDomains; preload
 accept-ranges: bytes
-date: Thu, 01 Oct 2026 20:33:28 GMT
-x-served-by: cache-phx1710119-PHX
+date: Thu, 01 Oct 2026 20:40:54 GMT
+x-served-by: cache-phx1710035-PHX
 x-cache: MISS
 x-cache-hits: 0
-x-timer: S1790886808.249307,VS0,VE40
+x-timer: S1790887254.217435,VS0,VE186
 vary: x-fh-requested-host, accept-encoding
 alt-svc: h3=":443";ma=86400,h3-29=":443";ma=86400,h3-27=":443";ma=86400
-content-length: 21265
+content-length: 233866
 
 
 === body (first 500 chars) ===
-
-<!doctype html>
-<html>
-  <head>
-    <title>Site Not Found</title>
-    <link href='https://fonts.googleapis.com/css?family=Roboto' rel='stylesheet' type='text/css'>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-
-      body {
-        margin: 0 auto;
-        margin-top: 48px;
-        max-width: 616px;
-        padding: 0 16px;
-        font-family: 'Roboto', 'Helvetica Neue', sans-serif;
-        font-size: 16px;
-        line-height: 24px;
-        color: rgba(0,
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Faire Punch List — Progress Tracker</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#04342C">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="blac

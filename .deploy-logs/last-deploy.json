@@ -1,4 +1,6 @@
 {
-  "status": "error",
-  "error": "Failed to get Firebase project faire-food-qc. Please make sure the project exists and your account has permission to access it."
+  "status": "success",
+  "result": {
+    "hosting": "projects/872552099867/sites/faire-punch-list/versions/b4def83133f8362d"
+  }
 }

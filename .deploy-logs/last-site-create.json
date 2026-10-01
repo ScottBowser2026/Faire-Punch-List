@@ -1,4 +1,8 @@
 {
-  "status": "error",
-  "error": "Request to https://cloudresourcemanager.googleapis.com/v1/projects/faire-food-qc had HTTP Error: 403, The caller does not have permission"
+  "status": "success",
+  "result": {
+    "name": "projects/faire-food-qc/sites/faire-punch-list",
+    "defaultUrl": "https://faire-punch-list.web.app",
+    "type": "USER_SITE"
+  }
 }
