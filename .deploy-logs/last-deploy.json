@@ -1,59 +1,124 @@
-[2026-10-01T20:02:41.122Z] ----------------------------------------------------------------------
-[2026-10-01T20:02:41.125Z] Command:       /opt/hostedtoolcache/node/20.20.2/x64/bin/node /opt/hostedtoolcache/node/20.20.2/x64/bin/firebase deploy --only hosting --project faire-builder-tracker --non-interactive --force --debug
-[2026-10-01T20:02:41.125Z] CLI Version:   15.32.1
-[2026-10-01T20:02:41.125Z] Platform:      linux
-[2026-10-01T20:02:41.126Z] Node Version:  v20.20.2
-[2026-10-01T20:02:41.126Z] Detected Agent: unknown
-[2026-10-01T20:02:41.126Z] Time:          Thu Oct 01 2026 20:02:41 GMT+0000 (Coordinated Universal Time)
-[2026-10-01T20:02:41.126Z] ----------------------------------------------------------------------
+[2026-10-01T20:15:22.069Z] ----------------------------------------------------------------------
+[2026-10-01T20:15:22.072Z] Command:       /opt/hostedtoolcache/node/20.20.2/x64/bin/node /opt/hostedtoolcache/node/20.20.2/x64/bin/firebase deploy --only hosting --project faire-builder-tracker --non-interactive --force --debug
+[2026-10-01T20:15:22.072Z] CLI Version:   15.32.1
+[2026-10-01T20:15:22.072Z] Platform:      linux
+[2026-10-01T20:15:22.073Z] Node Version:  v20.20.2
+[2026-10-01T20:15:22.073Z] Detected Agent: unknown
+[2026-10-01T20:15:22.073Z] Time:          Thu Oct 01 2026 20:15:22 GMT+0000 (Coordinated Universal Time)
+[2026-10-01T20:15:22.073Z] ----------------------------------------------------------------------
 
-[2026-10-01T20:02:41.998Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
-[2026-10-01T20:02:42.158Z] Running auto auth
-[2026-10-01T20:02:42.159Z] [iam] checking project faire-builder-tracker for permissions ["firebase.projects.get","firebasehosting.sites.update"]
-[2026-10-01T20:02:42.160Z] No OAuth tokens found
-[2026-10-01T20:02:42.161Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/faire-builder-tracker:testIamPermissions [none]
-[2026-10-01T20:02:42.162Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/faire-builder-tracker:testIamPermissions  x-goog-user-project=faire-builder-tracker
-[2026-10-01T20:02:42.162Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/faire-builder-tracker:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
-[2026-10-01T20:02:42.308Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/faire-builder-tracker:testIamPermissions 200
-[2026-10-01T20:02:42.308Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/faire-builder-tracker:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
-[2026-10-01T20:02:42.309Z] No OAuth tokens found
-[2026-10-01T20:02:42.309Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/faire-builder-tracker [none]
-[2026-10-01T20:02:42.561Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/faire-builder-tracker 200
-[2026-10-01T20:02:42.561Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/faire-builder-tracker {"projectId":"faire-builder-tracker","projectNumber":"205329117340","displayName":"Faire Builder Tracker","name":"projects/faire-builder-tracker","resources":{"hostingSite":"faire-builder-tracker","realtimeDatabaseInstance":"faire-builder-tracker-default-rtdb"},"state":"ACTIVE","etag":"1_d5702155-ad92-47e8-89d4-70526ac77d91"}
+[2026-10-01T20:15:22.947Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[2026-10-01T20:15:23.076Z] Running auto auth
+[2026-10-01T20:15:23.076Z] [iam] checking project faire-builder-tracker for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[2026-10-01T20:15:23.078Z] No OAuth tokens found
+[2026-10-01T20:15:23.079Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/faire-builder-tracker:testIamPermissions [none]
+[2026-10-01T20:15:23.079Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/faire-builder-tracker:testIamPermissions  x-goog-user-project=faire-builder-tracker
+[2026-10-01T20:15:23.079Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/faire-builder-tracker:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[2026-10-01T20:15:23.222Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/faire-builder-tracker:testIamPermissions 200
+[2026-10-01T20:15:23.223Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/faire-builder-tracker:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[2026-10-01T20:15:23.223Z] No OAuth tokens found
+[2026-10-01T20:15:23.224Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/faire-builder-tracker [none]
+[2026-10-01T20:15:23.488Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/faire-builder-tracker 200
+[2026-10-01T20:15:23.489Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/faire-builder-tracker {"projectId":"faire-builder-tracker","projectNumber":"205329117340","displayName":"Faire Builder Tracker","name":"projects/faire-builder-tracker","resources":{"hostingSite":"faire-builder-tracker","realtimeDatabaseInstance":"faire-builder-tracker-default-rtdb"},"state":"ACTIVE","etag":"1_38181435-e2b2-46dd-9a14-3710c15a3246"}
 
 === Deploying to 'faire-builder-tracker'...
 
 i  deploying hosting 
-[2026-10-01T20:02:42.563Z] No OAuth tokens found
-[2026-10-01T20:02:42.564Z] >>> [apiv2][query] GET https://firebasehosting.googleapis.com/v1beta1/projects/faire-builder-tracker/sites/faire-builder-tracker [none]
-[2026-10-01T20:02:42.845Z] <<< [apiv2][status] GET https://firebasehosting.googleapis.com/v1beta1/projects/faire-builder-tracker/sites/faire-builder-tracker 200
-[2026-10-01T20:02:42.845Z] <<< [apiv2][body] GET https://firebasehosting.googleapis.com/v1beta1/projects/faire-builder-tracker/sites/faire-builder-tracker {"name":"projects/faire-builder-tracker/sites/faire-builder-tracker","defaultUrl":"https://faire-builder-tracker.web.app","type":"DEFAULT_SITE"}
-[2026-10-01T20:02:42.846Z] No OAuth tokens found
-[2026-10-01T20:02:42.846Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/faire-builder-tracker/versions [none]
-[2026-10-01T20:02:42.846Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/faire-builder-tracker/versions {"status":"CREATED","labels":{"deployment-tool":"cli-firebase"}}
-[2026-10-01T20:02:43.279Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/faire-builder-tracker/versions 200
-[2026-10-01T20:02:43.280Z] <<< [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/faire-builder-tracker/versions {"name":"projects/205329117340/sites/faire-builder-tracker/versions/76c0fa7a283896aa","status":"CREATED","config":{},"labels":{"deployment-tool":"cli-firebase"}}
-i  hosting[faire-builder-tracker]: beginning deploy... 
-i  hosting[faire-builder-tracker]: found 13 files in . 
-[2026-10-01T20:02:43.293Z] [hosting] uploading with 200 concurrency
-[2026-10-01T20:02:43.293Z] [hosting] hash cache [] not populated
-[2026-10-01T20:02:43.310Z] No OAuth tokens found
-[2026-10-01T20:02:43.311Z] [hosting] hash cache [] stored for 13 files
-[2026-10-01T20:02:43.311Z] [hosting][hash queue][FINAL] {"max":14,"min":7,"avg":9.076923076923077,"active":0,"complete":13,"success":13,"errored":0,"retried":0,"total":13,"elapsed":18}
-[2026-10-01T20:02:43.311Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/205329117340/sites/faire-builder-tracker/versions/76c0fa7a283896aa:populateFiles [none]
-[2026-10-01T20:02:43.311Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/205329117340/sites/faire-builder-tracker/versions/76c0fa7a283896aa:populateFiles {"files":{"/terms.html":"08193f34de420bfa54c9df0580513fc41394d70c24ab81ff1906ec3616047cbf","/sw.js":"9f4e65f9239d88b950c030b5ffad1ea8cc0327d4e3dd7d724e26f4bdbac70aa3","/manifest.json":"5d6c72fa4df993c01f853e93267e07333ac8b53a92c75060fe5ff8b7a20f92c7","/privacy.html":"eb50066d9b07559fba725756bd854d27c75ca33aa5c8e7f8d8ac1b296a32adcc","/icon-192.png":"a679769e2ecc9e517919cc5a0713b8e250805222555464e5111c35b4243760e8","/icon-512.png":"31ff219cbb70e3949ba1f928be54a5229ffe3245a99836782518ebaefdf2f4d6","/firebase-storage-compat.js":"3c1afd034b13f097a53752d1e992209adbd9bd90555752e495561d9dba5e14cc","/emailjs.min.js":"3f6d9001a58555c503c21a5f4a83751105bb0307f15339e75124b66ce4ee8af7","/firebase-app-compat.js":"f3582001e20bb1276fd8dd06264322a2f0f70cfb1408b6f45de487b69894bb5f","/consent-script.html":"acdc917492995580f3bfebd1d58f87761e8efee59700311a5298761892436fc8","/firebase-database-compat.js":"46b71756bd567d876a7f3b49373f6ea9c1aad983a183323b5b909cd5bfa88100","/index.html":"de81bc52eebe49a894a1759f6fd9905c3019642295e4472d41121b7a50fe4a90","/firebase-auth-compat.js":"9f33c8852e60f11b3ecaa30fb1d078d535d61af74958b52ad5d0a252cf193d67"}}
-[2026-10-01T20:02:43.641Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/205329117340/sites/faire-builder-tracker/versions/76c0fa7a283896aa:populateFiles 200
-[2026-10-01T20:02:43.641Z] <<< [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/205329117340/sites/faire-builder-tracker/versions/76c0fa7a283896aa:populateFiles {"uploadUrl":"https://upload-firebasehosting.googleapis.com/upload/sites/faire-builder-tracker/versions/76c0fa7a283896aa/files"}
-[2026-10-01T20:02:43.641Z] [hosting][populate queue][FINAL] {"max":331,"min":331,"avg":331,"active":0,"complete":1,"success":1,"errored":0,"retried":0,"total":1,"elapsed":331}
-[2026-10-01T20:02:43.641Z] [hosting] uploads queued: 0
-[2026-10-01T20:02:43.641Z] [hosting][upload queue][FINAL] {"max":0,"min":9999999999,"avg":0,"active":0,"complete":0,"success":0,"errored":0,"retried":0,"total":0,"elapsed":1790884963641}
+[2026-10-01T20:15:23.491Z] No OAuth tokens found
+[2026-10-01T20:15:23.491Z] >>> [apiv2][query] GET https://firebasehosting.googleapis.com/v1beta1/projects/faire-builder-tracker/sites/punchlist-tracker [none]
+[2026-10-01T20:15:24.088Z] <<< [apiv2][status] GET https://firebasehosting.googleapis.com/v1beta1/projects/faire-builder-tracker/sites/punchlist-tracker 200
+[2026-10-01T20:15:24.088Z] <<< [apiv2][body] GET https://firebasehosting.googleapis.com/v1beta1/projects/faire-builder-tracker/sites/punchlist-tracker {"name":"projects/faire-builder-tracker/sites/punchlist-tracker","defaultUrl":"https://punchlist-tracker.web.app","type":"USER_SITE"}
+[2026-10-01T20:15:24.089Z] No OAuth tokens found
+[2026-10-01T20:15:24.089Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/punchlist-tracker/versions [none]
+[2026-10-01T20:15:24.089Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/punchlist-tracker/versions {"status":"CREATED","labels":{"deployment-tool":"cli-firebase"}}
+[2026-10-01T20:15:24.480Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/punchlist-tracker/versions 200
+[2026-10-01T20:15:24.480Z] <<< [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/punchlist-tracker/versions {"name":"projects/205329117340/sites/punchlist-tracker/versions/85de00509cd7ef47","status":"CREATED","config":{},"labels":{"deployment-tool":"cli-firebase"}}
+i  hosting[punchlist-tracker]: beginning deploy... 
+i  hosting[punchlist-tracker]: found 13 files in . 
+[2026-10-01T20:15:24.493Z] [hosting] uploading with 200 concurrency
+[2026-10-01T20:15:24.494Z] [hosting] hash cache [] not populated
+[2026-10-01T20:15:24.512Z] No OAuth tokens found
+[2026-10-01T20:15:24.513Z] [hosting] hash cache [] stored for 13 files
+[2026-10-01T20:15:24.513Z] [hosting][hash queue][FINAL] {"max":15,"min":7,"avg":9.076923076923077,"active":0,"complete":13,"success":13,"errored":0,"retried":0,"total":13,"elapsed":19}
+[2026-10-01T20:15:24.514Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/205329117340/sites/punchlist-tracker/versions/85de00509cd7ef47:populateFiles [none]
+[2026-10-01T20:15:24.514Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/205329117340/sites/punchlist-tracker/versions/85de00509cd7ef47:populateFiles {"files":{"/sw.js":"9f4e65f9239d88b950c030b5ffad1ea8cc0327d4e3dd7d724e26f4bdbac70aa3","/terms.html":"08193f34de420bfa54c9df0580513fc41394d70c24ab81ff1906ec3616047cbf","/manifest.json":"5d6c72fa4df993c01f853e93267e07333ac8b53a92c75060fe5ff8b7a20f92c7","/privacy.html":"eb50066d9b07559fba725756bd854d27c75ca33aa5c8e7f8d8ac1b296a32adcc","/icon-192.png":"a679769e2ecc9e517919cc5a0713b8e250805222555464e5111c35b4243760e8","/icon-512.png":"31ff219cbb70e3949ba1f928be54a5229ffe3245a99836782518ebaefdf2f4d6","/firebase-storage-compat.js":"3c1afd034b13f097a53752d1e992209adbd9bd90555752e495561d9dba5e14cc","/emailjs.min.js":"3f6d9001a58555c503c21a5f4a83751105bb0307f15339e75124b66ce4ee8af7","/consent-script.html":"acdc917492995580f3bfebd1d58f87761e8efee59700311a5298761892436fc8","/firebase-app-compat.js":"f3582001e20bb1276fd8dd06264322a2f0f70cfb1408b6f45de487b69894bb5f","/firebase-auth-compat.js":"9f33c8852e60f11b3ecaa30fb1d078d535d61af74958b52ad5d0a252cf193d67","/index.html":"de81bc52eebe49a894a1759f6fd9905c3019642295e4472d41121b7a50fe4a90","/firebase-database-compat.js":"46b71756bd567d876a7f3b49373f6ea9c1aad983a183323b5b909cd5bfa88100"}}
+[2026-10-01T20:15:25.213Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/205329117340/sites/punchlist-tracker/versions/85de00509cd7ef47:populateFiles 200
+[2026-10-01T20:15:25.214Z] <<< [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/205329117340/sites/punchlist-tracker/versions/85de00509cd7ef47:populateFiles {"uploadRequiredHashes":["5d6c72fa4df993c01f853e93267e07333ac8b53a92c75060fe5ff8b7a20f92c7","08193f34de420bfa54c9df0580513fc41394d70c24ab81ff1906ec3616047cbf","acdc917492995580f3bfebd1d58f87761e8efee59700311a5298761892436fc8","46b71756bd567d876a7f3b49373f6ea9c1aad983a183323b5b909cd5bfa88100","3f6d9001a58555c503c21a5f4a83751105bb0307f15339e75124b66ce4ee8af7","f3582001e20bb1276fd8dd06264322a2f0f70cfb1408b6f45de487b69894bb5f","eb50066d9b07559fba725756bd854d27c75ca33aa5c8e7f8d8ac1b296a32adcc","31ff219cbb70e3949ba1f928be54a5229ffe3245a99836782518ebaefdf2f4d6","3c1afd034b13f097a53752d1e992209adbd9bd90555752e495561d9dba5e14cc","de81bc52eebe49a894a1759f6fd9905c3019642295e4472d41121b7a50fe4a90","9f33c8852e60f11b3ecaa30fb1d078d535d61af74958b52ad5d0a252cf193d67","a679769e2ecc9e517919cc5a0713b8e250805222555464e5111c35b4243760e8","9f4e65f9239d88b950c030b5ffad1ea8cc0327d4e3dd7d724e26f4bdbac70aa3"],"uploadUrl":"https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files"}
+[2026-10-01T20:15:25.214Z] No OAuth tokens found
+[2026-10-01T20:15:25.215Z] No OAuth tokens found
+[2026-10-01T20:15:25.215Z] No OAuth tokens found
+[2026-10-01T20:15:25.215Z] No OAuth tokens found
+[2026-10-01T20:15:25.216Z] No OAuth tokens found
+[2026-10-01T20:15:25.216Z] No OAuth tokens found
+[2026-10-01T20:15:25.216Z] No OAuth tokens found
+[2026-10-01T20:15:25.216Z] No OAuth tokens found
+[2026-10-01T20:15:25.217Z] No OAuth tokens found
+[2026-10-01T20:15:25.217Z] No OAuth tokens found
+[2026-10-01T20:15:25.217Z] No OAuth tokens found
+[2026-10-01T20:15:25.217Z] No OAuth tokens found
+[2026-10-01T20:15:25.218Z] No OAuth tokens found
+[2026-10-01T20:15:25.218Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/5d6c72fa4df993c01f853e93267e07333ac8b53a92c75060fe5ff8b7a20f92c7 [none]
+[2026-10-01T20:15:25.218Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/5d6c72fa4df993c01f853e93267e07333ac8b53a92c75060fe5ff8b7a20f92c7 [stream]
+[2026-10-01T20:15:25.219Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/08193f34de420bfa54c9df0580513fc41394d70c24ab81ff1906ec3616047cbf [none]
+[2026-10-01T20:15:25.219Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/08193f34de420bfa54c9df0580513fc41394d70c24ab81ff1906ec3616047cbf [stream]
+[2026-10-01T20:15:25.220Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/acdc917492995580f3bfebd1d58f87761e8efee59700311a5298761892436fc8 [none]
+[2026-10-01T20:15:25.220Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/acdc917492995580f3bfebd1d58f87761e8efee59700311a5298761892436fc8 [stream]
+[2026-10-01T20:15:25.220Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/46b71756bd567d876a7f3b49373f6ea9c1aad983a183323b5b909cd5bfa88100 [none]
+[2026-10-01T20:15:25.221Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/46b71756bd567d876a7f3b49373f6ea9c1aad983a183323b5b909cd5bfa88100 [stream]
+[2026-10-01T20:15:25.221Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/3f6d9001a58555c503c21a5f4a83751105bb0307f15339e75124b66ce4ee8af7 [none]
+[2026-10-01T20:15:25.221Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/3f6d9001a58555c503c21a5f4a83751105bb0307f15339e75124b66ce4ee8af7 [stream]
+[2026-10-01T20:15:25.222Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/f3582001e20bb1276fd8dd06264322a2f0f70cfb1408b6f45de487b69894bb5f [none]
+[2026-10-01T20:15:25.222Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/f3582001e20bb1276fd8dd06264322a2f0f70cfb1408b6f45de487b69894bb5f [stream]
+[2026-10-01T20:15:25.223Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/eb50066d9b07559fba725756bd854d27c75ca33aa5c8e7f8d8ac1b296a32adcc [none]
+[2026-10-01T20:15:25.223Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/eb50066d9b07559fba725756bd854d27c75ca33aa5c8e7f8d8ac1b296a32adcc [stream]
+[2026-10-01T20:15:25.223Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/31ff219cbb70e3949ba1f928be54a5229ffe3245a99836782518ebaefdf2f4d6 [none]
+[2026-10-01T20:15:25.223Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/31ff219cbb70e3949ba1f928be54a5229ffe3245a99836782518ebaefdf2f4d6 [stream]
+[2026-10-01T20:15:25.224Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/3c1afd034b13f097a53752d1e992209adbd9bd90555752e495561d9dba5e14cc [none]
+[2026-10-01T20:15:25.224Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/3c1afd034b13f097a53752d1e992209adbd9bd90555752e495561d9dba5e14cc [stream]
+[2026-10-01T20:15:25.225Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/de81bc52eebe49a894a1759f6fd9905c3019642295e4472d41121b7a50fe4a90 [none]
+[2026-10-01T20:15:25.225Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/de81bc52eebe49a894a1759f6fd9905c3019642295e4472d41121b7a50fe4a90 [stream]
+[2026-10-01T20:15:25.226Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/9f33c8852e60f11b3ecaa30fb1d078d535d61af74958b52ad5d0a252cf193d67 [none]
+[2026-10-01T20:15:25.226Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/9f33c8852e60f11b3ecaa30fb1d078d535d61af74958b52ad5d0a252cf193d67 [stream]
+[2026-10-01T20:15:25.226Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/a679769e2ecc9e517919cc5a0713b8e250805222555464e5111c35b4243760e8 [none]
+[2026-10-01T20:15:25.226Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/a679769e2ecc9e517919cc5a0713b8e250805222555464e5111c35b4243760e8 [stream]
+[2026-10-01T20:15:25.227Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/9f4e65f9239d88b950c030b5ffad1ea8cc0327d4e3dd7d724e26f4bdbac70aa3 [none]
+[2026-10-01T20:15:25.227Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/9f4e65f9239d88b950c030b5ffad1ea8cc0327d4e3dd7d724e26f4bdbac70aa3 [stream]
+[2026-10-01T20:15:25.234Z] [hosting][populate queue][FINAL] {"max":706,"min":706,"avg":706,"active":0,"complete":1,"success":1,"errored":0,"retried":0,"total":1,"elapsed":722}
+[2026-10-01T20:15:25.235Z] [hosting] uploads queued: 13
+[2026-10-01T20:15:25.637Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/a679769e2ecc9e517919cc5a0713b8e250805222555464e5111c35b4243760e8 200
+[2026-10-01T20:15:25.638Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/a679769e2ecc9e517919cc5a0713b8e250805222555464e5111c35b4243760e8 [stream]
+[2026-10-01T20:15:25.643Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/3c1afd034b13f097a53752d1e992209adbd9bd90555752e495561d9dba5e14cc 200
+[2026-10-01T20:15:25.643Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/3c1afd034b13f097a53752d1e992209adbd9bd90555752e495561d9dba5e14cc [stream]
+[2026-10-01T20:15:25.673Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/f3582001e20bb1276fd8dd06264322a2f0f70cfb1408b6f45de487b69894bb5f 200
+[2026-10-01T20:15:25.673Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/f3582001e20bb1276fd8dd06264322a2f0f70cfb1408b6f45de487b69894bb5f [stream]
+[2026-10-01T20:15:25.674Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/5d6c72fa4df993c01f853e93267e07333ac8b53a92c75060fe5ff8b7a20f92c7 200
+[2026-10-01T20:15:25.674Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/5d6c72fa4df993c01f853e93267e07333ac8b53a92c75060fe5ff8b7a20f92c7 [stream]
+[2026-10-01T20:15:25.675Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/9f33c8852e60f11b3ecaa30fb1d078d535d61af74958b52ad5d0a252cf193d67 200
+[2026-10-01T20:15:25.675Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/9f33c8852e60f11b3ecaa30fb1d078d535d61af74958b52ad5d0a252cf193d67 [stream]
+[2026-10-01T20:15:25.675Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/08193f34de420bfa54c9df0580513fc41394d70c24ab81ff1906ec3616047cbf 200
+[2026-10-01T20:15:25.675Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/08193f34de420bfa54c9df0580513fc41394d70c24ab81ff1906ec3616047cbf [stream]
+[2026-10-01T20:15:25.680Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/de81bc52eebe49a894a1759f6fd9905c3019642295e4472d41121b7a50fe4a90 200
+[2026-10-01T20:15:25.681Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/de81bc52eebe49a894a1759f6fd9905c3019642295e4472d41121b7a50fe4a90 [stream]
+[2026-10-01T20:15:25.681Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/31ff219cbb70e3949ba1f928be54a5229ffe3245a99836782518ebaefdf2f4d6 200
+[2026-10-01T20:15:25.681Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/31ff219cbb70e3949ba1f928be54a5229ffe3245a99836782518ebaefdf2f4d6 [stream]
+[2026-10-01T20:15:25.682Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/acdc917492995580f3bfebd1d58f87761e8efee59700311a5298761892436fc8 200
+[2026-10-01T20:15:25.682Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/acdc917492995580f3bfebd1d58f87761e8efee59700311a5298761892436fc8 [stream]
+[2026-10-01T20:15:25.684Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/46b71756bd567d876a7f3b49373f6ea9c1aad983a183323b5b909cd5bfa88100 200
+[2026-10-01T20:15:25.684Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/46b71756bd567d876a7f3b49373f6ea9c1aad983a183323b5b909cd5bfa88100 [stream]
+[2026-10-01T20:15:25.692Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/3f6d9001a58555c503c21a5f4a83751105bb0307f15339e75124b66ce4ee8af7 200
+[2026-10-01T20:15:25.692Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/3f6d9001a58555c503c21a5f4a83751105bb0307f15339e75124b66ce4ee8af7 [stream]
+[2026-10-01T20:15:25.698Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/9f4e65f9239d88b950c030b5ffad1ea8cc0327d4e3dd7d724e26f4bdbac70aa3 200
+[2026-10-01T20:15:25.698Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/9f4e65f9239d88b950c030b5ffad1ea8cc0327d4e3dd7d724e26f4bdbac70aa3 [stream]
+[2026-10-01T20:15:25.750Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/eb50066d9b07559fba725756bd854d27c75ca33aa5c8e7f8d8ac1b296a32adcc 200
+[2026-10-01T20:15:25.750Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/punchlist-tracker/versions/85de00509cd7ef47/files/eb50066d9b07559fba725756bd854d27c75ca33aa5c8e7f8d8ac1b296a32adcc [stream]
+[2026-10-01T20:15:25.750Z] [hosting][upload queue][FINAL] {"max":534,"min":421,"avg":464.61538461538464,"active":0,"complete":13,"success":13,"errored":0,"retried":0,"total":13,"elapsed":536}
 i  hosting: upload complete 
-✔  hosting[faire-builder-tracker]: file upload complete 
-[2026-10-01T20:02:43.642Z] [hosting] deploy completed after 361ms
-[2026-10-01T20:02:43.642Z] [
+✔  hosting[punchlist-tracker]: file upload complete 
+[2026-10-01T20:15:25.751Z] [hosting] deploy completed after 1269ms
+[2026-10-01T20:15:25.751Z] [
   {
     "config": {
-      "site": "faire-builder-tracker",
+      "site": "punchlist-tracker",
       "public": ".",
       "ignore": [
         "firebase.json",
@@ -71,27 +136,27 @@ i  hosting: upload complete
         ".deploy-logs/**"
       ]
     },
-    "version": "projects/205329117340/sites/faire-builder-tracker/versions/76c0fa7a283896aa"
+    "version": "projects/205329117340/sites/punchlist-tracker/versions/85de00509cd7ef47"
   }
 ]
-i  hosting[faire-builder-tracker]: finalizing version... 
-[2026-10-01T20:02:43.643Z] No OAuth tokens found
-[2026-10-01T20:02:43.644Z] >>> [apiv2][query] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/faire-builder-tracker/versions/76c0fa7a283896aa updateMask=status%2Cconfig
-[2026-10-01T20:02:43.644Z] >>> [apiv2][body] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/faire-builder-tracker/versions/76c0fa7a283896aa {"status":"FINALIZED","config":{}}
-[2026-10-01T20:02:43.919Z] <<< [apiv2][status] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/faire-builder-tracker/versions/76c0fa7a283896aa 200
-[2026-10-01T20:02:43.920Z] <<< [apiv2][body] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/faire-builder-tracker/versions/76c0fa7a283896aa {"name":"projects/205329117340/sites/faire-builder-tracker/versions/76c0fa7a283896aa","status":"FINALIZED","config":{},"labels":{"deployment-tool":"cli-firebase"},"createTime":"2026-10-01T20:02:42.960977Z","createUser":{"email":"firebase-adminsdk-fbsvc@faire-builder-tracker.iam.gserviceaccount.com"},"finalizeTime":"2026-10-01T20:02:43.880706Z","finalizeUser":{"email":"firebase-adminsdk-fbsvc@faire-builder-tracker.iam.gserviceaccount.com"}}
-[2026-10-01T20:02:43.920Z] [hosting] finalized version for faire-builder-tracker:[object Object]
-✔  hosting[faire-builder-tracker]: version finalized 
-i  hosting[faire-builder-tracker]: releasing new version... 
-[2026-10-01T20:02:43.920Z] No OAuth tokens found
-[2026-10-01T20:02:43.920Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/faire-builder-tracker/channels/live/releases versionName=projects%2F205329117340%2Fsites%2Ffaire-builder-tracker%2Fversions%2F76c0fa7a283896aa
-[2026-10-01T20:02:43.920Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/faire-builder-tracker/channels/live/releases {}
-[2026-10-01T20:02:44.227Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/faire-builder-tracker/channels/live/releases 200
-[2026-10-01T20:02:44.227Z] <<< [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/faire-builder-tracker/channels/live/releases {"name":"projects/205329117340/sites/faire-builder-tracker/channels/live/releases/1790884963564000","version":{"name":"projects/205329117340/sites/faire-builder-tracker/versions/76c0fa7a283896aa","status":"FINALIZED","config":{},"labels":{"deployment-tool":"cli-firebase"},"createTime":"2026-10-01T20:02:42.960977Z","createUser":{"email":"firebase-adminsdk-fbsvc@faire-builder-tracker.iam.gserviceaccount.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocJIf0swanR8LAEIL_xohHHlMQnyRTTAZ-ErXhswS_1zZoSTjjg=mo"},"finalizeTime":"2026-10-01T20:02:43.880706Z","finalizeUser":{"email":"firebase-adminsdk-fbsvc@faire-builder-tracker.iam.gserviceaccount.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocJIf0swanR8LAEIL_xohHHlMQnyRTTAZ-ErXhswS_1zZoSTjjg=mo"}},"type":"DEPLOY","releaseTime":"2026-10-01T20:02:43.564Z","releaseUser":{"email":"firebase-adminsdk-fbsvc@faire-builder-tracker.iam.gserviceaccount.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocJIf0swanR8LAEIL_xohHHlMQnyRTTAZ-ErXhswS_1zZoSTjjg=mo"}}
-[2026-10-01T20:02:44.227Z] [hosting] release: {"name":"projects/205329117340/sites/faire-builder-tracker/channels/live/releases/1790884963564000","version":{"name":"projects/205329117340/sites/faire-builder-tracker/versions/76c0fa7a283896aa","status":"FINALIZED","config":{},"labels":{"deployment-tool":"cli-firebase"},"createTime":"2026-10-01T20:02:42.960977Z","createUser":{"email":"firebase-adminsdk-fbsvc@faire-builder-tracker.iam.gserviceaccount.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocJIf0swanR8LAEIL_xohHHlMQnyRTTAZ-ErXhswS_1zZoSTjjg=mo"},"finalizeTime":"2026-10-01T20:02:43.880706Z","finalizeUser":{"email":"firebase-adminsdk-fbsvc@faire-builder-tracker.iam.gserviceaccount.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocJIf0swanR8LAEIL_xohHHlMQnyRTTAZ-ErXhswS_1zZoSTjjg=mo"}},"type":"DEPLOY","releaseTime":"2026-10-01T20:02:43.564Z","releaseUser":{"email":"firebase-adminsdk-fbsvc@faire-builder-tracker.iam.gserviceaccount.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocJIf0swanR8LAEIL_xohHHlMQnyRTTAZ-ErXhswS_1zZoSTjjg=mo"}}
-✔  hosting[faire-builder-tracker]: release complete 
+i  hosting[punchlist-tracker]: finalizing version... 
+[2026-10-01T20:15:25.752Z] No OAuth tokens found
+[2026-10-01T20:15:25.753Z] >>> [apiv2][query] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/punchlist-tracker/versions/85de00509cd7ef47 updateMask=status%2Cconfig
+[2026-10-01T20:15:25.753Z] >>> [apiv2][body] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/punchlist-tracker/versions/85de00509cd7ef47 {"status":"FINALIZED","config":{}}
+[2026-10-01T20:15:25.999Z] <<< [apiv2][status] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/punchlist-tracker/versions/85de00509cd7ef47 200
+[2026-10-01T20:15:25.999Z] <<< [apiv2][body] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/punchlist-tracker/versions/85de00509cd7ef47 {"name":"projects/205329117340/sites/punchlist-tracker/versions/85de00509cd7ef47","status":"FINALIZED","config":{},"labels":{"deployment-tool":"cli-firebase"},"createTime":"2026-10-01T20:15:24.194162Z","createUser":{"email":"firebase-adminsdk-fbsvc@faire-builder-tracker.iam.gserviceaccount.com"},"finalizeTime":"2026-10-01T20:15:25.956777Z","finalizeUser":{"email":"firebase-adminsdk-fbsvc@faire-builder-tracker.iam.gserviceaccount.com"}}
+[2026-10-01T20:15:25.999Z] [hosting] finalized version for punchlist-tracker:[object Object]
+✔  hosting[punchlist-tracker]: version finalized 
+i  hosting[punchlist-tracker]: releasing new version... 
+[2026-10-01T20:15:26.000Z] No OAuth tokens found
+[2026-10-01T20:15:26.000Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/punchlist-tracker/channels/live/releases versionName=projects%2F205329117340%2Fsites%2Fpunchlist-tracker%2Fversions%2F85de00509cd7ef47
+[2026-10-01T20:15:26.000Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/punchlist-tracker/channels/live/releases {}
+[2026-10-01T20:15:27.458Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/punchlist-tracker/channels/live/releases 200
+[2026-10-01T20:15:27.458Z] <<< [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/punchlist-tracker/channels/live/releases {"name":"projects/205329117340/sites/punchlist-tracker/channels/live/releases/1790885725742000","version":{"name":"projects/205329117340/sites/punchlist-tracker/versions/85de00509cd7ef47","status":"FINALIZED","config":{},"labels":{"deployment-tool":"cli-firebase"},"createTime":"2026-10-01T20:15:24.194162Z","createUser":{"email":"firebase-adminsdk-fbsvc@faire-builder-tracker.iam.gserviceaccount.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocJIf0swanR8LAEIL_xohHHlMQnyRTTAZ-ErXhswS_1zZoSTjjg=mo"},"finalizeTime":"2026-10-01T20:15:25.956777Z","finalizeUser":{"email":"firebase-adminsdk-fbsvc@faire-builder-tracker.iam.gserviceaccount.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocJIf0swanR8LAEIL_xohHHlMQnyRTTAZ-ErXhswS_1zZoSTjjg=mo"}},"type":"DEPLOY","releaseTime":"2026-10-01T20:15:25.742Z","releaseUser":{"email":"firebase-adminsdk-fbsvc@faire-builder-tracker.iam.gserviceaccount.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocJIf0swanR8LAEIL_xohHHlMQnyRTTAZ-ErXhswS_1zZoSTjjg=mo"}}
+[2026-10-01T20:15:27.458Z] [hosting] release: {"name":"projects/205329117340/sites/punchlist-tracker/channels/live/releases/1790885725742000","version":{"name":"projects/205329117340/sites/punchlist-tracker/versions/85de00509cd7ef47","status":"FINALIZED","config":{},"labels":{"deployment-tool":"cli-firebase"},"createTime":"2026-10-01T20:15:24.194162Z","createUser":{"email":"firebase-adminsdk-fbsvc@faire-builder-tracker.iam.gserviceaccount.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocJIf0swanR8LAEIL_xohHHlMQnyRTTAZ-ErXhswS_1zZoSTjjg=mo"},"finalizeTime":"2026-10-01T20:15:25.956777Z","finalizeUser":{"email":"firebase-adminsdk-fbsvc@faire-builder-tracker.iam.gserviceaccount.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocJIf0swanR8LAEIL_xohHHlMQnyRTTAZ-ErXhswS_1zZoSTjjg=mo"}},"type":"DEPLOY","releaseTime":"2026-10-01T20:15:25.742Z","releaseUser":{"email":"firebase-adminsdk-fbsvc@faire-builder-tracker.iam.gserviceaccount.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocJIf0swanR8LAEIL_xohHHlMQnyRTTAZ-ErXhswS_1zZoSTjjg=mo"}}
+✔  hosting[punchlist-tracker]: release complete 
 
 ✔  Deploy complete! 
 
 Project Console: https://console.firebase.google.com/project/faire-builder-tracker/overview
-Hosting URL: https://faire-builder-tracker.web.app
+Hosting URL: https://punchlist-tracker.web.app

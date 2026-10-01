@@ -1,0 +1,8 @@
+{
+  "status": "success",
+  "result": {
+    "name": "projects/faire-builder-tracker/sites/punchlist-tracker",
+    "defaultUrl": "https://punchlist-tracker.web.app",
+    "type": "USER_SITE"
+  }
+}

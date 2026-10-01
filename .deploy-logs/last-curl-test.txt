@@ -4,11 +4,11 @@ cache-control: max-age=0
 content-type: text/html; charset=utf-8
 strict-transport-security: max-age=31556926; includeSubDomains; preload
 accept-ranges: bytes
-date: Thu, 01 Oct 2026 20:02:44 GMT
-x-served-by: cache-chi-kmdw8640037-CHI
+date: Thu, 01 Oct 2026 20:15:27 GMT
+x-served-by: cache-dfw-kdfw8210163-DFW
 x-cache: MISS
 x-cache-hits: 0
-x-timer: S1790884964.402080,VS0,VE22
+x-timer: S1790885728.603133,VS0,VE31
 vary: x-fh-requested-host, accept-encoding
 alt-svc: h3=":443";ma=86400,h3-29=":443";ma=86400,h3-27=":443";ma=86400
 content-length: 21265
@@ -39,11 +39,11 @@ cache-control: max-age=0
 content-type: text/html; charset=utf-8
 strict-transport-security: max-age=31556926; includeSubDomains; preload
 accept-ranges: bytes
-date: Thu, 01 Oct 2026 20:02:59 GMT
-x-served-by: cache-chi-kmdw8640037-CHI
+date: Thu, 01 Oct 2026 20:15:42 GMT
+x-served-by: cache-dfw-kdfw8210163-DFW
 x-cache: MISS
 x-cache-hits: 0
-x-timer: S1790884979.461267,VS0,VE28
+x-timer: S1790885743.698445,VS0,VE75
 vary: x-fh-requested-host, accept-encoding
 alt-svc: h3=":443";ma=86400,h3-29=":443";ma=86400,h3-27=":443";ma=86400
 content-length: 21265
