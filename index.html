@@ -24,6 +24,7 @@
     --blue-bg: #E6F1FB; --blue-fg: #0C447C; --blue-bar: #378ADD;
     --gray-bg: #F1EFE8; --gray-fg: #444441; --gray-bar: #B4B2A9;
     --red-fg: #A32D2D; --red-bg: #FBE4E4; --red-bar: #A32D2D;
+    --amber-bg: #FCF3E1; --amber-fg: #8A5A00; --amber-border: #C8891A;
     --brand-dark: #04342C;
     --brand-mid: #0F6E56;
     --brand-light: #5DCAA5;
@@ -40,10 +41,16 @@
     --blue-bg: #122C44; --blue-fg: #7FB8ED; --blue-bar: #378ADD;
     --gray-bg: #273229; --gray-fg: #C7CBC0; --gray-bar: #8A8F82;
     --red-fg: #F0908A; --red-bg: #3A1C1C; --red-bar: #D16A64;
+    --amber-bg: #332A10; --amber-fg: #E8B23D; --amber-border: #6B5419;
     --brand-dark: #0B241D;
     --brand-mid: #1D9E75;
     --brand-light: #5DCAA5;
   }
+  :root[data-theme="dark"] input, :root[data-theme="dark"] select, :root[data-theme="dark"] textarea {
+    background: var(--surface);
+    color: var(--text-primary);
+  }
+  :root[data-theme="dark"] #announce-recipients { background: var(--surface) !important; }
   ::selection { background: var(--brand-light); color: var(--brand-dark); }
   * { box-sizing: border-box; }
   body {
@@ -200,8 +207,8 @@
   #photo-lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.85); z-index: 2000; display: none; align-items: center; justify-content: center; cursor: zoom-out; }
   #help-modal { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 2100; display: none; align-items: center; justify-content: center; padding: 20px; }
   #reports-modal { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 2100; display: none; align-items: center; justify-content: center; padding: 20px; }
-  .gfx-fields { border: 1px dashed var(--border); border-radius: 10px; padding: 12px; margin: 8px 0; background: #FCF7EE; }
-  .gfx-fields-title { font-size: 12.5px; font-weight: 700; color: #8A5A00; margin-bottom: 8px; }
+  .gfx-fields { border: 1px dashed var(--border); border-radius: 10px; padding: 12px; margin: 8px 0; background: var(--amber-bg); }
+  .gfx-fields-title { font-size: 12.5px; font-weight: 700; color: var(--amber-fg); margin-bottom: 8px; }
   .help-modal-card { background: var(--surface); border-radius: 14px; max-width: 640px; width: 100%; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; }
   .help-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
   .help-modal-header h2 { font-size: 18px; margin: 0; }
@@ -398,7 +405,7 @@
       <button class="ui" id="logout-btn">Log out</button>
     </div>
   </div>
-  <div id="test-mode-banner" style="display:none;background:#FBE4E4;color:var(--red-fg);border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;font-weight:600">&#128679; Test mode is ON — only admin can sign in right now.</div>
+  <div id="test-mode-banner" style="display:none;background:var(--red-bg);color:var(--red-fg);border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;font-weight:600">&#128679; Test mode is ON — only admin can sign in right now.</div>
   <div id="change-pin-row" style="display:none;margin:-4px 0 12px;gap:8px;flex-wrap:wrap;align-items:center;background:var(--surface-1);border-radius:10px;padding:10px 14px">
     <span style="font-size:13px;color:var(--text-secondary)">New PIN:</span>
     <input type="text" id="change-pin-input" inputmode="numeric" maxlength="4" placeholder="4 digits" style="width:110px;font-size:13px;padding:6px 9px;border-radius:7px;border:1px solid var(--border)" />
@@ -3065,7 +3072,7 @@ function renderPrioritySection() {
     `;
   }).join('');
   container.innerHTML = `
-    <div style="background:#FBE4E4;border:1px solid var(--red-fg);border-radius:10px;padding:14px 16px;margin-bottom:18px">
+    <div style="background:var(--red-bg);border:1px solid var(--red-fg);border-radius:10px;padding:14px 16px;margin-bottom:18px">
       <div style="font-size:14px;font-weight:700;color:var(--red-fg);margin-bottom:4px">&#128293; Faire Campus Priority</div>
       ${itemsHtml}
     </div>
@@ -3292,14 +3299,14 @@ function renderStaffNotes() {
     `;
   }).join('') : `<div style="font-size:13px;color:var(--text-muted);padding:6px 0">No staff notes posted yet.</div>`;
   container.innerHTML = `
-    <div style="background:#FCF3E1;border:1px solid #C8891A;border-radius:10px;padding:14px 16px;margin-bottom:18px">
+    <div style="background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:10px;padding:14px 16px;margin-bottom:18px">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-        <span style="font-size:14px;font-weight:700;color:#8A5A00">&#128204; Staff Notes</span>
+        <span style="font-size:14px;font-weight:700;color:var(--amber-fg)">&#128204; Staff Notes</span>
       </div>
       ${canPost ? `
         <div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:8px;flex-wrap:wrap">
-          <textarea id="staff-note-input" placeholder="Post an update for the whole crew..." style="flex:1;min-width:220px;font-size:13px;padding:8px 10px;border-radius:7px;border:1px solid var(--border);resize:vertical;min-height:38px"></textarea>
-          <button class="ui" id="staff-note-post-btn" style="font-weight:600;border-color:#C8891A;color:#8A5A00">Post note</button>
+          <textarea id="staff-note-input" placeholder="Post an update for the whole crew..." style="flex:1;min-width:220px;font-size:13px;padding:8px 10px;border-radius:7px;border:1px solid var(--border);resize:vertical;min-height:38px;background:var(--surface);color:var(--text-primary)"></textarea>
+          <button class="ui" id="staff-note-post-btn" style="font-weight:600;border-color:var(--amber-border);color:var(--amber-fg)">Post note</button>
         </div>
       ` : ''}
       ${notesHtml}
