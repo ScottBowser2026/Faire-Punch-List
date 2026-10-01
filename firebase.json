@@ -10,5 +10,22 @@
         "firebase-debug.*.log"
       ]
     }
-  ]
+  ],
+  "hosting": {
+    "site": "faire-builder-tracker",
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      ".firebaserc",
+      "firebase-debug.log",
+      "firebase-debug.*.log",
+      "**/.*",
+      "**/node_modules/**",
+      "functions/**",
+      "scripts/**",
+      ".github/**",
+      "README.md",
+      "CNAME"
+    ]
+  }
 }
