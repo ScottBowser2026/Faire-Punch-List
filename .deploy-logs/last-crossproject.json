@@ -1,4 +1,0 @@
-{
-  "status": "error",
-  "error": "Request to https://firebasehosting.googleapis.com/v1beta1/projects/faire-food-qc/sites?pageToken=&pageSize=10 had HTTP Error: 403, The caller does not have permission"
-}

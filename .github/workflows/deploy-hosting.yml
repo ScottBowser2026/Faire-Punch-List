@@ -10,9 +10,6 @@ on:
       - '.github/workflows/deploy-functions.yml'
   workflow_dispatch: {}
 
-permissions:
-  contents: write
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -31,37 +28,7 @@ jobs:
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
 
-      - name: Create hosting site (one-time, idempotent)
-        env:
-          GOOGLE_APPLICATION_CREDENTIALS: /tmp/service-account.json
-        run: firebase hosting:sites:create faire-punch-list --project faire-food-qc --json > /tmp/site-create.json 2>&1 || true
-
       - name: Deploy hosting
         env:
           GOOGLE_APPLICATION_CREDENTIALS: /tmp/service-account.json
-        run: firebase deploy --only hosting --project faire-food-qc --non-interactive --force --json > /tmp/deploy-output.json 2>&1 || echo "DEPLOY_FAILED=1" >> $GITHUB_ENV
-
-      - name: Curl live site (diagnostic)
-        run: |
-          echo "=== / ===" > /tmp/curl-test.txt
-          sleep 10
-          curl -sS -D - -o /tmp/body.html "https://faire-punch-list.web.app/" >> /tmp/curl-test.txt 2>&1
-          echo "" >> /tmp/curl-test.txt
-          echo "=== body (first 500 chars) ===" >> /tmp/curl-test.txt
-          head -c 500 /tmp/body.html >> /tmp/curl-test.txt
-
-      - name: Save diagnostic output
-        run: |
-          mkdir -p .deploy-logs
-          cp /tmp/site-create.json .deploy-logs/last-site-create.json || true
-          cp /tmp/deploy-output.json .deploy-logs/last-deploy.json || true
-          cp /tmp/curl-test.txt .deploy-logs/last-curl-test.txt || true
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add .deploy-logs
-          git commit -m "chore: record hosting deploy diagnostic output [skip ci]" || echo "no changes to commit"
-          git push
-
-      - name: Fail job if deploy failed
-        if: env.DEPLOY_FAILED == '1'
-        run: exit 1
+        run: firebase deploy --only hosting --project faire-food-qc --non-interactive --force
