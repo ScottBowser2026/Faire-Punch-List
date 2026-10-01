@@ -6,6 +6,11 @@
         "name": "projects/faire-builder-tracker/sites/faire-builder-tracker",
         "defaultUrl": "https://faire-builder-tracker.web.app",
         "type": "DEFAULT_SITE"
+      },
+      {
+        "name": "projects/faire-builder-tracker/sites/punchlist-tracker",
+        "defaultUrl": "https://punchlist-tracker.web.app",
+        "type": "USER_SITE"
       }
     ]
   }
