@@ -1,0 +1,50 @@
+=== / ===
+HTTP/2 404 
+cache-control: max-age=0
+content-type: text/html; charset=utf-8
+strict-transport-security: max-age=31556926; includeSubDomains; preload
+accept-ranges: bytes
+date: Thu, 01 Oct 2026 20:02:44 GMT
+x-served-by: cache-chi-kmdw8640037-CHI
+x-cache: MISS
+x-cache-hits: 0
+x-timer: S1790884964.402080,VS0,VE22
+vary: x-fh-requested-host, accept-encoding
+alt-svc: h3=":443";ma=86400,h3-29=":443";ma=86400,h3-27=":443";ma=86400
+content-length: 21265
+
+
+=== body (first 500 chars) ===
+
+<!doctype html>
+<html>
+  <head>
+    <title>Site Not Found</title>
+    <link href='https://fonts.googleapis.com/css?family=Roboto' rel='stylesheet' type='text/css'>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+
+      body {
+        margin: 0 auto;
+        margin-top: 48px;
+        max-width: 616px;
+        padding: 0 16px;
+        font-family: 'Roboto', 'Helvetica Neue', sans-serif;
+        font-size: 16px;
+        line-height: 24px;
+        color: rgba(0,
+=== retry after 15s ===
+HTTP/2 404 
+cache-control: max-age=0
+content-type: text/html; charset=utf-8
+strict-transport-security: max-age=31556926; includeSubDomains; preload
+accept-ranges: bytes
+date: Thu, 01 Oct 2026 20:02:59 GMT
+x-served-by: cache-chi-kmdw8640037-CHI
+x-cache: MISS
+x-cache-hits: 0
+x-timer: S1790884979.461267,VS0,VE28
+vary: x-fh-requested-host, accept-encoding
+alt-svc: h3=":443";ma=86400,h3-29=":443";ma=86400,h3-27=":443";ma=86400
+content-length: 21265
+
