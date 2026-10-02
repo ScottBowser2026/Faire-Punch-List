@@ -808,7 +808,7 @@ const emailjsConfig = {
   templateId: "template_ph5468d"
 };
 const TRACKER_URL = "https://punchlist.lancelotbiz.com/";
-const BUILD_VERSION = "v28 — Oct 2, 2026 (footer shows build version, crew data cleanup)";
+const BUILD_VERSION = "v28 — Oct 2, 2026 (footer version, crew cleanup, fix stuck portions)";
 document.addEventListener('DOMContentLoaded', () => {
   const el = document.getElementById('build-version-label');
   if (el) el.textContent = `· Build ${BUILD_VERSION}`;
@@ -3103,6 +3103,7 @@ function renderMyPortions() {
   if (!currentUser) { container.innerHTML = ''; return; }
   const mine = [];
   TASKS.forEach(t => {
+    if (t.pct >= 100) return; // whole job is done — no longer anyone's personal to-do, lives in Completed instead
     (t.subassignments || []).forEach(s => {
       if (s.assignedTo === currentUser.name && s.status !== 'declined') {
         mine.push({ task: t, sub: s });
