@@ -709,7 +709,7 @@
   </div>
   </div>
 
-  <footer>Faire_Punch_List_07032026.xlsx &middot; sheet 06242026</footer>
+  <footer id="footer-version-label"></footer>
 </div>
 
 <!--
@@ -808,7 +808,7 @@ const emailjsConfig = {
   templateId: "template_ph5468d"
 };
 const TRACKER_URL = "https://punchlist.lancelotbiz.com/";
-const BUILD_VERSION = "v27 — Oct 1, 2026 (status colors, crew colors, dark mode)";
+const BUILD_VERSION = "v28 — Oct 2, 2026 (footer shows build version, crew data cleanup)";
 document.addEventListener('DOMContentLoaded', () => {
   const el = document.getElementById('build-version-label');
   if (el) el.textContent = `· Build ${BUILD_VERSION}`;
@@ -816,6 +816,8 @@ document.addEventListener('DOMContentLoaded', () => {
   if (badge) badge.textContent = BUILD_VERSION.split(' — ')[0];
   const loginLabel = document.getElementById('login-version-label');
   if (loginLabel) loginLabel.textContent = BUILD_VERSION.split(' — ')[0];
+  const footerLabel = document.getElementById('footer-version-label');
+  if (footerLabel) footerLabel.textContent = `Faire Punch List &middot; Build ${BUILD_VERSION}`.replace('&middot;', '·');
 });
 </script>
 
