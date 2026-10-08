@@ -289,11 +289,11 @@
       </div>
     </div>
     <div id="verify-code-panel" style="display:none">
-      <h2 style="margin-bottom:2px">Verify It's You</h2>
+      <h2 style="margin-bottom:2px">Enter Your Code</h2>
       <p id="verify-code-sub" style="margin-bottom:16px">We texted a 6-digit code to your phone on file</p>
       <input type="text" id="verify-code-input" inputmode="numeric" maxlength="6" placeholder="Code" style="width:100%;font-size:1.3rem;letter-spacing:.3em;text-align:center;padding:10px;border-radius:8px;border:1px solid var(--border);margin-bottom:12px;box-sizing:border-box" />
       <div id="verify-code-error" style="min-height:18px;margin-bottom:6px;font-size:13px;color:var(--red-fg)"></div>
-      <button id="verify-code-submit" style="width:100%;padding:10px;border-radius:8px;border:none;background:var(--brand-dark);color:#fff;font-weight:600;font-size:14px;cursor:pointer">Verify &amp; Log In</button>
+      <button id="verify-code-submit" style="width:100%;padding:10px;border-radius:8px;border:none;background:var(--brand-dark);color:#fff;font-weight:600;font-size:14px;cursor:pointer">Log In</button>
       <div style="margin-top:14px;display:flex;flex-direction:column;gap:6px">
         <a href="#" id="resend-code-link" style="font-size:12.5px;color:var(--text-secondary);text-decoration:underline">Resend code</a>
         <a href="#" id="skip-code-link" style="font-size:12.5px;color:var(--text-secondary);text-decoration:underline">Not receiving it? Continue with PIN only</a>
@@ -311,9 +311,9 @@
     </div>
     <div class="help-modal-body">
       <h3>Logging in</h3>
-      <p>Enter your 4-digit PIN. The tracker remembers you after that on the same device, until you log out.</p>
+      <p>Enter your PIN. The tracker remembers you after that on the same device, until you log out.</p>
       <ul>
-        <li><strong>Forgot your PIN?</strong> Click "Forgot your PIN?" on the login screen, type your name, and a new one gets emailed to you.</li>
+        <li><strong>Forgot your PIN?</strong> Click "Forgot PIN?" on the login screen, enter the email address on file, and a new one gets emailed to you.</li>
         <li><strong>Want to change it?</strong> Click "Change my PIN" at the top of the page once logged in.</li>
       </ul>
 
@@ -362,8 +362,6 @@
         <p>Park, Delete, and reassignment requests all show Approve/Accept and Deny/Decline buttons right on the job. Approving carries out the action and notifies everyone involved; denying clears the request and notifies the requester.</p>
         <h3>Admin: Backups</h3>
         <p>"Download backup" and "Restore backup," near the top of the page, are for emergencies &mdash; the tracker already saves everything automatically as you go.</p>
-        <h3>Admin: Recovery PIN</h3>
-        <p>If your admin PIN ever breaks, <strong>861029</strong> always logs in as admin. Change your real PIN right after using it. Keep this number private.</p>
       </div>
     </div>
   </div>
@@ -2949,7 +2947,7 @@ function renderTeamList() {
     });
     row.querySelector('.tm-delete').addEventListener('click', () => {
       if (isAdmin) {
-        if (!confirm(`${name} is an ADMIN. Removing them removes admin access — are you sure? (Recovery PIN still works as backup.)`)) return;
+        if (!confirm(`${name} is an ADMIN. Removing them removes admin access — are you sure?`)) return;
       } else if (!confirm(`Remove ${name} entirely (email, PIN, and crew access)? Their existing jobs will be parked as long-range so nothing gets lost.`)) {
         return;
       }
@@ -3392,8 +3390,6 @@ document.getElementById('view-all-depts-btn').addEventListener('click', () => {
   renderAll();
 });
 
-const MASTER_RECOVERY_PIN = '861029'; // hardcoded safety net — always logs in as admin, never stored in Firebase, can't be overwritten
-
 // --- PIN + SMS verification code login ---
 // pendingLogin holds the state between "PIN accepted" and "code verified":
 // { match, pin, code, expiresAt, attempts }
@@ -3443,10 +3439,6 @@ function showVerifyCodePanel(phone) {
 
 function tryLogin(pin) {
   const trimmed = pin.trim();
-  if (trimmed === MASTER_RECOVERY_PIN) {
-    finishLogin({ name: 'Scott Bowser (recovery admin)', role: 'admin' }, null);
-    return;
-  }
   const match = PIN_DIRECTORY[trimmed];
   const errorEl = document.getElementById('pin-error');
   if (!match) {
