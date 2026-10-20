@@ -39,9 +39,14 @@ jobs:
           GOOGLE_APPLICATION_CREDENTIALS: /tmp/service-account.json
         run: firebase deploy --only hosting --project faire-food-qc --non-interactive --force --debug 2>&1 | tee /tmp/deploy.log
 
+      - name: Debug - list local public dir contents
+        run: |
+          echo "::notice title=Public Dir Listing::$(ls -la . | tr '\n' ' ')"
+
       - name: Debug - surface output as annotations
         if: always()
         run: |
           echo "::notice title=Sites List::$(tail -c 3000 /tmp/sites.json | tr '\n' ' ')"
-          echo "::notice title=Deploy Tail::$(tail -c 3000 /tmp/deploy.log | tr '\n' ' ')"
+          echo "::notice title=Deploy File Count::$(grep -i 'files in\|found.*files\|uploading\|new file\|beginning deploy\|nothing to deploy\|up to date' /tmp/deploy.log | tr '\n' ' | ')"
           echo "::notice title=Deploy Grep Hosting URL::$(grep -i 'hosting url\|hosting:sites\|hosting:channel\|site:.*faire' /tmp/deploy.log | tail -c 2000 | tr '\n' ' ')"
+          echo "::notice title=Deploy Errors::$(grep -i 'error\|fail\|cannot\|denied' /tmp/deploy.log | tail -c 2000 | tr '\n' ' ')"
