@@ -12,7 +12,7 @@
     }
   ],
   "hosting": {
-    "site": "faire-punch-list",
+    "site": "lancelot-punchlist-v2",
     "public": ".",
     "ignore": [
       "firebase.json",
