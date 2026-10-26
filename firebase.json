@@ -12,7 +12,7 @@
     }
   ],
   "hosting": {
-    "site": "lancelot-punchlist-v2",
+    "site": "lancelot-punchlist-v3",
     "public": ".",
     "ignore": [
       "firebase.json",

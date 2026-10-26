@@ -29,7 +29,7 @@ jobs:
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
 
-      - name: Deploy to Firebase Hosting (lancelot-punchlist-v2 site, lancelot-alerts-live project)
+      - name: Deploy to Firebase Hosting (lancelot-punchlist-v3 site, lancelot-apps-live project)
         env:
           GOOGLE_APPLICATION_CREDENTIALS: /tmp/service-account.json
-        run: firebase deploy --only hosting --project lancelot-alerts-live --non-interactive --force
+        run: firebase deploy --only hosting --project lancelot-apps-live --non-interactive --force
