@@ -8,7 +8,7 @@ const db = admin.database();
 
 const EMAILJS_SERVICE_ID = 'service_yutnnpk';
 const EMAILJS_TEMPLATE_ID = 'template_ph5468d';
-const EMAILJS_PUBLIC_KEY = 'sB7w0MyBj_u6ayu_0';
+const EMAILJS_PUBLIC_KEY = 'SJmpLfL-sFiy6y2Nb';
 const TRACKER_URL = 'https://punchlist.lancelotbiz.com/';
 const TZ = 'America/New_York';
 const SEND_SMS_URL = 'https://us-central1-faire-builder-tracker.cloudfunctions.net/sendJobText';
