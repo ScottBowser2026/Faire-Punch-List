@@ -2,10 +2,10 @@ name: Daily Summary Email
 
 on:
   schedule:
-    # 12:00 UTC = 8:00 AM Eastern (EDT, summer). Switch to '0 13 * * *' once EST (winter, UTC-5) is in effect.
-    - cron: '0 12 * * *'
-    # 20:30 UTC = 4:30 PM Eastern (EDT, summer). Switch to '30 21 * * *' once EST (winter, UTC-5) is in effect.
-    - cron: '30 20 * * *'
+    # 13:00 UTC = 8:00 AM Eastern (EST, winter). Switch to '0 12 * * *' once EDT (summer, UTC-4) is in effect.
+    - cron: '0 13 * * *'
+    # 21:30 UTC = 4:30 PM Eastern (EST, winter). Switch to '30 20 * * *' once EDT (summer, UTC-4) is in effect.
+    - cron: '30 21 * * *'
   workflow_dispatch: {}
 
 jobs:
@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
       - name: Install firebase-admin
         run: npm install firebase-admin @firebase/app
       - name: Write service account key
