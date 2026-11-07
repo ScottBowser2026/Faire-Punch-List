@@ -29,5 +29,8 @@
       "CNAME",
       ".deploy-logs/**"
     ]
+  },
+  "database": {
+    "rules": "database.rules.json"
   }
 }

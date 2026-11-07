@@ -122,3 +122,10 @@ exports.sendJobText = onRequest(
     }
   }
 );
+
+// ---------- Server-side PIN login (see pl-login.js) ----------
+const plLogin = require("./pl-login");
+exports.plLogin = plLogin.plLogin;
+exports.plLogout = plLogin.plLogout;
+exports.plSetPin = plLogin.plSetPin;
+exports.plForgotPin = plLogin.plForgotPin;

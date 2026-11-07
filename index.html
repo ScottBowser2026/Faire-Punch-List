@@ -775,6 +775,7 @@
 <script src="firebase-auth-compat.js"></script>
 <script src="firebase-database-compat.js"></script>
 <script src="firebase-storage-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-functions-compat.js"></script>
 <script>
 // PASTE YOUR FIREBASE CONFIG OBJECT HERE (see instructions above) —
 // replace this entire placeholder object with the one Firebase gives you.
@@ -2875,9 +2876,10 @@ function renderTeamList() {
       list.appendChild(row);
       return;
     }
-    const matchingPins = Object.keys(PIN_DIRECTORY).filter(p => PIN_DIRECTORY[p].name === name);
-    const existingPin = matchingPins.find(p => PIN_DIRECTORY[p].role === 'admin') || matchingPins[0];
-    const pinEntry = existingPin ? PIN_DIRECTORY[existingPin] : null;
+    const matchingIds = Object.keys(PIN_DIRECTORY).filter(id => PIN_DIRECTORY[id].name === name);
+    const existingId = matchingIds.find(id => PIN_DIRECTORY[id].role === 'admin') || matchingIds[0];
+    const pinEntry = existingId ? PIN_DIRECTORY[existingId] : null;
+    const hasPin = !!(pinEntry && pinEntry.hasPin);
     const isAdmin = pinEntry && pinEntry.role === 'admin';
     const isSuper = pinEntry && pinEntry.role === 'super';
     const row = document.createElement('div');
@@ -2903,13 +2905,13 @@ function renderTeamList() {
         <button class="ui tm-delete" style="font-size:12px;padding:5px 10px;border-color:var(--red-fg);color:var(--red-fg)">Delete</button>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <span style="font-size:11px;color:var(--text-muted);min-width:140px">${existingPin ? `PIN: ${existingPin}` : 'No PIN yet'}</span>
-        <input type="text" class="tm-pin" placeholder="PIN (4 digits)" inputmode="numeric" value="${existingPin || ''}" style="width:110px;font-size:12px;padding:5px 8px;border-radius:7px;border:1px solid var(--border)" ${isAdmin ? 'disabled' : ''} />
-        <input type="text" class="tm-crews" placeholder="Crews (comma separated)" value="${pinEntry ? (pinEntry.crews || []).join(', ') : ''}" style="flex:1;min-width:160px;font-size:12px;padding:5px 8px;border-radius:7px;border:1px solid var(--border)" ${(isAdmin || isSuper) ? 'disabled' : ''} />
+        <span style="font-size:11px;color:var(--text-muted);min-width:140px" title="PINs are kept one-way on the server and can't be shown — type a new one to change it">${hasPin ? 'PIN: ••••' : 'No PIN yet'}</span>
+        <input type="text" class="tm-pin" placeholder="${hasPin ? 'new PIN' : 'PIN (4 digits)'}" inputmode="numeric" value="" style="width:110px;font-size:12px;padding:5px 8px;border-radius:7px;border:1px solid var(--border)" ${isAdmin ? 'disabled' : ''} />
+        <input type="text" class="tm-crews" placeholder="Crews (comma separated)" value="${pinEntry ? crewsOf(pinEntry).join(', ') : ''}" style="flex:1;min-width:160px;font-size:12px;padding:5px 8px;border-radius:7px;border:1px solid var(--border)" ${(isAdmin || isSuper) ? 'disabled' : ''} />
         <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:${isSuper ? '#7B4FCE' : 'var(--text-secondary)'};padding:5px 10px;border-radius:7px;border:1.5px solid ${isSuper ? '#7B4FCE' : 'var(--border)'};background:${isSuper ? '#F3EEFC' : 'transparent'}" title="Full access to every job in every crew — add notes/photos, and reassign instantly without waiting on the new owner to accept">
           <input type="checkbox" class="tm-super" ${isSuper ? 'checked' : ''} ${isAdmin ? 'disabled' : ''} /> &#9650; Make Super User
         </label>
-        <button class="ui tm-save-pin" style="font-size:12px;padding:5px 10px" ${isAdmin ? 'disabled title="Use Change my PIN while logged in as this admin"' : ''}>${existingPin ? 'Update' : 'Assign PIN'}</button>
+        <button class="ui tm-save-pin" style="font-size:12px;padding:5px 10px" ${isAdmin ? 'disabled title="Use Change my PIN while logged in as this admin"' : ''}>${pinEntry ? 'Update' : 'Assign PIN'}</button>
         <button class="ui tm-text" style="font-size:12px;padding:5px 10px">&#128172; Text</button>
       </div>
       <div class="tm-text-row" style="display:none;margin-top:8px">
@@ -2970,7 +2972,7 @@ function renderTeamList() {
       openJobs.forEach(t => { t.longRange = true; persistTask(t); });
       delete DIRECTORY[name];
       delete PHONE_DIRECTORY[name];
-      if (existingPin) delete PIN_DIRECTORY[existingPin];
+      if (existingId) delete PIN_DIRECTORY[existingId];
       DELETED_PEOPLE.add(name);
       persistDirectory();
       persistPhoneDirectory();
@@ -2997,19 +2999,23 @@ function renderTeamList() {
         const newPin = row.querySelector('.tm-pin').value.trim();
         const makeSuper = superCheckbox && superCheckbox.checked;
         const crews = makeSuper ? [] : crewsInput.value.split(',').map(s => s.trim()).filter(Boolean);
-        if (!/^\d{4}$/.test(newPin)) {
+        if (newPin && !/^\d{4}$/.test(newPin)) {
           flashSaveMsg('PIN must be 4 digits.', true);
           return;
         }
-        if (PIN_DIRECTORY[newPin] && PIN_DIRECTORY[newPin].name !== name) {
-          flashSaveMsg('That PIN is already assigned to someone else.', true);
+        if (!newPin && !hasPin) {
+          flashSaveMsg(`Enter a 4-digit PIN for ${name}.`, true);
           return;
         }
-        if (existingPin && existingPin !== newPin) delete PIN_DIRECTORY[existingPin];
-        PIN_DIRECTORY[newPin] = { name, role: makeSuper ? 'super' : 'manager', crews };
-        persistPinDirectory();
-        renderTeamList();
-        flashSaveMsg(`PIN ${newPin} saved for ${name}${makeSuper ? ' as a super user' : ''}.`);
+        const id = existingId || newPersonId();
+        PIN_DIRECTORY[id] = { ...(pinEntry || {}), name, role: makeSuper ? 'super' : 'manager', crews };
+        persistPinDirectory()
+          .then(() => newPin ? setPinOnServer(id, newPin) : null)
+          .then(() => {
+            renderTeamList();
+            flashSaveMsg(newPin ? `PIN ${newPin} saved for ${name}${makeSuper ? ' as a super user' : ''}.` : `Saved ${name}${makeSuper ? ' as a super user' : ''}.`);
+          })
+          .catch(err => flashSaveMsg(err.message || "Couldn't save — try again.", true));
       });
     }
     list.appendChild(row);
@@ -3040,23 +3046,13 @@ document.querySelectorAll('.admin-subtab-btn').forEach(btn => {
 });
 
 // ===================== PIN LOGIN & PERMISSIONS =====================
-const SEED_PIN_DIRECTORY = {
-  "2468": { name: "Scott Bowser", role: "admin" },
-  "1001": { name: "Michael Hess", role: "manager", crews: ["Carpentry", "Excavator/Petitbone", "Paint"] },
-  "1002": { name: "Dave Wallace", role: "manager", crews: ["Electrical"] },
-  "1003": { name: "Sadie Bossons", role: "manager", crews: ["Production"] },
-  "1004": { name: "Gabbi", role: "manager", crews: ["Graphics"] },
-  "1005": { name: "Seth", role: "manager", crews: ["Landscaping"] },
-  "1006": { name: "Sadie via Drew L", role: "manager", crews: ["Welding/Props"] },
-  "1007": { name: "Daniel", role: "manager", crews: ["F&B Equipment"] },
-  "1008": { name: "Tony Miller", role: "manager", crews: ["Tony's Crew"] },
-  "1009": { name: "Carrie Wallace", role: "manager", crews: ["Creative Design"] }
-};
+// People who can log in: { [id]: { name, role: 'admin'|'super'|'manager', crews, hasPin } }.
+// PINs are not stored here (or anywhere the browser can read) — the server
+// keeps them as a keyed one-way hash and checks them in plLogin.
+const SEED_PIN_DIRECTORY = {};
 let PIN_DIRECTORY = {};
 let pinDirectoryRef = null;
 let currentUser = null;
-let currentPin = null;
-
 function canEdit(task) {
   if (!currentUser) return false;
   if (currentUser.role === 'admin' || currentUser.role === 'super') return true;
@@ -3067,7 +3063,20 @@ function isElevated(user) {
 }
 
 function persistPinDirectory() {
-  if (pinDirectoryRef) pinDirectoryRef.set(JSON.stringify(PIN_DIRECTORY)).catch(err => console.error('PIN save failed', err));
+  if (!pinDirectoryRef) return Promise.resolve();
+  return pinDirectoryRef.set(PIN_DIRECTORY).catch(err => { console.error('People save failed', err); throw err; });
+}
+function newPersonId() {
+  const bytes = crypto.getRandomValues(new Uint8Array(9));
+  return 'p_' + Array.from(bytes, b => 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[b % 62]).join('');
+}
+function crewsOf(entry) {
+  const c = entry && entry.crews;
+  return Array.isArray(c) ? c.filter(Boolean) : (c && typeof c === 'object' ? Object.values(c).filter(Boolean) : []);
+}
+// Sets (or, with a blank pin, generates) a PIN on the server; resolves to the PIN.
+function setPinOnServer(id, pin) {
+  return callFn('plSetPin', { id, pin: pin || '' }).then(r => r.pin);
 }
 
 let STAFF_NOTES = []; // [{ id, text, by, at }] — newest first
@@ -3405,82 +3414,57 @@ document.getElementById('view-all-depts-btn').addEventListener('click', () => {
   renderAll();
 });
 
-// --- PIN + SMS verification code login ---
-// pendingLogin holds the state between "PIN accepted" and "code verified":
-// { match, pin, code, expiresAt, attempts }
-let pendingLogin = null;
-let resendCooldownUntil = 0;
+// --- PIN login ---
+// plLogin (server) checks the PIN and stamps this browser's anonymous
+// sign-in with the person's role; the database rules grant access from that.
+// The stamp lasts 30 days on this device, like the old saved PIN did.
+function callFn(name, data) { return firebase.functions().httpsCallable(name)(data || {}).then(r => r.data); }
 
-function finishLogin(match, pin) {
-  currentUser = match;
-  currentPin = pin;
-  try { if (pin) localStorage.setItem('punchlist_pin', pin); } catch (e) {}
-  pendingLogin = null;
+function finishLogin(person) {
+  currentUser = { id: person.id, name: person.name, role: person.role, crews: crewsOf(person) };
   hidePinGate();
+  startFirebaseData();
   applyUserBar();
   renderStats();
   renderAll();
 }
 
-function generateLoginCode() {
-  return String(Math.floor(100000 + Math.random() * 900000));
-}
-
-function sendLoginCode(phone, code, name) {
-  const textMessage = `Faire Punch List: your login verification code is ${code}. It expires in 10 minutes. Didn't request this? Ignore this text. Reply STOP to opt out.`;
-  return fetch('https://us-central1-faire-builder-tracker.cloudfunctions.net/sendJobText', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ to: phone, message: textMessage })
-  }).then(res => {
-    if (res.ok) logMessage('text', name, phone, '[login verification code]');
-    return res.ok;
-  }).catch(err => {
-    console.error('Login code text failed', err);
+// After a reload: if this browser's sign-in still carries a login, use it.
+async function restoreLoginFromToken() {
+  const u = firebase.auth().currentUser;
+  if (!u) return false;
+  try {
+    const c = (await u.getIdTokenResult()).claims;
+    if (!c.plId || !c.plRole || !(c.plUntil > Date.now())) return false;
+    const snap = await firebase.database().ref('faire-punch-list-people/' + c.plId).once('value');
+    const person = snap.val();
+    if (!person || person.role !== c.plRole) return false;
+    finishLogin({ id: c.plId, ...person });
+    return true;
+  } catch (e) {
+    console.warn('Saved login no longer valid', e);
     return false;
-  });
+  }
 }
 
-function showVerifyCodePanel(phone) {
-  document.getElementById('login-panel').style.display = 'none';
-  document.getElementById('forgot-pin-row').style.display = 'none';
-  document.getElementById('verify-code-panel').style.display = 'block';
-  const masked = phone ? phone.replace(/\d(?=\d{2})/g, '•') : 'your phone';
-  document.getElementById('verify-code-sub').textContent = `We texted a 6-digit code to ${masked}`;
-  document.getElementById('verify-code-input').value = '';
-  document.getElementById('verify-code-error').textContent = '';
-  document.getElementById('verify-code-input').focus();
-}
-
-function tryLogin(pin) {
-  const trimmed = pin.trim();
-  const match = PIN_DIRECTORY[trimmed];
+let loginInFlight = false;
+async function tryLogin(pin) {
   const errorEl = document.getElementById('pin-error');
-  if (!match) {
-    errorEl.textContent = "That PIN isn't recognized.";
-    return;
+  if (loginInFlight) return;
+  loginInFlight = true;
+  errorEl.textContent = 'Checking…';
+  try {
+    if (!firebase.auth().currentUser) await firebase.auth().signInAnonymously();
+    const person = await callFn('plLogin', { pin: pin.trim() });
+    await firebase.auth().currentUser.getIdToken(true); // pick up the new role stamp before any read
+    errorEl.textContent = '';
+    finishLogin(person);
+  } catch (err) {
+    console.error('Login failed', err);
+    errorEl.textContent = (err && err.message) || "Couldn't log in — check your connection and try again.";
+  } finally {
+    loginInFlight = false;
   }
-  if (testModeActive && match.role !== 'admin') {
-    errorEl.textContent = "The tracker is in test mode right now — only admin can sign in. Try again shortly.";
-    return;
-  }
-
-  const phone = findPhone(match.name);
-  if (!phone) {
-    // No phone on file — nothing to verify against, log in on PIN alone.
-    finishLogin(match, trimmed);
-    return;
-  }
-
-  const code = generateLoginCode();
-  pendingLogin = { match, pin: trimmed, code, expiresAt: Date.now() + 10 * 60 * 1000, attempts: 0, phone };
-  showVerifyCodePanel(phone);
-  sendLoginCode(phone, code, match.name).then(ok => {
-    if (!pendingLogin || pendingLogin.code !== code) return; // superseded by a resend/cancel
-    if (!ok) {
-      document.getElementById('verify-code-sub').textContent = "Couldn't send a text just now — you can continue with PIN only below.";
-    }
-  });
 }
 
 document.getElementById('pin-submit').addEventListener('click', () => {
@@ -3490,72 +3474,12 @@ document.getElementById('pin-input').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') tryLogin(document.getElementById('pin-input').value);
 });
 
-document.getElementById('verify-code-submit').addEventListener('click', () => {
-  const errorEl = document.getElementById('verify-code-error');
-  if (!pendingLogin) { errorEl.textContent = 'Something went wrong — go back and try your PIN again.'; return; }
-  const entered = document.getElementById('verify-code-input').value.trim();
-  if (Date.now() > pendingLogin.expiresAt) {
-    errorEl.textContent = 'That code expired. Tap "Resend code" for a new one.';
-    return;
-  }
-  pendingLogin.attempts++;
-  if (pendingLogin.attempts > 6) {
-    errorEl.textContent = 'Too many tries. Tap "Resend code" for a new one, or continue with PIN only.';
-    return;
-  }
-  if (entered !== pendingLogin.code) {
-    errorEl.textContent = "That code isn't right. Try again.";
-    return;
-  }
-  finishLogin(pendingLogin.match, pendingLogin.pin);
-});
-document.getElementById('verify-code-input').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') document.getElementById('verify-code-submit').click();
-});
-
-document.getElementById('resend-code-link').addEventListener('click', (e) => {
-  e.preventDefault();
-  if (!pendingLogin) return;
-  const errorEl = document.getElementById('verify-code-error');
-  if (Date.now() < resendCooldownUntil) {
-    errorEl.textContent = 'Give it a few seconds before resending.';
-    return;
-  }
-  resendCooldownUntil = Date.now() + 30 * 1000;
-  const code = generateLoginCode();
-  pendingLogin.code = code;
-  pendingLogin.expiresAt = Date.now() + 10 * 60 * 1000;
-  pendingLogin.attempts = 0;
-  errorEl.textContent = '';
-  document.getElementById('verify-code-sub').textContent = 'Sending a new code…';
-  sendLoginCode(pendingLogin.phone, code, pendingLogin.match.name).then(ok => {
-    if (!pendingLogin || pendingLogin.code !== code) return;
-    document.getElementById('verify-code-sub').textContent = ok
-      ? `We texted a new code to ${pendingLogin.phone.replace(/\d(?=\d{2})/g, '•')}`
-      : "Couldn't send a text just now — you can continue with PIN only below.";
-  });
-});
-
-document.getElementById('skip-code-link').addEventListener('click', (e) => {
-  e.preventDefault();
-  if (!pendingLogin) return;
-  finishLogin(pendingLogin.match, pendingLogin.pin);
-});
-
-document.getElementById('cancel-code-link').addEventListener('click', (e) => {
-  e.preventDefault();
-  pendingLogin = null;
-  document.getElementById('pin-input').value = '';
-  document.getElementById('pin-error').textContent = '';
-  showPinGate();
-});
-document.getElementById('logout-btn').addEventListener('click', () => {
-  currentUser = null;
-  currentPin = null;
-  try { localStorage.removeItem('punchlist_pin'); } catch (e) {}
-  document.getElementById('pin-input').value = '';
-  document.getElementById('pin-error').textContent = '';
-  showPinGate();
+// Clears the role stamp on the server, then reloads so no live listener or
+// in-memory data from this login survives.
+document.getElementById('logout-btn').addEventListener('click', async () => {
+  try { await callFn('plLogout'); } catch (e) { console.warn('plLogout failed (signing out anyway)', e); }
+  try { await firebase.auth().signOut(); } catch (e) {}
+  window.location.reload();
 });
 
 document.getElementById('dark-mode-btn').addEventListener('click', () => {
@@ -3754,9 +3678,9 @@ document.getElementById('rename-person-btn').addEventListener('click', () => {
     persistPhoneDirectory();
   }
   let pinUpdated = false;
-  Object.keys(PIN_DIRECTORY).forEach(pin => {
-    if (PIN_DIRECTORY[pin].name === fromName) {
-      PIN_DIRECTORY[pin].name = toName;
+  Object.keys(PIN_DIRECTORY).forEach(id => {
+    if (PIN_DIRECTORY[id].name === fromName) {
+      PIN_DIRECTORY[id].name = toName;
       pinUpdated = true;
     }
   });
@@ -3773,20 +3697,7 @@ document.getElementById('rename-person-btn').addEventListener('click', () => {
   msg.style.color = 'var(--teal-fg)';
   msg.textContent = `Renamed "${fromName}" to "${toName}" across ${jobsUpdated} job${jobsUpdated === 1 ? '' : 's'}${DIRECTORY[toName] ? ', their email' : ''}${pinUpdated ? ', and their PIN' : ''}.`;
 });
-function attemptAutoLogin() {
-  if (currentUser) return; // already logged in this session
-  let savedPin = null;
-  try { savedPin = localStorage.getItem('punchlist_pin'); } catch (e) { savedPin = null; }
-  if (savedPin && PIN_DIRECTORY[savedPin]) {
-    if (testModeActive && PIN_DIRECTORY[savedPin].role !== 'admin') return; // stay on the lock screen
-    currentUser = PIN_DIRECTORY[savedPin];
-    currentPin = savedPin;
-    hidePinGate();
-    applyUserBar();
-    renderStats();
-    renderAll();
-  }
-}
+function attemptAutoLogin() { /* replaced by restoreLoginFromToken() */ }
 
 document.getElementById('change-pin-btn').addEventListener('click', () => {
   const row = document.getElementById('change-pin-row');
@@ -3803,21 +3714,16 @@ document.getElementById('change-pin-save').addEventListener('click', () => {
     msg.textContent = 'PIN must be 4 digits.';
     return;
   }
-  if (PIN_DIRECTORY[newPin]) {
+  msg.style.color = 'var(--text-secondary)';
+  msg.textContent = 'Saving…';
+  setPinOnServer(currentUser.id, newPin).then(() => {
+    document.getElementById('change-pin-input').value = '';
+    msg.style.color = 'var(--teal-fg)';
+    msg.textContent = `Your PIN is now ${newPin}. Remember it — you'll need it next time you log in on a new device.`;
+  }).catch(err => {
     msg.style.color = 'var(--red-fg)';
-    msg.textContent = 'That PIN is already taken — pick a different one.';
-    return;
-  }
-  // remove the old PIN key and re-add the same user record under the new PIN
-  if (currentPin) delete PIN_DIRECTORY[currentPin];
-  PIN_DIRECTORY[newPin] = currentUser;
-  currentPin = newPin;
-  persistPinDirectory();
-  renderTeamList();
-  try { localStorage.setItem('punchlist_pin', newPin); } catch (e) {}
-  document.getElementById('change-pin-input').value = '';
-  msg.style.color = 'var(--teal-fg)';
-  msg.textContent = `Your PIN is now ${newPin}. Remember it — you'll need it next time you log in on a new device.`;
+    msg.textContent = err.message || "Couldn't change your PIN — try again.";
+  });
 });
 
 document.getElementById('forgot-pin-link').addEventListener('click', (e) => {
@@ -3834,22 +3740,9 @@ document.getElementById('back-to-login-link').addEventListener('click', (e) => {
   document.getElementById('login-panel').style.display = 'block';
 });
 
-function findPinEntryByEmail(email) {
-  const target = email.trim().toLowerCase();
-  const matchedName = Object.keys(DIRECTORY).find(name => (DIRECTORY[name] || '').trim().toLowerCase() === target);
-  if (!matchedName) return null;
-  const pinKey = Object.keys(PIN_DIRECTORY).find(p => PIN_DIRECTORY[p].name === matchedName);
-  return pinKey ? { pin: pinKey, entry: PIN_DIRECTORY[pinKey], email: DIRECTORY[matchedName] } : null;
-}
-
-function generateNewPin() {
-  let pin;
-  do {
-    pin = String(Math.floor(1000 + Math.random() * 9000));
-  } while (PIN_DIRECTORY[pin]);
-  return pin;
-}
-
+// Forgot PIN: the server picks a new PIN and texts it to the phone on file.
+// It never comes back to this page, since whoever is here might not be the
+// account owner.
 document.getElementById('forgot-pin-send').addEventListener('click', () => {
   const msg = document.getElementById('forgot-pin-msg');
   const email = document.getElementById('forgot-pin-email').value.trim();
@@ -3860,29 +3753,15 @@ document.getElementById('forgot-pin-send').addEventListener('click', () => {
   }
   msg.style.color = 'var(--text-secondary)';
   msg.textContent = 'Checking…';
-  // Deliberately vague either way — don't reveal whether an email is on file.
-  const genericMsg = "If that email is on file, a new PIN has been sent to it.";
-
-  const found = findPinEntryByEmail(email);
-  if (!found || !emailReady()) {
+  const signedIn = firebase.auth().currentUser ? Promise.resolve() : firebase.auth().signInAnonymously();
+  signedIn.then(() => callFn('plForgotPin', { email })).then(r => {
     msg.style.color = 'var(--text-secondary)';
-    msg.textContent = genericMsg;
-    return;
-  }
-  const newPin = generateNewPin();
-  delete PIN_DIRECTORY[found.pin];
-  PIN_DIRECTORY[newPin] = found.entry;
-  persistPinDirectory();
-  renderTeamList();
-  emailjs.send(emailjsConfig.serviceId, emailjsConfig.templateId, {
-    to_email: found.email,
-    to_name: found.entry.name,
-    subject: 'Faire Punch List: your PIN was reset',
-    message: `Your new PIN to log into the Faire Punch List tracker is: ${newPin}\n\nUse it at the login screen. Once you're in, you can change it to something memorable using "Change my PIN" at the top of the page.\n\nOpen the tracker: ${TRACKER_URL}`,
-    cc_email: ''
-  }).catch(err => console.error('Forgot-pin email failed', err));
-  msg.style.color = 'var(--text-secondary)';
-  msg.textContent = genericMsg;
+    msg.textContent = r.message + ' No phone on file? Ask Scott to set a new PIN for you.';
+  }).catch(err => {
+    console.error('Forgot PIN failed', err);
+    msg.style.color = 'var(--red-fg)';
+    msg.textContent = "Couldn't reach the server — try again.";
+  });
 });
 // =================== END PIN LOGIN & PERMISSIONS ===================
 
@@ -4156,18 +4035,15 @@ document.getElementById('np-add').addEventListener('click', () => {
     msg.textContent = 'PIN must be 4 digits, or leave it blank to auto-generate one.';
     return;
   }
-  if (pin && PIN_DIRECTORY[pin]) {
-    msg.style.color = 'var(--red-fg)';
-    msg.textContent = 'That PIN is already taken — pick a different one or leave it blank.';
-    return;
-  }
-  if (!pin) pin = generateNewPin();
   const phone = document.getElementById('np-phone').value.trim();
   DIRECTORY[name] = email;
   if (phone) { PHONE_DIRECTORY[name] = phone; persistPhoneDirectory(); }
-  PIN_DIRECTORY[pin] = { name, role: 'manager', crews: [dept] };
+  const id = newPersonId();
+  PIN_DIRECTORY[id] = { name, role: 'manager', crews: [dept] };
   persistDirectory();
-  persistPinDirectory();
+  msg.style.color = 'var(--text-secondary)';
+  msg.textContent = 'Saving…';
+  persistPinDirectory().then(() => setPinOnServer(id, pin)).then(pin => {
   renderTeamList();
   renderRenameSelect();
   populateOwnerSelect();
@@ -4187,6 +4063,11 @@ document.getElementById('np-add').addEventListener('click', () => {
   document.getElementById('np-dept').value = '';
   msg.style.color = 'var(--teal-fg)';
   msg.textContent = `Added ${name} to ${dept} with PIN ${pin}${emailReady() ? ' and emailed them their PIN' : ' (email not sent — EmailJS isn\'t configured)'}. They'll also show up in "Add a job" going forward.`;
+  }).catch(err => {
+    msg.style.color = 'var(--red-fg)';
+    msg.textContent = `Saved ${name}, but their PIN wasn't set: ${err.message || 'try again'}. Assign one from their row below.`;
+    renderTeamList();
+  });
 });
 
 function applyRemoteTasks(remote) {
@@ -4234,12 +4115,44 @@ function init() {
     return;
   }
   firebase.initializeApp(firebaseConfig);
-  firebase.auth().signInAnonymously().catch(err => {
-    console.error('Anonymous sign-in failed (has it been enabled in Firebase console yet?)', err);
-    startFirebaseData(); // fall back to proceeding anyway so the app doesn't break before that's set up
+  try { localStorage.removeItem('punchlist_pin'); } catch (e) {} // older versions kept the raw PIN here
+  let started = false;
+  firebase.auth().onAuthStateChanged(async user => {
+    if (!user) {
+      firebase.auth().signInAnonymously().catch(err => console.error('Anonymous sign-in failed', err));
+      return;
+    }
+    if (started) return;
+    started = true;
+    startPreLoginListeners();
+    // Nothing else is readable until someone logs in.
+    if (!(await restoreLoginFromToken())) showPinGate();
   });
-  firebase.auth().onAuthStateChanged(user => {
-    if (user) startFirebaseData();
+}
+
+// Test mode and the "reload everyone" signal are readable before login.
+function startPreLoginListeners() {
+  testModeRef = firebase.database().ref('faire-punch-list-test-mode');
+  testModeRef.on('value', snap => {
+    testModeActive = !!snap.val();
+    const banner = document.getElementById('test-mode-banner');
+    const btn = document.getElementById('test-mode-btn');
+    if (banner) banner.style.display = testModeActive ? 'block' : 'none';
+    if (btn) btn.textContent = testModeActive ? 'Disable test mode' : 'Enable test mode';
+  });
+  forceReloadRef = firebase.database().ref('faire-punch-list-force-reload');
+  forceReloadRef.on('value', snap => {
+    const v = snap.val();
+    if (forceReloadBaseline === undefined) {
+      forceReloadBaseline = v; // first read after page load — just record it, don't reload ourselves
+      return;
+    }
+    if (v !== forceReloadBaseline) {
+      // "Reload everyone" also signs everyone out, as before.
+      Promise.resolve(currentUser ? callFn('plLogout').catch(() => {}) : null)
+        .then(() => firebase.auth().signOut().catch(() => {}))
+        .then(() => window.location.reload());
+    }
   });
 }
 
@@ -4272,7 +4185,7 @@ function startFirebaseData() {
     MESSAGE_LOG = v ? Object.values(v).sort((a, b) => (b.at || '').localeCompare(a.at || '')) : [];
     renderMessageLog();
   });
-  pinDirectoryRef = firebase.database().ref('faire-punch-list-pins');
+  pinDirectoryRef = firebase.database().ref('faire-punch-list-people');
   staffNotesRef = firebase.database().ref('faire-punch-list-staff-notes');
   staffNotesRef.on('value', snap => {
     const v = snap.val();
@@ -4281,26 +4194,6 @@ function startFirebaseData() {
   });
   dailySummaryEmailRef = firebase.database().ref('faire-punch-list-daily-summary-email');
   lastSummaryDateRef = firebase.database().ref('faire-punch-list-last-summary-date');
-  forceReloadRef = firebase.database().ref('faire-punch-list-force-reload');
-  forceReloadRef.on('value', snap => {
-    const v = snap.val();
-    if (forceReloadBaseline === undefined) {
-      forceReloadBaseline = v; // first read after page load — just record it, don't reload ourselves
-      return;
-    }
-    if (v !== forceReloadBaseline) {
-      try { localStorage.removeItem('punchlist_pin'); } catch (e) {}
-      window.location.reload();
-    }
-  });
-  testModeRef = firebase.database().ref('faire-punch-list-test-mode');
-  testModeRef.on('value', snap => {
-    testModeActive = !!snap.val();
-    const banner = document.getElementById('test-mode-banner');
-    const btn = document.getElementById('test-mode-btn');
-    if (banner) banner.style.display = testModeActive ? 'block' : 'none';
-    if (btn) btn.textContent = testModeActive ? 'Disable test mode' : 'Enable test mode';
-  });
 
   dailySummaryEmailRef.on('value', snap => {
     DAILY_SUMMARY_EMAIL = snap.val() || '';
@@ -4320,15 +4213,11 @@ function startFirebaseData() {
   });
 
   pinDirectoryRef.on('value', snap => {
-    const v = snap.val();
-    if (!v) {
-      PIN_DIRECTORY = { ...SEED_PIN_DIRECTORY };
-      persistPinDirectory();
-    } else {
-      try { PIN_DIRECTORY = JSON.parse(v); } catch (e) { PIN_DIRECTORY = {}; }
-    }
+    PIN_DIRECTORY = snap.val() || {};
+    // Keep this session's role/crews in step with edits an admin makes.
+    const me = currentUser && PIN_DIRECTORY[currentUser.id];
+    if (me) { currentUser = { id: currentUser.id, name: me.name, role: me.role, crews: crewsOf(me) }; applyUserBar(); }
     renderTeamList();
-    attemptAutoLogin();
   });
 
   dbRef.once('value').then(snapshot => {
