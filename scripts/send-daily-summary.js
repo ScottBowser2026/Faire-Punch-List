@@ -154,12 +154,18 @@ async function sendTeams(email, subject, html) {
 }
 
 // Sends one message by email and Teams. Returns what got through.
+// The message log line says which of the two actually went through, so the
+// app's Log tab shows who got what.
 async function deliver(name, email, msg, stats) {
   if (!email) { stats.noEmail++; return; }
-  try { await sendEmail(email, name, msg.subject, msg.text); stats.emails++; } catch (err) { stats.emailFailures++; console.warn('An email failed:', err.message); }
-  try { if (await sendTeams(email, msg.subject, msg.html)) stats.teams++; } catch (err) { stats.teamsFailures++; console.warn('A Teams message failed:', err.message); }
+  let emailResult = 'failed';
+  let teamsResult = TEAMS_WORKFLOW_URL ? 'failed' : 'not set up';
+  try { await sendEmail(email, name, msg.subject, msg.text); stats.emails++; emailResult = 'sent'; } catch (err) { stats.emailFailures++; console.warn('An email failed:', err.message); }
+  try { if (await sendTeams(email, msg.subject, msg.html)) { stats.teams++; teamsResult = 'sent'; } } catch (err) { stats.teamsFailures++; console.warn('A Teams message failed:', err.message); }
   await db.ref('faire-punch-list-message-log').push({
-    type: 'email', toName: name, contact: email, message: `${msg.subject}: ${msg.text.slice(0, 300)}`, sentBy: 'system (morning list)', at: new Date().toISOString()
+    type: 'email', toName: name, contact: email,
+    message: `[Email ${emailResult}, Teams ${teamsResult}] ${msg.subject}: ${msg.text.slice(0, 300)}`,
+    sentBy: 'system (morning list)', at: new Date().toISOString()
   });
 }
 
