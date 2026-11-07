@@ -17,7 +17,7 @@ jobs:
         with:
           node-version: '22'
       - name: Install firebase-admin
-        run: npm install firebase-admin @firebase/app
+        run: npm install firebase-admin@12 @firebase/app
       - name: Write service account key
         run: echo "$FIREBASE_SERVICE_ACCOUNT" > /tmp/service-account.json
         env:
