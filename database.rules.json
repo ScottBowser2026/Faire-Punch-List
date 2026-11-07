@@ -51,6 +51,10 @@
       ".read": "auth != null && auth.token.plUntil != null && auth.token.plUntil > now && root.child('faire-punch-list-people/' + auth.token.plId + '/role').val() === auth.token.plRole",
       ".write": "auth != null && auth.token.plUntil != null && auth.token.plUntil > now && root.child('faire-punch-list-people/' + auth.token.plId + '/role').val() === auth.token.plRole && auth.token.plRole === 'admin'"
     },
+    "faire-punch-list-manager-summary-person": {
+      ".read": "auth != null && auth.token.plUntil != null && auth.token.plUntil > now && root.child('faire-punch-list-people/' + auth.token.plId + '/role').val() === auth.token.plRole",
+      ".write": "auth != null && auth.token.plUntil != null && auth.token.plUntil > now && root.child('faire-punch-list-people/' + auth.token.plId + '/role').val() === auth.token.plRole && auth.token.plRole === 'admin'"
+    },
     "faire-punch-list-test-mode": {
       ".read": "auth != null",
       ".write": "auth != null && auth.token.plUntil != null && auth.token.plUntil > now && root.child('faire-punch-list-people/' + auth.token.plId + '/role').val() === auth.token.plRole && auth.token.plRole === 'admin'"

@@ -574,7 +574,14 @@
             <button class="ui" id="daily-summary-save">Save</button>
             <button class="ui" id="daily-summary-send-now">Send now</button>
           </div>
-          <div class="hint-small">This same address is also Cc'd on every individual job-update email. Auto-fires once per calendar day (your device's local time), the first time anyone opens the page that day — not at a fixed clock time. Use "Send now" to trigger one immediately, any time.</div>
+          <div class="hint-small">This same address is also Cc'd on every individual job-update email. The team-wide summary no longer sends on its own — use "Send now" to send one any time.</div>
+          <label style="font-size:12px;color:var(--text-secondary);display:block;margin:14px 0 4px">Every morning at 7:45 AM, each person gets their own open jobs by Teams chat and email. This person also gets every open job, grouped by person, with overdue jobs first:</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <input type="text" id="manager-summary-input" list="manager-summary-names" placeholder="Name from the team list, e.g. Blake Braswell" style="flex:1;min-width:220px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
+            <datalist id="manager-summary-names"></datalist>
+            <button class="ui" id="manager-summary-save">Save</button>
+          </div>
+          <div class="hint-small" id="manager-summary-msg"></div>
         </div>
       </div>
       <div class="admin-tab-panel" data-admin-subtab-panel="log">
@@ -3784,6 +3791,35 @@ document.getElementById('daily-summary-save').addEventListener('click', () => {
   flashSaveMsg('Saved the daily summary recipient.');
 });
 
+// Who gets the 7:45 AM all-jobs list (read by scripts/send-daily-summary.js).
+// Stored as a name so the script can find their email and Teams account.
+let managerSummaryRef = null;
+function teamNamesWithEmail() {
+  return Object.keys(DIRECTORY).filter(n => DIRECTORY[n] && !DELETED_PEOPLE.has(n)).sort();
+}
+document.getElementById('manager-summary-input').addEventListener('focus', () => {
+  const list = document.getElementById('manager-summary-names');
+  if (list) list.innerHTML = teamNamesWithEmail().map(n => `<option value="${n.replace(/"/g, '&quot;')}">`).join('');
+});
+document.getElementById('manager-summary-save').addEventListener('click', () => {
+  const msg = document.getElementById('manager-summary-msg');
+  const name = document.getElementById('manager-summary-input').value.trim();
+  if (name && !DIRECTORY[name]) {
+    msg.style.color = 'var(--red-fg)';
+    msg.textContent = `"${name}" isn't in the team list with an email — pick a name from the list.`;
+    return;
+  }
+  if (!managerSummaryRef) return;
+  managerSummaryRef.set(name || null).then(() => {
+    msg.style.color = 'var(--teal-fg)';
+    msg.textContent = name ? `${name} will get the all-jobs list each morning.` : 'Nobody gets the all-jobs list now.';
+  }).catch(err => {
+    msg.style.color = 'var(--red-fg)';
+    msg.textContent = "Couldn't save — only admin can change this.";
+    console.error('Manager summary save failed', err);
+  });
+});
+
 document.getElementById('daily-summary-send-now').addEventListener('click', () => {
   sendDailySummaryNow();
   flashSaveMsg('Daily summary sent.');
@@ -4201,6 +4237,14 @@ function startFirebaseData() {
     if (input && document.activeElement !== input) input.value = DAILY_SUMMARY_EMAIL;
   });
 
+  managerSummaryRef = firebase.database().ref('faire-punch-list-manager-summary-person');
+  managerSummaryRef.on('value', snap => {
+    const input = document.getElementById('manager-summary-input');
+    if (input && document.activeElement !== input) input.value = snap.val() || '';
+    const list = document.getElementById('manager-summary-names');
+    if (list) list.innerHTML = teamNamesWithEmail().map(n => `<option value="${n.replace(/"/g, '&quot;')}">`).join('');
+  });
+
   directoryRef.on('value', snap => {
     const v = snap.val();
     if (!v) {
@@ -4256,7 +4300,8 @@ function startFirebaseData() {
       const values = Array.isArray(v) ? v.filter(Boolean) : Object.values(v).filter(Boolean);
       applyRemoteTasks(values);
     });
-    setTimeout(maybeSendDailySummary, 3000); // small delay so directory/config finish loading first
+    // The 7:45 AM morning lists (scripts/send-daily-summary.js) replace the
+    // old once-a-day team summary this page used to send on first open.
   }).catch(err => {
     console.error('Could not connect to Firebase', err);
     TASKS.push(...SEED_TASKS);
