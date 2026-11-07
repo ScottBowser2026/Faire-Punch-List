@@ -84,13 +84,14 @@ async function migrateOldBlob() {
   const index = indexSnap.val() || {};
   const byId = byIdSnap.val() || {};
   const updates = {[OLD_PINS]: null};
+  const created = new Set(); // written whole below, so never also as a child path in the same update
   for (const [rawPin, e] of entries) {
     const pin = String(rawPin).trim();
     let id = Object.keys(people).find((k) => people[k] && people[k].name === e.name);
     if (!id) {
       id = newId();
       people[id] = {name: e.name, role: e.role || "manager", crews: crewsArray(e.crews)};
-      updates[`${PEOPLE}/${id}`] = people[id];
+      created.add(id);
     }
     if (!PIN_RE.test(pin)) {
       console.warn(`pl migrate: dropped an unusable PIN for ${e.name}`);
@@ -106,8 +107,10 @@ async function migrateOldBlob() {
     byId[id] = key;
     updates[`${PIN_INDEX}/${key}`] = id;
     updates[`${PIN_BY_ID}/${id}`] = key;
-    updates[`${PEOPLE}/${id}/hasPin`] = true;
+    if (created.has(id)) people[id].hasPin = true;
+    else updates[`${PEOPLE}/${id}/hasPin`] = true;
   }
+  created.forEach((id) => { updates[`${PEOPLE}/${id}`] = people[id]; });
   await db().ref().update(updates);
   console.log(`pl migrate: converted ${entries.length} PIN entr${entries.length === 1 ? "y" : "ies"}`);
   return entries.length;
