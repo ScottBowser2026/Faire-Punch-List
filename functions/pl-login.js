@@ -37,6 +37,12 @@ const SESSION_MS = 30 * 24 * 60 * 60 * 1000;
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const LOGIN_MAX_FAILS = 8;
 const FORGOT_COOLDOWN_MS = 5 * 60 * 1000;
+// Tiers: manager < super < admin < superadmin < owner. Admin-tier = admin, superadmin, owner.
+const ROLE_RANK = {manager: 0, super: 1, admin: 2, superadmin: 3, owner: 4};
+const rankOf = (r) => ROLE_RANK[r] || 0;
+const isAdminTier = (r) => rankOf(r) >= 2;
+// The one account that is promoted from admin to owner the first time it logs in.
+const OWNER_NAME = "scott bowser";
 const PIN_RE = /^\d{4,6}$/;
 const ID_RE = /^p_[A-Za-z0-9]{6,24}$/;
 
@@ -186,8 +192,12 @@ exports.plLogin = onCall({secrets: [PL_PIN_PEPPER]}, async (req) => {
     return fail();
   }
   await attemptRef.remove();
-  const role = person.role || "manager";
-  if (role !== "admin" && (await db().ref("faire-punch-list-test-mode").get()).val()) {
+  let role = person.role || "manager";
+  if (role === "admin" && String(person.name || "").trim().toLowerCase() === OWNER_NAME) {
+    role = "owner";
+    await db().ref(`${PEOPLE}/${id}/role`).set(role);
+  }
+  if (!isAdminTier(role) && (await db().ref("faire-punch-list-test-mode").get()).val()) {
     throw new HttpsError("failed-precondition", "The tracker is in test mode right now — only admin can sign in. Try again shortly.");
   }
   if (!person.role) await db().ref(`${PEOPLE}/${id}/role`).set(role);
@@ -207,7 +217,12 @@ exports.plSetPin = onCall({secrets: [PL_PIN_PEPPER]}, async (req) => {
   const caller = await requireCaller(req);
   const {id, pin} = req.data || {};
   if (!ID_RE.test(String(id || ""))) throw new HttpsError("invalid-argument", "Bad request.");
-  if (caller.role !== "admin" && caller.id !== id) throw new HttpsError("permission-denied", "You can only change your own PIN.");
+  if (caller.id !== id) {
+    const target = (await db().ref(`${PEOPLE}/${id}/role`).get()).val();
+    if (!isAdminTier(caller.role) || rankOf(target) > rankOf(caller.role)) {
+      throw new HttpsError("permission-denied", "You can only change your own PIN.");
+    }
+  }
   await migrateOldBlob();
   return {pin: await assignPin(id, pin)};
 });
