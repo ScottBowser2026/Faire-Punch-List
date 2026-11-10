@@ -129,3 +129,24 @@ exports.plLogin = plLogin.plLogin;
 exports.plLogout = plLogin.plLogout;
 exports.plSetPin = plLogin.plSetPin;
 exports.plForgotPin = plLogin.plForgotPin;
+
+// ---------- 7:45 AM morning job lists (see morning-lists-core.js) ----------
+// Cloud Scheduler runs this on time; GitHub's schedule started runs hours late.
+const { onSchedule } = require("firebase-functions/v2/scheduler");
+const { runMorningLists } = require("./morning-lists-core");
+const emailjsPrivateKey = defineSecret("EMAILJS_PRIVATE_KEY");
+const teamsWorkflowUrl = defineSecret("TEAMS_WORKFLOW_URL");
+exports.sendMorningLists = onSchedule(
+  {
+    schedule: "45 7 * * *",
+    timeZone: "America/New_York",
+    timeoutSeconds: 300,
+    secrets: [emailjsPrivateKey, teamsWorkflowUrl],
+  },
+  () => runMorningLists({
+    db,
+    emailjsKey: emailjsPrivateKey.value(),
+    teamsUrl: teamsWorkflowUrl.value(),
+    oncePerDay: true,
+  })
+);

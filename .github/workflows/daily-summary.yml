@@ -1,12 +1,9 @@
-name: Daily Summary Email
+name: Morning Lists (manual run)
 
 on:
-  schedule:
-    # 7:45 AM Eastern all year: 11:45 UTC in summer (EDT), 12:45 UTC in winter (EST).
-    # The script only sends between 7 and 11 AM Eastern and once per day, so the
-    # run that lands at 6:45 or 8:45 Eastern does nothing.
-    - cron: '45 11 * * *'
-    - cron: '45 12 * * *'
+  # The real 7:45 AM run is the sendMorningLists Cloud Function (Firebase
+  # schedules it on time; GitHub's schedule started runs hours late).
+  # This workflow is only the manual Run workflow button, for tests.
   workflow_dispatch:
     inputs:
       test_recipient:
