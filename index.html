@@ -498,6 +498,14 @@
     <button class="ui" id="priv-add-btn">Add private job</button>
     <span class="hint-small" id="priv-msg"></span>
     <div id="priv-list" style="margin-top:14px"></div>
+    <div style="margin-top:22px;padding-top:14px;border-top:1px solid var(--border)">
+      <div style="font-size:14px;font-weight:700">Move existing jobs into Administration</div>
+      <div class="hint-small" style="margin:2px 0 8px">Pick a person, tick the jobs, and move them. Notes come along; photos and crew-list history don't. No texts or emails are sent.</div>
+      <select id="mv-person" style="font-size:13px;padding:6px 8px"></select>
+      <div id="mv-jobs" style="margin:8px 0"></div>
+      <button class="ui" id="mv-btn" style="display:none">Move selected to Administration</button>
+      <span class="hint-small" id="mv-msg"></span>
+    </div>
   </div>
 
   <div id="team-panel" class="admin-tab-panel" data-admin-tab-panel="team" style="margin-bottom:16px">
@@ -862,7 +870,7 @@ const emailjsConfig = {
   templateId: "template_ph5468d"
 };
 const TRACKER_URL = "https://punchlist.lancelotbiz.com/";
-const BUILD_VERSION = "v30 — Nov 10, 2026 (admin tiers, Administration tab, hidden jobs)";
+const BUILD_VERSION = "v31 — Nov 10, 2026 (move jobs into Administration)";
 document.addEventListener('DOMContentLoaded', () => {
   const el = document.getElementById('build-version-label');
   if (el) el.textContent = `· Build ${BUILD_VERSION}`;
@@ -2725,8 +2733,8 @@ function startPrivateListeners() {
 }
 
 function persistPrivate(job) {
-  firebase.database().ref(`${PRIV_ROOT}/r${job.rank}/${job.id}`).set(sanitizeTask(job))
-    .catch(err => flashSaveMsg("Couldn't save the private job — " + (err.code || err.message), true));
+  return firebase.database().ref(`${PRIV_ROOT}/r${job.rank}/${job.id}`).set(sanitizeTask(job))
+    .catch(err => { flashSaveMsg("Couldn't save the private job — " + (err.code || err.message), true); throw err; });
 }
 function deletePrivate(job) {
   firebase.database().ref(`${PRIV_ROOT}/r${job.rank}/${job.id}`).remove()
@@ -2743,7 +2751,7 @@ function addPrivateJob({ name, description, start, due }) {
   const bucket = privBuckets[rank] || (privBuckets[rank] = []);
   bucket.push(job);
   HIDDEN_TASKS = Object.values(privBuckets).flat();
-  persistPrivate(job);
+  persistPrivate(job).catch(() => {});
   renderPrivateJobs();
   return job;
 }
@@ -2777,13 +2785,13 @@ function renderPrivateJobs() {
         <button class="mark-btn priv-visible">Make visible</button>
         <button class="mark-btn priv-del">Delete</button>
       </div>`;
-    row.querySelector('.priv-pct').addEventListener('change', e => { job.pct = parseInt(e.target.value, 10); persistPrivate(job); renderPrivateJobs(); });
+    row.querySelector('.priv-pct').addEventListener('change', e => { job.pct = parseInt(e.target.value, 10); persistPrivate(job).catch(() => {}); renderPrivateJobs(); });
     row.querySelector('.priv-note-btn').addEventListener('click', () => {
       const inp = row.querySelector('.priv-note');
       const text = inp.value.trim();
       if (!text) return;
       (job.notes = job.notes || []).push({ text, by: currentUser.name, at: new Date().toISOString() });
-      persistPrivate(job); renderPrivateJobs();
+      persistPrivate(job).catch(() => {}); renderPrivateJobs();
     });
     row.querySelector('.priv-del').addEventListener('click', () => {
       if (!confirm(`Delete private job "${job.name}"?`)) return;
@@ -2808,6 +2816,73 @@ function renderPrivateJobs() {
     el.appendChild(row);
   });
 }
+
+function renderMovePicker() {
+  const sel = document.getElementById('mv-person');
+  if (!sel) return;
+  const prev = sel.value;
+  const owners = [...new Set(TASKS.map(t => t.owner))].sort();
+  sel.innerHTML = '<option value="">Choose a person...</option>' + owners.map(o => `<option value="${o.replace(/"/g, '&quot;')}">${o}</option>`).join('');
+  if (owners.includes(prev)) sel.value = prev;
+  renderMoveJobs();
+}
+function renderMoveJobs() {
+  const box = document.getElementById('mv-jobs');
+  const btn = document.getElementById('mv-btn');
+  const who = document.getElementById('mv-person').value;
+  box.innerHTML = '';
+  const jobs = who ? TASKS.filter(t => t.owner === who) : [];
+  btn.style.display = jobs.length ? 'inline-block' : 'none';
+  if (jobs.length) {
+    const all = document.createElement('label');
+    all.style.cssText = 'display:block;font-size:12.5px;font-weight:600;margin-bottom:4px';
+    all.innerHTML = '<input type="checkbox" id="mv-all" style="width:auto" /> Select all (' + jobs.length + ')';
+    box.appendChild(all);
+    all.querySelector('input').addEventListener('change', e => box.querySelectorAll('.mv-chk').forEach(c => { c.checked = e.target.checked; }));
+  }
+  jobs.forEach(t => {
+    const l = document.createElement('label');
+    l.style.cssText = 'display:block;font-size:13px;padding:2px 0';
+    l.innerHTML = `<input type="checkbox" class="mv-chk" data-id="${t.id}" style="width:auto" /> `;
+    l.appendChild(document.createTextNode(`${t.name} — ${t.dept}, ${t.pct}%${t.longRange ? ', long-range' : ''}`));
+    box.appendChild(l);
+  });
+}
+document.getElementById('mv-person').addEventListener('change', renderMoveJobs);
+document.querySelector('[data-admin-tab="administration"]').addEventListener('click', renderMovePicker);
+document.getElementById('mv-btn').addEventListener('click', async () => {
+  const msg = document.getElementById('mv-msg');
+  const ids = [...document.querySelectorAll('.mv-chk:checked')].map(c => parseInt(c.dataset.id, 10));
+  if (!ids.length) { msg.style.color = 'var(--red-fg)'; msg.textContent = ' Tick at least one job.'; return; }
+  const who = document.getElementById('mv-person').value;
+  const entry = Object.values(PIN_DIRECTORY).find(e => e.name === who);
+  const rank = Math.min(roleRank(currentUser.role), Math.max(2, roleRank(entry && entry.role)));
+  if (!confirm(`Move ${ids.length} job${ids.length === 1 ? '' : 's'} for ${who} into Administration? They will disappear from the crew lists.`)) return;
+  let moved = 0, failed = 0;
+  for (const id of ids) {
+    const t = TASKS.find(x => x.id === id);
+    if (!t) continue;
+    const job = {
+      id: 'h_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      rank, owner: t.owner, name: t.name, description: t.description || '',
+      start: t.start || null, due: t.due || null, pct: t.pct || 0,
+      notes: (t.notes || []).map(n => ({ text: n.text, by: n.by, at: n.at })),
+      movedFrom: { dept: t.dept, id: t.id, at: new Date().toISOString() }, createdAt: new Date().toISOString()
+    };
+    try {
+      await persistPrivate(job);
+      (privBuckets[rank] = privBuckets[rank] || []).push(job);
+      const idx = TASKS.indexOf(t);
+      if (idx > -1) TASKS.splice(idx, 1);
+      persistDeleteTask(t.id);
+      moved++;
+    } catch (e) { failed++; }
+  }
+  HIDDEN_TASKS = Object.values(privBuckets).flat();
+  rebuildDerivedState(); renderStats(); renderAll(); renderPrivateJobs(); renderMovePicker();
+  msg.style.color = failed ? 'var(--red-fg)' : 'var(--teal-fg)';
+  msg.textContent = ` Moved ${moved}${failed ? `, ${failed} failed (are the new database rules published?)` : ''}.`;
+});
 
 document.getElementById('priv-add-btn').addEventListener('click', () => {
   const msg = document.getElementById('priv-msg');
