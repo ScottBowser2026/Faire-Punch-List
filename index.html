@@ -575,9 +575,9 @@
             <button class="ui" id="daily-summary-send-now">Send now</button>
           </div>
           <div class="hint-small">This same address is also Cc'd on every individual job-update email. The team-wide summary no longer sends on its own — use "Send now" to send one any time.</div>
-          <label style="font-size:12px;color:var(--text-secondary);display:block;margin:14px 0 4px">Every morning at 7:45 AM, each person gets their own open jobs by Teams chat and email. This person also gets every open job, grouped by person, with overdue jobs first:</label>
+          <label style="font-size:12px;color:var(--text-secondary);display:block;margin:14px 0 4px">Every morning at 7:45 AM, each person gets their own open jobs by Teams chat and email. These people also get every open job, grouped by person, with overdue jobs first (separate names with commas):</label>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <input type="text" id="manager-summary-input" list="manager-summary-names" placeholder="Name from the team list, e.g. Blake Braswell" style="flex:1;min-width:220px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
+            <input type="text" id="manager-summary-input" list="manager-summary-names" placeholder="Names from the team list, e.g. Blake Braswell, Scott Bowser" style="flex:1;min-width:220px;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid var(--border)" />
             <datalist id="manager-summary-names"></datalist>
             <button class="ui" id="manager-summary-save">Save</button>
           </div>
@@ -3803,16 +3803,18 @@ document.getElementById('manager-summary-input').addEventListener('focus', () =>
 });
 document.getElementById('manager-summary-save').addEventListener('click', () => {
   const msg = document.getElementById('manager-summary-msg');
-  const name = document.getElementById('manager-summary-input').value.trim();
-  if (name && !DIRECTORY[name]) {
+  const names = document.getElementById('manager-summary-input').value.split(',').map(s => s.trim()).filter(Boolean);
+  const unknown = names.filter(n => !DIRECTORY[n]);
+  if (unknown.length) {
     msg.style.color = 'var(--red-fg)';
-    msg.textContent = `"${name}" isn't in the team list with an email — pick a name from the list.`;
+    msg.textContent = `Not in the team list with an email: ${unknown.join(', ')}. Use names exactly as they appear in the list.`;
     return;
   }
   if (!managerSummaryRef) return;
-  managerSummaryRef.set(name || null).then(() => {
+  const value = names.join(', ');
+  managerSummaryRef.set(value || null).then(() => {
     msg.style.color = 'var(--teal-fg)';
-    msg.textContent = name ? `${name} will get the all-jobs list each morning.` : 'Nobody gets the all-jobs list now.';
+    msg.textContent = names.length ? `${value} will get the all-jobs list each morning.` : 'Nobody gets the all-jobs list now.';
   }).catch(err => {
     msg.style.color = 'var(--red-fg)';
     msg.textContent = "Couldn't save — only admin can change this.";

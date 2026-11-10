@@ -1,6 +1,6 @@
 /**
  * The 7:45 AM morning job lists: each person gets their own open jobs, and
- * the person named in Team Management > Summary gets every open job by person.
+ * the people named in Team Management > Summary get every open job by person.
  * Delivered by email (EmailJS) and, when a Teams workflow URL is set, Teams chat.
  *
  * Shared by the scheduled Cloud Function (sendMorningLists in index.js — the
@@ -135,7 +135,8 @@ async function runMorningLists({ db, emailjsKey, teamsUrl = '', testRecipient = 
   const allTasks = (Array.isArray(tasks) ? tasks : Object.values(tasks)).filter(Boolean);
   const directory = parseBlob(dirSnap.val());
   const phones = parseBlob(phoneSnap.val());
-  const manager = (managerSnap.val() || '').trim();
+  // One or more team-list names, comma-separated.
+  const managers = String(managerSnap.val() || '').split(',').map(s => s.trim()).filter(Boolean);
 
   const openByOwner = {};
   allTasks.filter(isOpen).forEach(t => { const o = (t.owner || '').trim() || 'Unassigned'; (openByOwner[o] = openByOwner[o] || []).push(t); });
@@ -194,8 +195,9 @@ async function runMorningLists({ db, emailjsKey, teamsUrl = '', testRecipient = 
     if (owner === 'Unassigned') continue;
     await deliver(owner, directory[owner], personalMessage(owner, openByOwner[owner], today, dateLabel));
   }
-  if (manager) {
-    await deliver(manager, directory[manager], managerMessage(openByOwner, today, dateLabel));
+  if (managers.length) {
+    const all = managerMessage(openByOwner, today, dateLabel);
+    for (const m of managers) await deliver(m, directory[m], all);
   } else {
     console.log('No all-jobs recipient set in Team Management > Summary — skipped that list.');
   }
