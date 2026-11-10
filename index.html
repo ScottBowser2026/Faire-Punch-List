@@ -870,7 +870,7 @@ const emailjsConfig = {
   templateId: "template_ph5468d"
 };
 const TRACKER_URL = "https://punchlist.lancelotbiz.com/";
-const BUILD_VERSION = "v32 — Nov 10, 2026 (admins default to Administration crew)";
+const BUILD_VERSION = "v33 — Nov 10, 2026 (tier dropdown shows current tier)";
 document.addEventListener('DOMContentLoaded', () => {
   const el = document.getElementById('build-version-label');
   if (el) el.textContent = `· Build ${BUILD_VERSION}`;
@@ -3175,7 +3175,7 @@ function renderTeamList() {
     // Locked = admin-tier or above that you outrank no one on (yourself or a peer/higher tier).
     const isAdmin = targetRank >= 2 && !(myRank > targetRank && !(pinEntry && currentUser && pinEntry === PIN_DIRECTORY[currentUser.id]));
     const isSuper = targetRole === 'super';
-    const tierOptions = Object.keys(ROLE_RANK).filter(r => ROLE_RANK[r] < myRank).map(r => `<option value="${r}" ${r === targetRole ? 'selected' : ''}>${ROLE_LABEL[r]}</option>`).join('');
+    const tierOptions = Object.keys(ROLE_RANK).filter(r => ROLE_RANK[r] < myRank || r === targetRole).map(r => `<option value="${r}" ${r === targetRole ? 'selected' : ''}>${ROLE_LABEL[r]}</option>`).join('');
     const row = document.createElement('div');
     const tierStyle = targetRank >= 2
       ? 'border-left:4px solid #C8891A;background:#FCF3E1;'
