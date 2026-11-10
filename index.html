@@ -479,6 +479,25 @@
   <div class="admin-tab-bar" id="admin-tab-bar" style="display:none">
     <button class="admin-tab-btn active" data-admin-tab="addjob">Add a Job</button>
     <button class="admin-tab-btn" data-admin-tab="team">Team Management</button>
+    <button class="admin-tab-btn" data-admin-tab="administration">Administration</button>
+  </div>
+
+  <div id="administration-panel" class="admin-tab-panel" data-admin-tab-panel="administration" style="margin-bottom:16px">
+    <div style="padding:4px 0 14px">
+      <div style="font-size:15px;font-weight:700">&#128274; Administration &mdash; private jobs</div>
+      <div class="hint-small" style="margin-top:2px">Only admins see this. Private jobs never show in crew lists, counts, texts, emails, summaries, or the message log. Higher tiers can see lower tiers' private jobs (Admin &lt; Super Admin &lt; Owner).</div>
+    </div>
+    <div class="add-row">
+      <div class="field grow"><label for="priv-name">Job title</label><input type="text" id="priv-name" placeholder="e.g. Review Q4 staffing plan" /></div>
+      <div class="field narrow"><label for="priv-due">Due date</label><input type="date" id="priv-due" /></div>
+    </div>
+    <div class="add-row">
+      <div class="field grow"><label for="priv-desc">Description</label>
+        <textarea id="priv-desc" rows="2" style="width:100%;font-size:13px;padding:8px 10px;border-radius:7px;border:1px solid var(--border);font-family:inherit;box-sizing:border-box"></textarea></div>
+    </div>
+    <button class="ui" id="priv-add-btn">Add private job</button>
+    <span class="hint-small" id="priv-msg"></span>
+    <div id="priv-list" style="margin-top:14px"></div>
   </div>
 
   <div id="team-panel" class="admin-tab-panel" data-admin-tab-panel="team" style="margin-bottom:16px">
@@ -628,6 +647,12 @@
         <label for="new-job-description">Description <span style="color:var(--red-fg)">*</span></label>
         <textarea id="new-job-description" rows="2" style="width:100%;font-size:13px;padding:8px 10px;border-radius:7px;border:1px solid var(--border);font-family:inherit;box-sizing:border-box" placeholder="Any extra detail — sizing, materials, location specifics, etc."></textarea>
       </div>
+    </div>
+    <div class="add-row" id="new-job-hidden-row" style="align-items:center;display:none">
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-primary);margin:0">
+        <input type="checkbox" id="new-job-hidden" style="width:auto" />
+        &#128274; Hidden job &mdash; only admins can see it (no texts, emails, or crew lists)
+      </label>
     </div>
     <div class="add-row" id="new-job-longrange-row" style="align-items:center">
       <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-primary);margin:0">
@@ -837,7 +862,7 @@ const emailjsConfig = {
   templateId: "template_ph5468d"
 };
 const TRACKER_URL = "https://punchlist.lancelotbiz.com/";
-const BUILD_VERSION = "v29 — Nov 10, 2026 (mobile photo upload fix)";
+const BUILD_VERSION = "v30 — Nov 10, 2026 (admin tiers, Administration tab, hidden jobs)";
 document.addEventListener('DOMContentLoaded', () => {
   const el = document.getElementById('build-version-label');
   if (el) el.textContent = `· Build ${BUILD_VERSION}`;
@@ -2397,7 +2422,7 @@ document.getElementById('add-job-btn').addEventListener('click', () => {
     addMsg.textContent = 'Description is required.';
     return;
   }
-  const isLongRangeAttempt = currentUser.role === 'admin' && document.getElementById('new-job-longrange').checked;
+  const isLongRangeAttempt = isAdminTier(currentUser) && document.getElementById('new-job-longrange').checked;
   if (!isLongRangeAttempt) {
     const startVal = document.getElementById('new-job-start').value;
     const dueVal = document.getElementById('new-job-due').value;
@@ -2429,8 +2454,20 @@ document.getElementById('add-job-btn').addEventListener('click', () => {
   const isNewDept = !deptOrder.includes(dept);
   const start = document.getElementById('new-job-start').value || null;
   const due = document.getElementById('new-job-due').value || null;
-  const longRange = currentUser.role === 'admin' && document.getElementById('new-job-longrange').checked;
+  const longRange = isAdminTier(currentUser) && document.getElementById('new-job-longrange').checked;
   const description = document.getElementById('new-job-description').value.trim();
+  const hiddenBox = document.getElementById('new-job-hidden');
+  if (hiddenBox && hiddenBox.checked && isAdminTier(currentUser) && owner === currentUser.name) {
+    const hjob = addPrivateJob({ name: jobName, description, start, due });
+    document.getElementById('new-job-name').value = '';
+    document.getElementById('new-job-description').value = '';
+    document.getElementById('new-job-start').value = '';
+    document.getElementById('new-job-due').value = '';
+    hiddenBox.checked = false;
+    addMsg.style.color = 'var(--teal-fg)';
+    addMsg.textContent = `Added "${hjob.name}" as a hidden job. Find it under Administration.`;
+    return;
+  }
   if (DELETED_PEOPLE.has(owner)) {
     DELETED_PEOPLE.delete(owner);
     persistDeletedPeople();
@@ -2654,6 +2691,132 @@ function persistAllTasksBulk() {
   TASKS.forEach(t => { obj[taskKey(t.id)] = sanitizeTask(t); });
   dbRef.set(obj).catch(err => console.error('Bulk save failed', err));
 }
+
+// ===================== PRIVATE (HIDDEN) JOBS =====================
+// Stored apart from the shared task list at faire-punch-list-private-tasks/r{tier}/{id},
+// where tier is the creator's rank. The database rules only let that tier and above read
+// a bucket, so a hidden job is unreadable to everyone else even with browser dev tools.
+// They never touch TASKS, so counts, summaries, texts and emails can't see them.
+const PRIV_ROOT = 'faire-punch-list-private-tasks';
+let HIDDEN_TASKS = [];
+const privBuckets = {};
+let privStarted = false;
+
+function updateHiddenOption() {
+  const row = document.getElementById('new-job-hidden-row');
+  if (!row) return;
+  const show = isAdminTier(currentUser) && currentUser && ownerSelect.value === currentUser.name;
+  row.style.display = show ? 'flex' : 'none';
+  if (!show) { const b = document.getElementById('new-job-hidden'); if (b) b.checked = false; }
+}
+ownerSelect.addEventListener('change', updateHiddenOption);
+
+function startPrivateListeners() {
+  if (privStarted || !isAdminTier(currentUser)) return;
+  privStarted = true;
+  const myRank = roleRank(currentUser.role);
+  for (let r = 2; r <= myRank; r++) {
+    firebase.database().ref(`${PRIV_ROOT}/r${r}`).on('value', snap => {
+      privBuckets[r] = Object.values(snap.val() || {}).filter(Boolean);
+      HIDDEN_TASKS = Object.values(privBuckets).flat();
+      renderPrivateJobs();
+    }, err => console.warn('Private jobs not readable', r, err && err.code));
+  }
+}
+
+function persistPrivate(job) {
+  firebase.database().ref(`${PRIV_ROOT}/r${job.rank}/${job.id}`).set(sanitizeTask(job))
+    .catch(err => flashSaveMsg("Couldn't save the private job — " + (err.code || err.message), true));
+}
+function deletePrivate(job) {
+  firebase.database().ref(`${PRIV_ROOT}/r${job.rank}/${job.id}`).remove()
+    .catch(err => flashSaveMsg("Couldn't delete the private job — " + (err.code || err.message), true));
+}
+
+function addPrivateJob({ name, description, start, due }) {
+  const rank = roleRank(currentUser.role);
+  const job = {
+    id: 'h_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    rank, owner: currentUser.name, name, description: description || '',
+    start: start || null, due: due || null, pct: 0, notes: [], createdAt: new Date().toISOString()
+  };
+  const bucket = privBuckets[rank] || (privBuckets[rank] = []);
+  bucket.push(job);
+  HIDDEN_TASKS = Object.values(privBuckets).flat();
+  persistPrivate(job);
+  renderPrivateJobs();
+  return job;
+}
+
+function renderPrivateJobs() {
+  const el = document.getElementById('priv-list');
+  if (!el) return;
+  el.innerHTML = '';
+  if (!HIDDEN_TASKS.length) {
+    el.innerHTML = '<div class="empty-note">No private jobs yet.</div>';
+    return;
+  }
+  const esc = (x) => String(x == null ? '' : x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  [...HIDDEN_TASKS].sort((a, b) => (a.pct >= 100) - (b.pct >= 100) || (a.due || '9999').localeCompare(b.due || '9999')).forEach(job => {
+    const row = document.createElement('div');
+    row.className = 'job-row';
+    const notes = (job.notes || []).map(n => `<div class="hint-small">&bull; ${esc(n.text)} <span style="color:var(--text-muted)">(${esc(n.by)}, ${esc((n.at || '').slice(0, 10))})</span></div>`).join('');
+    row.innerHTML = `
+      <div class="job-top">
+        <span><span class="job-name">${esc(job.name)}</span>
+        <span class="job-dept-tag"> &middot; ${esc(job.owner)} &middot; ${esc(ROLE_LABEL[Object.keys(ROLE_RANK).find(k => ROLE_RANK[k] === job.rank)] || '')}</span>
+        ${job.due ? `<span class="due-tag"> &middot; Due ${formatDue(job.due)}</span>` : ''}</span>
+        <span class="badge" style="background:#FBE4E4;color:var(--red-fg)">&#128274; Hidden</span>
+      </div>
+      ${job.description ? `<div class="hint-small" style="padding:4px 0">${esc(job.description)}</div>` : ''}
+      ${notes}
+      <div class="job-actions" style="gap:8px;flex-wrap:wrap">
+        <select class="priv-pct" style="font-size:12px;padding:4px 6px">${[0, 25, 50, 75, 100].map(v => `<option value="${v}" ${v === job.pct ? 'selected' : ''}>${v}%</option>`).join('')}</select>
+        <input type="text" class="priv-note" placeholder="Add a note..." style="flex:1;min-width:140px;font-size:12px;padding:5px 8px;border-radius:7px;border:1px solid var(--border)" />
+        <button class="mark-btn priv-note-btn">Add note</button>
+        <button class="mark-btn priv-visible">Make visible</button>
+        <button class="mark-btn priv-del">Delete</button>
+      </div>`;
+    row.querySelector('.priv-pct').addEventListener('change', e => { job.pct = parseInt(e.target.value, 10); persistPrivate(job); renderPrivateJobs(); });
+    row.querySelector('.priv-note-btn').addEventListener('click', () => {
+      const inp = row.querySelector('.priv-note');
+      const text = inp.value.trim();
+      if (!text) return;
+      (job.notes = job.notes || []).push({ text, by: currentUser.name, at: new Date().toISOString() });
+      persistPrivate(job); renderPrivateJobs();
+    });
+    row.querySelector('.priv-del').addEventListener('click', () => {
+      if (!confirm(`Delete private job "${job.name}"?`)) return;
+      deletePrivate(job);
+      Object.keys(privBuckets).forEach(r => { privBuckets[r] = privBuckets[r].filter(j => j.id !== job.id); });
+      HIDDEN_TASKS = Object.values(privBuckets).flat();
+      renderPrivateJobs();
+    });
+    row.querySelector('.priv-visible').addEventListener('click', () => {
+      if (!confirm(`Make "${job.name}" visible? It will join the normal job list (no text or email is sent).`)) return;
+      const dept = ownerToDept()[job.owner] || 'Administration';
+      const t = { id: nextId++, dept, owner: job.owner, name: job.name, description: job.description || '', status: 'next', pct: job.pct || 0, start: job.start, due: job.due, longRange: false, assignedBy: job.owner };
+      if ((job.notes || []).length) t.notes = job.notes;
+      TASKS.push(t);
+      persistTask(t);
+      if (!deptOrder.includes(dept) && !DELETED_CATEGORIES.has(dept)) deptOrder.push(dept);
+      deletePrivate(job);
+      Object.keys(privBuckets).forEach(r => { privBuckets[r] = privBuckets[r].filter(j => j.id !== job.id); });
+      HIDDEN_TASKS = Object.values(privBuckets).flat();
+      renderStats(); renderAll(); renderPrivateJobs();
+    });
+    el.appendChild(row);
+  });
+}
+
+document.getElementById('priv-add-btn').addEventListener('click', () => {
+  const msg = document.getElementById('priv-msg');
+  const name = document.getElementById('priv-name').value.trim();
+  if (!name) { msg.style.color = 'var(--red-fg)'; msg.textContent = ' Enter a job title.'; return; }
+  addPrivateJob({ name, description: document.getElementById('priv-desc').value.trim(), start: null, due: document.getElementById('priv-due').value });
+  ['priv-name', 'priv-desc', 'priv-due'].forEach(id => { document.getElementById(id).value = ''; });
+  msg.style.color = 'var(--teal-fg)'; msg.textContent = ' Added.';
+});
 
 function persistDirectory() {
   if (directoryRef) directoryRef.set(JSON.stringify(DIRECTORY)).catch(err => console.error('Directory save failed', err));
@@ -2899,14 +3062,12 @@ function renderMessageLog() {
 }
 
 function renderTeamList() {
-  const roleRank = (name) => {
+  const rankByName = (name) => {
     const pin = Object.values(PIN_DIRECTORY).find(e => e.name === name);
-    if (pin && pin.role === 'admin') return 0;
-    if (pin && pin.role === 'super') return 1;
-    return 2;
+    return 4 - roleRank(pin && pin.role);
   };
   const names = [...new Set([...TASKS.map(t => t.owner), ...Object.keys(DIRECTORY), ...Object.values(PIN_DIRECTORY).map(e => e.name)])]
-    .sort((a, b) => roleRank(a) - roleRank(b) || a.localeCompare(b));
+    .sort((a, b) => rankByName(a) - rankByName(b) || a.localeCompare(b));
   const list = document.getElementById('team-list');
   if (!list) return;
   list.innerHTML = '';
@@ -2928,20 +3089,25 @@ function renderTeamList() {
       return;
     }
     const matchingIds = Object.keys(PIN_DIRECTORY).filter(id => PIN_DIRECTORY[id].name === name);
-    const existingId = matchingIds.find(id => PIN_DIRECTORY[id].role === 'admin') || matchingIds[0];
+    const existingId = matchingIds.sort((a, b) => roleRank(PIN_DIRECTORY[b].role) - roleRank(PIN_DIRECTORY[a].role))[0];
     const pinEntry = existingId ? PIN_DIRECTORY[existingId] : null;
     const hasPin = !!(pinEntry && pinEntry.hasPin);
-    const isAdmin = pinEntry && pinEntry.role === 'admin';
-    const isSuper = pinEntry && pinEntry.role === 'super';
+    const targetRole = (pinEntry && pinEntry.role) || 'manager';
+    const targetRank = roleRank(targetRole);
+    const myRank = roleRank(currentUser && currentUser.role);
+    // Locked = admin-tier or above that you outrank no one on (yourself or a peer/higher tier).
+    const isAdmin = targetRank >= 2 && !(myRank > targetRank && !(pinEntry && currentUser && pinEntry === PIN_DIRECTORY[currentUser.id]));
+    const isSuper = targetRole === 'super';
+    const tierOptions = Object.keys(ROLE_RANK).filter(r => ROLE_RANK[r] < myRank).map(r => `<option value="${r}" ${r === targetRole ? 'selected' : ''}>${ROLE_LABEL[r]}</option>`).join('');
     const row = document.createElement('div');
-    const tierStyle = isAdmin
+    const tierStyle = targetRank >= 2
       ? 'border-left:4px solid #C8891A;background:#FCF3E1;'
       : isSuper
       ? 'border-left:4px solid #7B4FCE;background:#F3EEFC;'
       : 'border-left:4px solid transparent;';
     row.style.cssText = `padding:10px 12px;margin:2px 0;border-radius:8px;border-top:1px solid var(--border);${tierStyle}`;
-    const tierBadge = isAdmin
-      ? '<span class="badge" style="background:#C8891A;color:#fff;font-weight:700;letter-spacing:.02em">&#9733; ADMIN</span>'
+    const tierBadge = targetRank >= 2
+      ? `<span class="badge" style="background:#C8891A;color:#fff;font-weight:700;letter-spacing:.02em">&#9733; ${ROLE_LABEL[targetRole].toUpperCase()}</span>`
       : isSuper
       ? '<span class="badge" style="background:#7B4FCE;color:#fff;font-weight:700;letter-spacing:.02em">&#9650; SUPER USER</span>'
       : '';
@@ -2958,9 +3124,9 @@ function renderTeamList() {
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <span style="font-size:11px;color:var(--text-muted);min-width:140px" title="PINs are kept one-way on the server and can't be shown — type a new one to change it">${hasPin ? 'PIN: ••••' : 'No PIN yet'}</span>
         <input type="text" class="tm-pin" placeholder="${hasPin ? 'new PIN' : 'PIN (4 digits)'}" inputmode="numeric" value="" style="width:110px;font-size:12px;padding:5px 8px;border-radius:7px;border:1px solid var(--border)" ${isAdmin ? 'disabled' : ''} />
-        <input type="text" class="tm-crews" placeholder="Crews (comma separated)" value="${pinEntry ? crewsOf(pinEntry).join(', ') : ''}" style="flex:1;min-width:160px;font-size:12px;padding:5px 8px;border-radius:7px;border:1px solid var(--border)" ${(isAdmin || isSuper) ? 'disabled' : ''} />
-        <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:${isSuper ? '#7B4FCE' : 'var(--text-secondary)'};padding:5px 10px;border-radius:7px;border:1.5px solid ${isSuper ? '#7B4FCE' : 'var(--border)'};background:${isSuper ? '#F3EEFC' : 'transparent'}" title="Full access to every job in every crew — add notes/photos, and reassign instantly without waiting on the new owner to accept">
-          <input type="checkbox" class="tm-super" ${isSuper ? 'checked' : ''} ${isAdmin ? 'disabled' : ''} /> &#9650; Make Super User
+        <input type="text" class="tm-crews" placeholder="Crews (comma separated)" value="${pinEntry ? crewsOf(pinEntry).join(', ') : ''}" style="flex:1;min-width:160px;font-size:12px;padding:5px 8px;border-radius:7px;border:1px solid var(--border)" ${(isAdmin || roleRank(targetRole) >= 1) ? 'disabled' : ''} />
+        <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;padding:5px 10px;border-radius:7px;border:1.5px solid var(--border)" title="Super User and above see every job in every crew. Admin and above also get the admin tabs.">
+          Tier <select class="tm-tier" ${isAdmin ? 'disabled' : ''} style="font-size:12px;padding:3px 6px">${tierOptions}</select>
         </label>
         <button class="ui tm-save-pin" style="font-size:12px;padding:5px 10px" ${isAdmin ? 'disabled title="Use Change my PIN while logged in as this admin"' : ''}>${pinEntry ? 'Update' : 'Assign PIN'}</button>
         <button class="ui tm-text" style="font-size:12px;padding:5px 10px">&#128172; Text</button>
@@ -3035,20 +3201,19 @@ function renderTeamList() {
       flashSaveMsg(`Removed ${name}.${openJobs.length ? ` Parked ${openJobs.length} of their job${openJobs.length === 1 ? '' : 's'} as long-range.` : ''}`);
     });
     const pinBtn = row.querySelector('.tm-save-pin');
-    const superCheckbox = row.querySelector('.tm-super');
+    const tierSelect = row.querySelector('.tm-tier');
     const crewsInput = row.querySelector('.tm-crews');
-    if (superCheckbox && !isAdmin) {
-      superCheckbox.addEventListener('change', () => {
-        crewsInput.disabled = superCheckbox.checked;
-        row.style.borderLeft = superCheckbox.checked ? '4px solid #7B4FCE' : '4px solid transparent';
-        row.style.background = superCheckbox.checked ? '#F3EEFC' : '';
-        flashSaveMsg(superCheckbox.checked ? `${name} will become a Super User once you click Assign/Update PIN.` : `${name} will be a regular Manager once you click Assign/Update PIN.`);
+    if (tierSelect && !isAdmin) {
+      tierSelect.addEventListener('change', () => {
+        crewsInput.disabled = roleRank(tierSelect.value) >= 1;
+        flashSaveMsg(`${name} will become ${ROLE_LABEL[tierSelect.value]} once you click Assign/Update PIN.`);
       });
     }
     if (!isAdmin) {
       pinBtn.addEventListener('click', () => {
         const newPin = row.querySelector('.tm-pin').value.trim();
-        const makeSuper = superCheckbox && superCheckbox.checked;
+        const newRole = tierSelect ? tierSelect.value : 'manager';
+        const makeSuper = roleRank(newRole) >= 1;
         const crews = makeSuper ? [] : crewsInput.value.split(',').map(s => s.trim()).filter(Boolean);
         if (newPin && !/^\d{4}$/.test(newPin)) {
           flashSaveMsg('PIN must be 4 digits.', true);
@@ -3059,12 +3224,12 @@ function renderTeamList() {
           return;
         }
         const id = existingId || newPersonId();
-        PIN_DIRECTORY[id] = { ...(pinEntry || {}), name, role: makeSuper ? 'super' : 'manager', crews };
+        PIN_DIRECTORY[id] = { ...(pinEntry || {}), name, role: newRole, crews };
         persistPinDirectory()
           .then(() => newPin ? setPinOnServer(id, newPin) : null)
           .then(() => {
             renderTeamList();
-            flashSaveMsg(newPin ? `PIN ${newPin} saved for ${name}${makeSuper ? ' as a super user' : ''}.` : `Saved ${name}${makeSuper ? ' as a super user' : ''}.`);
+            flashSaveMsg(newPin ? `PIN ${newPin} saved for ${name}${makeSuper ? ' as ' + ROLE_LABEL[newRole] : ''}.` : `Saved ${name}${makeSuper ? ' as ' + ROLE_LABEL[newRole] : ''}.`);
           })
           .catch(err => flashSaveMsg(err.message || "Couldn't save — try again.", true));
       });
@@ -3101,16 +3266,21 @@ document.querySelectorAll('.admin-subtab-btn').forEach(btn => {
 // PINs are not stored here (or anywhere the browser can read) — the server
 // keeps them as a keyed one-way hash and checks them in plLogin.
 const SEED_PIN_DIRECTORY = {};
+// Tiers, lowest to highest: manager < super (all crews) < admin < superadmin < owner.
+const ROLE_RANK = { manager: 0, super: 1, admin: 2, superadmin: 3, owner: 4 };
+const ROLE_LABEL = { manager: 'Manager', super: 'Super User', admin: 'Admin', superadmin: 'Super Admin', owner: 'Owner' };
+function roleRank(role) { return ROLE_RANK[role] || 0; }
+function isAdminTier(user) { return !!user && roleRank(user.role) >= 2; }
 let PIN_DIRECTORY = {};
 let pinDirectoryRef = null;
 let currentUser = null;
 function canEdit(task) {
   if (!currentUser) return false;
-  if (currentUser.role === 'admin' || currentUser.role === 'super') return true;
+  if (roleRank(currentUser.role) >= 1) return true;
   return (currentUser.crews || []).includes(task.dept);
 }
 function isElevated(user) {
-  return !!user && (user.role === 'admin' || user.role === 'super');
+  return !!user && roleRank(user.role) >= 1;
 }
 
 function persistPinDirectory() {
@@ -3434,21 +3604,22 @@ function applyUserBar() {
   const testModeBtn = document.getElementById('test-mode-btn');
   const globalRefreshBtn = document.getElementById('global-refresh-btn');
   if (!currentUser) return;
-  label.textContent = `Logged in as ${currentUser.name} (${currentUser.role === 'admin' ? 'Admin — full access' : currentUser.role === 'super' ? 'Super user — full access' : 'Manager — ' + (currentUser.crews || []).join(', ')})`;
-  if (adminTabBar) adminTabBar.style.display = currentUser.role === 'admin' ? 'flex' : 'none';
+  label.textContent = `Logged in as ${currentUser.name} (${roleRank(currentUser.role) >= 2 ? ROLE_LABEL[currentUser.role] + ' — full access' : currentUser.role === 'super' ? 'Super user — full access' : 'Manager — ' + (currentUser.crews || []).join(', ')})`;
+  if (adminTabBar) adminTabBar.style.display = isAdminTier(currentUser) ? 'flex' : 'none';
+  if (typeof updateHiddenOption === 'function') updateHiddenOption();
   viewAllBtn.style.display = isElevated(currentUser) ? 'none' : 'inline-block';
   const reportsBtn = document.getElementById('reports-btn');
   if (reportsBtn) reportsBtn.style.display = isElevated(currentUser) ? 'inline-block' : 'none';
-  testModeBtn.style.display = currentUser.role === 'admin' ? 'inline-block' : 'none';
-  globalRefreshBtn.style.display = currentUser.role === 'admin' ? 'inline-block' : 'none';
+  testModeBtn.style.display = isAdminTier(currentUser) ? 'inline-block' : 'none';
+  globalRefreshBtn.style.display = isAdminTier(currentUser) ? 'inline-block' : 'none';
   const downloadBackupBtn = document.getElementById('save-progress-btn');
   const restoreBackupBtn = document.getElementById('load-progress-btn');
-  if (downloadBackupBtn) downloadBackupBtn.style.display = currentUser.role === 'admin' ? 'inline-block' : 'none';
-  if (restoreBackupBtn) restoreBackupBtn.style.display = currentUser.role === 'admin' ? 'inline-block' : 'none';
+  if (downloadBackupBtn) downloadBackupBtn.style.display = isAdminTier(currentUser) ? 'inline-block' : 'none';
+  if (restoreBackupBtn) restoreBackupBtn.style.display = isAdminTier(currentUser) ? 'inline-block' : 'none';
   const lrRow = document.getElementById('new-job-longrange-row');
   const lrHint = document.getElementById('new-job-longrange-hint');
-  if (lrRow) lrRow.style.display = currentUser.role === 'admin' ? 'flex' : 'none';
-  if (lrHint) lrHint.style.display = currentUser.role === 'admin' ? 'none' : 'block';
+  if (lrRow) lrRow.style.display = isAdminTier(currentUser) ? 'flex' : 'none';
+  if (lrHint) lrHint.style.display = isAdminTier(currentUser) ? 'none' : 'block';
   updateViewAllBtnLabel();
   renderStaffNotes();
 }
@@ -4107,7 +4278,7 @@ document.getElementById('np-add').addEventListener('click', () => {
     msg.textContent = 'Name, email, and department are all required.';
     return;
   }
-  if (Object.values(PIN_DIRECTORY).some(e => e.name === name && e.role === 'admin')) {
+  if (Object.values(PIN_DIRECTORY).some(e => e.name === name && roleRank(e.role) >= 2)) {
     msg.style.color = 'var(--red-fg)';
     msg.textContent = `${name} is already an admin with full access to everything — no need to add them here. If you just want to save their email, do that from their row in the "Everyone" list below instead.`;
     return;
@@ -4241,6 +4412,7 @@ function startPreLoginListeners() {
 function startFirebaseData() {
   if (dbRef) return; // already started
   dbRef = firebase.database().ref('faire-punch-list-tasks');
+  startPrivateListeners();
   directoryRef = firebase.database().ref('faire-punch-list-directory');
   phoneDirectoryRef = firebase.database().ref('faire-punch-list-phones');
   phoneDirectoryRef.on('value', snap => {
@@ -4367,7 +4539,7 @@ document.getElementById('photo-lightbox').addEventListener('click', () => {
 
 document.getElementById('help-btn').addEventListener('click', () => {
   const adminSection = document.getElementById('help-admin-section');
-  adminSection.style.display = (currentUser && currentUser.role === 'admin') ? 'block' : 'none';
+  adminSection.style.display = isAdminTier(currentUser) ? 'block' : 'none';
   document.getElementById('help-modal').style.display = 'flex';
 });
 document.getElementById('help-close-btn').addEventListener('click', () => {

@@ -4,10 +4,13 @@
     ".write": false,
     "faire-punch-list-people": {
       ".read": "auth != null && auth.token.plUntil != null && auth.token.plUntil > now && root.child('faire-punch-list-people/' + auth.token.plId + '/role').val() === auth.token.plRole",
-      ".write": "auth != null && auth.token.plUntil != null && auth.token.plUntil > now && root.child('faire-punch-list-people/' + auth.token.plId + '/role').val() === auth.token.plRole && auth.token.plRole === 'admin'",
+      ".write": "auth != null && auth.token.plUntil != null && auth.token.plUntil > now && root.child('faire-punch-list-people/' + auth.token.plId + '/role').val() === auth.token.plRole && (auth.token.plRole === 'admin' || auth.token.plRole === 'superadmin' || auth.token.plRole === 'owner')",
       "$id": {
         "pin": {
           ".validate": false
+        },
+        "role": {
+          ".validate": "newData.isString() && (newData.val() === data.val() || ((auth.token.plRole === 'owner' ? 4 : auth.token.plRole === 'superadmin' ? 3 : auth.token.plRole === 'admin' ? 2 : 0) >= (newData.val() === 'owner' ? 4 : newData.val() === 'superadmin' ? 3 : newData.val() === 'admin' ? 2 : newData.val() === 'super' ? 1 : 0) && (auth.token.plRole === 'owner' ? 4 : auth.token.plRole === 'superadmin' ? 3 : auth.token.plRole === 'admin' ? 2 : 0) >= (data.val() === 'owner' ? 4 : data.val() === 'superadmin' ? 3 : data.val() === 'admin' ? 2 : data.val() === 'super' ? 1 : 0)))"
         }
       }
     },
@@ -49,19 +52,19 @@
     },
     "faire-punch-list-daily-summary-email": {
       ".read": "auth != null && auth.token.plUntil != null && auth.token.plUntil > now && root.child('faire-punch-list-people/' + auth.token.plId + '/role').val() === auth.token.plRole",
-      ".write": "auth != null && auth.token.plUntil != null && auth.token.plUntil > now && root.child('faire-punch-list-people/' + auth.token.plId + '/role').val() === auth.token.plRole && auth.token.plRole === 'admin'"
+      ".write": "auth != null && auth.token.plUntil != null && auth.token.plUntil > now && root.child('faire-punch-list-people/' + auth.token.plId + '/role').val() === auth.token.plRole && (auth.token.plRole === 'admin' || auth.token.plRole === 'superadmin' || auth.token.plRole === 'owner')"
     },
     "faire-punch-list-manager-summary-person": {
       ".read": "auth != null && auth.token.plUntil != null && auth.token.plUntil > now && root.child('faire-punch-list-people/' + auth.token.plId + '/role').val() === auth.token.plRole",
-      ".write": "auth != null && auth.token.plUntil != null && auth.token.plUntil > now && root.child('faire-punch-list-people/' + auth.token.plId + '/role').val() === auth.token.plRole && auth.token.plRole === 'admin'"
+      ".write": "auth != null && auth.token.plUntil != null && auth.token.plUntil > now && root.child('faire-punch-list-people/' + auth.token.plId + '/role').val() === auth.token.plRole && (auth.token.plRole === 'admin' || auth.token.plRole === 'superadmin' || auth.token.plRole === 'owner')"
     },
     "faire-punch-list-test-mode": {
       ".read": "auth != null",
-      ".write": "auth != null && auth.token.plUntil != null && auth.token.plUntil > now && root.child('faire-punch-list-people/' + auth.token.plId + '/role').val() === auth.token.plRole && auth.token.plRole === 'admin'"
+      ".write": "auth != null && auth.token.plUntil != null && auth.token.plUntil > now && root.child('faire-punch-list-people/' + auth.token.plId + '/role').val() === auth.token.plRole && (auth.token.plRole === 'admin' || auth.token.plRole === 'superadmin' || auth.token.plRole === 'owner')"
     },
     "faire-punch-list-force-reload": {
       ".read": "auth != null",
-      ".write": "auth != null && auth.token.plUntil != null && auth.token.plUntil > now && root.child('faire-punch-list-people/' + auth.token.plId + '/role').val() === auth.token.plRole && auth.token.plRole === 'admin'"
+      ".write": "auth != null && auth.token.plUntil != null && auth.token.plUntil > now && root.child('faire-punch-list-people/' + auth.token.plId + '/role').val() === auth.token.plRole && (auth.token.plRole === 'admin' || auth.token.plRole === 'superadmin' || auth.token.plRole === 'owner')"
     },
     "sites": {
       "$site": {
@@ -101,6 +104,20 @@
         "reports": {
           ".write": "auth != null && auth.token.role === 'superadmin'"
         }
+      }
+    },
+    "faire-punch-list-private-tasks": {
+      "r2": {
+        ".read": "auth != null && auth.token.plUntil != null && auth.token.plUntil > now && root.child('faire-punch-list-people/' + auth.token.plId + '/role').val() === auth.token.plRole && (auth.token.plRole === 'owner' ? 4 : auth.token.plRole === 'superadmin' ? 3 : auth.token.plRole === 'admin' ? 2 : 0) >= 2",
+        ".write": "auth != null && auth.token.plUntil != null && auth.token.plUntil > now && root.child('faire-punch-list-people/' + auth.token.plId + '/role').val() === auth.token.plRole && (auth.token.plRole === 'owner' ? 4 : auth.token.plRole === 'superadmin' ? 3 : auth.token.plRole === 'admin' ? 2 : 0) >= 2"
+      },
+      "r3": {
+        ".read": "auth != null && auth.token.plUntil != null && auth.token.plUntil > now && root.child('faire-punch-list-people/' + auth.token.plId + '/role').val() === auth.token.plRole && (auth.token.plRole === 'owner' ? 4 : auth.token.plRole === 'superadmin' ? 3 : auth.token.plRole === 'admin' ? 2 : 0) >= 3",
+        ".write": "auth != null && auth.token.plUntil != null && auth.token.plUntil > now && root.child('faire-punch-list-people/' + auth.token.plId + '/role').val() === auth.token.plRole && (auth.token.plRole === 'owner' ? 4 : auth.token.plRole === 'superadmin' ? 3 : auth.token.plRole === 'admin' ? 2 : 0) >= 3"
+      },
+      "r4": {
+        ".read": "auth != null && auth.token.plUntil != null && auth.token.plUntil > now && root.child('faire-punch-list-people/' + auth.token.plId + '/role').val() === auth.token.plRole && (auth.token.plRole === 'owner' ? 4 : auth.token.plRole === 'superadmin' ? 3 : auth.token.plRole === 'admin' ? 2 : 0) >= 4",
+        ".write": "auth != null && auth.token.plUntil != null && auth.token.plUntil > now && root.child('faire-punch-list-people/' + auth.token.plId + '/role').val() === auth.token.plRole && (auth.token.plRole === 'owner' ? 4 : auth.token.plRole === 'superadmin' ? 3 : auth.token.plRole === 'admin' ? 2 : 0) >= 4"
       }
     }
   }
