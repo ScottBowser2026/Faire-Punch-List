@@ -837,7 +837,7 @@ const emailjsConfig = {
   templateId: "template_ph5468d"
 };
 const TRACKER_URL = "https://punchlist.lancelotbiz.com/";
-const BUILD_VERSION = "v28 — Oct 2, 2026 (footer version, crew cleanup, fix stuck portions)";
+const BUILD_VERSION = "v29 — Nov 10, 2026 (mobile photo upload fix)";
 document.addEventListener('DOMContentLoaded', () => {
   const el = document.getElementById('build-version-label');
   if (el) el.textContent = `· Build ${BUILD_VERSION}`;
@@ -1116,21 +1116,67 @@ function portionsBlockHtml(task) {
   `;
 }
 
+// Phone cameras produce big (often 4-8 MB, sometimes HEIC) files with odd names.
+// Shrink to a web-friendly JPEG when the browser can decode it; if it can't, send the original.
+async function prepPhotoForUpload(file) {
+  try {
+    if (!file || !/^image\//.test(file.type || 'image/jpeg') || /gif|svg/.test(file.type)) return file;
+    if (file.size < 400 * 1024) return file;
+    const bmp = await createImageBitmap(file);
+    const MAX = 1800;
+    const scale = Math.min(1, MAX / Math.max(bmp.width, bmp.height));
+    const c = document.createElement('canvas');
+    c.width = Math.round(bmp.width * scale);
+    c.height = Math.round(bmp.height * scale);
+    c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+    if (bmp.close) bmp.close();
+    const blob = await new Promise(res => c.toBlob(res, 'image/jpeg', 0.85));
+    return (blob && blob.size < file.size) ? blob : file;
+  } catch (e) { return file; }
+}
+
+function safePhotoName(file) {
+  let n = (file && file.name) ? file.name : 'photo';
+  n = n.replace(/\.[^.]*$/, '').replace(/[^A-Za-z0-9_-]+/g, '_').slice(0, 40) || 'photo';
+  return n + '.jpg';
+}
+
+async function waitForAuth(ms) {
+  const start = Date.now();
+  while (!firebase.auth().currentUser && Date.now() - start < ms) {
+    await new Promise(r => setTimeout(r, 250));
+  }
+  return !!firebase.auth().currentUser;
+}
+
+// Uploads one photo and returns {url, path}. Throws on failure.
+async function uploadOnePhoto(pathPrefix, file) {
+  if (!(await waitForAuth(8000))) {
+    const e = new Error('not signed in'); e.code = 'auth/not-ready'; throw e;
+  }
+  const body = await prepPhotoForUpload(file);
+  const path = `${pathPrefix}/${Date.now()}_${Math.random().toString(36).slice(2, 7)}_${safePhotoName(file)}`;
+  const ref = firebase.storage().ref().child(path);
+  const task = ref.put(body, { contentType: (body.type && /^image\//.test(body.type)) ? body.type : 'image/jpeg' });
+  await new Promise((resolve, reject) => {
+    const timer = setTimeout(() => { try { task.cancel(); } catch (e) {} const e = new Error('upload timed out'); e.code = 'upload/timeout'; reject(e); }, 90000);
+    task.then(() => { clearTimeout(timer); resolve(); }, err => { clearTimeout(timer); reject(err); });
+  });
+  const url = await ref.getDownloadURL();
+  return { url, path };
+}
+
 async function uploadPhotos(task, files, changeText) {
   if (!window.firebase || !firebase.storage) {
     alert("Photo storage isn't connected yet.");
     return;
   }
-  const storageRef = firebase.storage().ref();
   const newUrls = [];
   let failCount = 0;
   let lastErr = null;
   for (const file of files) {
     try {
-      const path = `punch-list-photos/${task.id}/${Date.now()}_${file.name}`;
-      const ref = storageRef.child(path);
-      await ref.put(file);
-      const url = await ref.getDownloadURL();
+      const { url, path } = await uploadOnePhoto(`punch-list-photos/${task.id}`, file);
       if (!task.photos) task.photos = [];
       task.photos.push({ url, path });
       newUrls.push(url);
@@ -1168,27 +1214,25 @@ async function uploadPortionPhotos(task, sub, files, changeText) {
     alert("Photo storage isn't connected yet.");
     return;
   }
-  const storageRef = firebase.storage().ref();
   const newUrls = [];
   let failCount = 0;
+  let lastErr = null;
   for (const file of files) {
     try {
-      const path = `punch-list-photos/${task.id}/portions/${sub.id}/${Date.now()}_${file.name}`;
-      const ref = storageRef.child(path);
-      await ref.put(file);
-      const url = await ref.getDownloadURL();
+      const { url, path } = await uploadOnePhoto(`punch-list-photos/${task.id}/portions/${sub.id}`, file);
       if (!sub.photos) sub.photos = [];
       sub.photos.push({ url, path });
       newUrls.push(url);
     } catch (err) {
       console.error('Portion photo upload failed', err);
       failCount++;
+      lastErr = err;
     }
   }
   if (newUrls.length) persistTask(task);
   renderStats();
   renderAll();
-  if (failCount) flashSaveMsg(`&#9888; ${failCount} photo${failCount === 1 ? '' : 's'} failed to upload — try again, or tell Scott if it keeps happening.`, true);
+  if (failCount) flashSaveMsg(`&#9888; ${failCount} photo${failCount === 1 ? '' : 's'} failed to upload${lastErr && (lastErr.code || lastErr.message) ? ` (${lastErr.code || lastErr.message})` : ''} — try again, or tell Scott if it keeps happening.`, true);
   renderMyPortions();
   if (newUrls.length) {
     const text = changeText || `${newUrls.length} photo${newUrls.length === 1 ? '' : 's'} added to their portion of "${task.name}"`;
@@ -4340,6 +4384,19 @@ function flashSaveMsg(text, isError) {
   saveMsg.style.display = 'block';
   saveMsg.style.color = isError ? 'var(--red-fg)' : 'var(--teal-fg)';
   saveMsg.textContent = text;
+  if (isError) {
+    // The bar above can be scrolled off-screen on a phone, so errors also pop up where you're looking.
+    let t = document.getElementById('error-toast');
+    if (!t) {
+      t = document.createElement('div');
+      t.id = 'error-toast';
+      t.style.cssText = 'position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:3500;background:#8a1f1f;color:#fff;padding:12px 16px;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.3);font-size:14px;font-weight:600;max-width:min(92vw,440px);text-align:center';
+      t.addEventListener('click', () => t.remove());
+      document.body.appendChild(t);
+    }
+    t.textContent = text.replace(/&#9888;/g, '\u26A0');
+    clearTimeout(t._h); t._h = setTimeout(() => t.remove(), 12000);
+  }
 }
 
 function showCompletionCelebration(jobName) {
