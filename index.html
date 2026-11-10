@@ -870,7 +870,7 @@ const emailjsConfig = {
   templateId: "template_ph5468d"
 };
 const TRACKER_URL = "https://punchlist.lancelotbiz.com/";
-const BUILD_VERSION = "v31 — Nov 10, 2026 (move jobs into Administration)";
+const BUILD_VERSION = "v32 — Nov 10, 2026 (admins default to Administration crew)";
 document.addEventListener('DOMContentLoaded', () => {
   const el = document.getElementById('build-version-label');
   if (el) el.textContent = `· Build ${BUILD_VERSION}`;
@@ -2385,6 +2385,8 @@ function ownerToDept() {
     }
   });
   TASKS.forEach(t => { if (!(t.owner in map)) map[t.owner] = t.dept; });
+  // Admin-tier people with no crew of their own file their jobs under Administration.
+  Object.values(PIN_DIRECTORY).forEach(entry => { if (roleRank(entry.role) >= 2 && !map[entry.name]) map[entry.name] = 'Administration'; });
   Object.keys(DIRECTORY).forEach(name => { if (!(name in map)) map[name] = ''; });
   _ownerToDeptCache = map;
   return map;
