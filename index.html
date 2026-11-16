@@ -870,7 +870,7 @@ const emailjsConfig = {
   templateId: "template_ph5468d"
 };
 const TRACKER_URL = "https://punchlist.lancelotbiz.com/";
-const BUILD_VERSION = "v36 — Nov 16, 2026 (assigners can add notes, and edit until accepted)";
+const BUILD_VERSION = "v37 — Nov 16, 2026 (assignees and assigners can add notes and photos)";
 document.addEventListener('DOMContentLoaded', () => {
   const el = document.getElementById('build-version-label');
   if (el) el.textContent = `· Build ${BUILD_VERSION}`;
@@ -1381,7 +1381,8 @@ function makeSliderRow(t, showDeptTag) {
     ${editable ? `<div class="photo-upload-row"><input type="file" class="photo-input" accept="image/*" multiple /></div>
     <div class="photo-upload-row"><input type="text" class="progress-note" placeholder="Or add a quick note instead of a photo..." style="flex:1;font-size:13px;padding:6px 9px;border-radius:7px;border:1px solid var(--border)" /></div>
     <div class="hint-small">Attach a photo or add a note, then hit Save or press Enter</div>
-    <div class="hint-small save-progress-msg"></div>` : (canAddNote(t) ? `<div class="photo-upload-row" style="display:flex;gap:6px"><input type="text" class="progress-note" placeholder="Add a note or comment on this job..." style="flex:1;font-size:13px;padding:6px 9px;border-radius:7px;border:1px solid var(--border)" /><button class="mark-btn note-only-save">Add note</button></div>
+    <div class="hint-small save-progress-msg"></div>` : (canAddNote(t) ? `<div class="photo-upload-row"><input type="file" class="photo-input" accept="image/*" multiple /></div>
+    <div class="photo-upload-row" style="display:flex;gap:6px"><input type="text" class="progress-note" placeholder="Add a note or comment (or choose a photo above)..." style="flex:1;font-size:13px;padding:6px 9px;border-radius:7px;border:1px solid var(--border)" /><button class="mark-btn note-only-save">Add</button></div>
     <div class="hint-small save-progress-msg"></div>` : '')}
     ${t.pendingAcceptance ? `<div class="hint-small" style="color:var(--gray-fg);font-weight:600;padding:6px 0">&#9203; New job assigned by ${t.pendingAcceptance.requestedBy} — waiting on ${t.owner} to accept</div>` : ''}
     ${t.pendingAcceptance && currentUser && (currentUser.name === t.owner || isElevated(currentUser)) ? `
