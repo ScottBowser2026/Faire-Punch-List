@@ -870,7 +870,7 @@ const emailjsConfig = {
   templateId: "template_ph5468d"
 };
 const TRACKER_URL = "https://punchlist.lancelotbiz.com/";
-const BUILD_VERSION = "v34 — Nov 16, 2026 (assignees can add notes on other departments' jobs)";
+const BUILD_VERSION = "v35 — Nov 16, 2026 (assignees can add notes, including before accepting)";
 document.addEventListener('DOMContentLoaded', () => {
   const el = document.getElementById('build-version-label');
   if (el) el.textContent = `· Build ${BUILD_VERSION}`;
@@ -1450,7 +1450,7 @@ function makeSliderRow(t, showDeptTag) {
         <button class="mark-btn delete-confirm" style="border-color:var(--red-fg);color:var(--red-fg)">${currentUser && isElevated(currentUser) ? 'Confirm delete' : 'Send delete request to admin'}</button>
       </div>
     </div>` : ''}
-    ` : `<div class="locked-note">&#128274; View only — this job belongs to a different crew</div>`}
+    ` : `<div class="locked-note">&#128274; ${canAddNote(t) ? 'This job belongs to a different crew — you can add notes, even before accepting' : 'View only — this job belongs to a different crew'}</div>`}
     ${isEditing ? `
     <div class="edit-form">
       <div class="add-row">
