@@ -870,7 +870,7 @@ const emailjsConfig = {
   templateId: "template_ph5468d"
 };
 const TRACKER_URL = "https://punchlist.lancelotbiz.com/";
-const BUILD_VERSION = "v35 — Nov 16, 2026 (assignees can add notes, including before accepting)";
+const BUILD_VERSION = "v36 — Nov 16, 2026 (assigners can add notes, and edit until accepted)";
 document.addEventListener('DOMContentLoaded', () => {
   const el = document.getElementById('build-version-label');
   if (el) el.textContent = `· Build ${BUILD_VERSION}`;
@@ -3359,11 +3359,14 @@ function canAddNote(task) {
   if (!currentUser) return false;
   if (canEdit(task)) return true;
   if (task.owner === currentUser.name) return true;
+  if (task.assignedBy === currentUser.name) return true;
   return (task.subassignments || []).some(sub => sub && sub.assignedTo === currentUser.name);
 }
 function canEdit(task) {
   if (!currentUser) return false;
   if (roleRank(currentUser.role) >= 1) return true;
+  // The person who assigned a job can edit it until the assignee accepts
+  if (task.pendingAcceptance && task.pendingAcceptance.requestedBy === currentUser.name) return true;
   return (currentUser.crews || []).includes(task.dept);
 }
 function isElevated(user) {
