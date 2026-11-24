@@ -870,7 +870,7 @@ const emailjsConfig = {
   templateId: "template_ph5468d"
 };
 const TRACKER_URL = "https://punchlist.lancelotbiz.com/";
-const BUILD_VERSION = "v38 — Nov 24, 2026 (auto-refresh to newest version + Refresh app link)";
+const BUILD_VERSION = "v39 — Nov 24, 2026 (photo upload shows full error details)";
 document.addEventListener('DOMContentLoaded', () => {
   const el = document.getElementById('build-version-label');
   if (el) el.textContent = `· Build ${BUILD_VERSION}`;
@@ -1205,6 +1205,15 @@ async function uploadOnePhoto(pathPrefix, file) {
   return { url, path };
 }
 
+async function photoFailureDetails(err) {
+  let who = 'not signed in';
+  try {
+    const u = firebase.auth().currentUser;
+    if (u) { const c = (await u.getIdTokenResult()).claims; who = `signed in, role=${c.plRole || 'none'}, loginValid=${c.plUntil > Date.now()}`; }
+  } catch (e) { who = 'token check failed: ' + e.message; }
+  return `Photo upload failed.\nCode: ${(err && err.code) || 'none'}\nMessage: ${(err && err.message) || err}\nAuth: ${who}\nVersion: ${BUILD_VERSION.split(' — ')[0]}\n\nPlease screenshot this and send it to Scott.`;
+}
+
 async function uploadPhotos(task, files, changeText) {
   if (!window.firebase || !firebase.storage) {
     alert("Photo storage isn't connected yet.");
@@ -1229,6 +1238,7 @@ async function uploadPhotos(task, files, changeText) {
   renderStats();
   renderAll();
   if (failCount) {
+    photoFailureDetails(lastErr).then(m => alert(m));
     flashSaveMsg(`&#9888; ${failCount} photo${failCount === 1 ? '' : 's'} failed to upload${lastErr && lastErr.code ? ` (${lastErr.code})` : ''} — try again, or tell Scott if it keeps happening.`, true);
   }
   if (newUrls.length) {
