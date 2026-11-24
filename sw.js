@@ -1,4 +1,4 @@
-const CACHE_NAME = "faire-punch-list-shell-v2";
+const CACHE_NAME = "faire-punch-list-shell-v3";
 const SHELL_FILES = [
   "./index.html",
   "./manifest.json",
@@ -36,6 +36,21 @@ self.addEventListener("fetch", (event) => {
   const isShellFile = SHELL_FILES.some((f) => url.pathname.endsWith(f.replace("./", "")));
 
   if (isShellFile) {
+    const isPage = url.pathname.endsWith("index.html") || url.pathname.endsWith("/");
+    if (isPage) {
+      // Network-first for the app page so people always get the newest version;
+      // fall back to the cached copy only when offline.
+      event.respondWith(
+        fetch(event.request)
+          .then((response) => {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+            return response;
+          })
+          .catch(() => caches.match(event.request))
+      );
+      return;
+    }
     event.respondWith(
       caches.match(event.request).then((cached) => {
         const networkFetch = fetch(event.request)
