@@ -870,7 +870,7 @@ const emailjsConfig = {
   templateId: "template_ph5468d"
 };
 const TRACKER_URL = "https://punchlist.lancelotbiz.com/";
-const BUILD_VERSION = "v44 — Nov 24, 2026 (photo upload progress, smaller iPhone photos, Diagnostics link)";
+const BUILD_VERSION = "v45 — Nov 24, 2026 (lighter photo thumbnails, safer iPhone restart)";
 
 function crumb(msg) {
   try {
@@ -998,7 +998,7 @@ function photoGalleryHtml(task, editable) {
   if (!photos.length) return '';
   return `<div class="photo-gallery">${photos.map((p, i) => `
     <div style="position:relative">
-      <img src="${p.url}" data-idx="${i}" class="photo-thumb" />
+      <img src="${p.url}" data-idx="${i}" class="photo-thumb" loading="lazy" decoding="async" />
       ${editable ? `<button class="photo-remove" data-idx="${i}" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:var(--red-fg);color:#fff;border:none;font-size:11px;line-height:1;cursor:pointer">&times;</button>` : ''}
     </div>`).join('')}</div>`;
 }
@@ -1344,7 +1344,7 @@ function portionPhotoGalleryHtml(sub, editable) {
   if (!photos.length) return '';
   return `<div class="photo-gallery">${photos.map((p, i) => `
     <div style="position:relative">
-      <img src="${p.url}" data-idx="${i}" class="photo-thumb portion-photo-thumb" />
+      <img src="${p.url}" data-idx="${i}" class="photo-thumb portion-photo-thumb" loading="lazy" decoding="async" />
       ${editable ? `<button class="photo-remove portion-photo-remove" data-idx="${i}" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:var(--red-fg);color:#fff;border:none;font-size:11px;line-height:1;cursor:pointer">&times;</button>` : ''}
     </div>`).join('')}</div>`;
 }
@@ -4725,7 +4725,18 @@ document.getElementById('help-modal').addEventListener('click', (e) => {
   if (e.target.id === 'help-modal') document.getElementById('help-modal').style.display = 'none';
 });
 
-init();
+// iPhone Safari can hand back a broken saved-login store if the page restarts while hidden,
+// so wait until the page is actually visible before starting Firebase.
+if (document.visibilityState === 'visible') {
+  init();
+} else {
+  crumb('start deferred until page visible');
+  document.addEventListener('visibilitychange', function startWhenVisible() {
+    if (document.visibilityState !== 'visible') return;
+    document.removeEventListener('visibilitychange', startWhenVisible);
+    init();
+  });
+}
 
 const saveMsg = document.getElementById('save-msg');
 function flashSaveMsg(text, isError) {
