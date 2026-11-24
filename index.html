@@ -870,7 +870,7 @@ const emailjsConfig = {
   templateId: "template_ph5468d"
 };
 const TRACKER_URL = "https://punchlist.lancelotbiz.com/";
-const BUILD_VERSION = "v39 — Nov 24, 2026 (photo upload shows full error details)";
+const BUILD_VERSION = "v40 — Nov 24, 2026 (iPhone photo upload skips in-page resize)";
 document.addEventListener('DOMContentLoaded', () => {
   const el = document.getElementById('build-version-label');
   if (el) el.textContent = `· Build ${BUILD_VERSION}`;
@@ -1161,6 +1161,8 @@ async function prepPhotoForUpload(file) {
   try {
     if (!file || !/^image\//.test(file.type || 'image/jpeg') || /gif|svg/.test(file.type)) return file;
     if (file.size < 400 * 1024) return file;
+    // iPhone Safari can run out of memory decoding full-size camera photos in the page; upload the original instead.
+    if (/iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) return file;
     const bmp = await createImageBitmap(file);
     const MAX = 1800;
     const scale = Math.min(1, MAX / Math.max(bmp.width, bmp.height));
