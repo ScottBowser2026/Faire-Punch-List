@@ -870,7 +870,7 @@ const emailjsConfig = {
   templateId: "template_ph5468d"
 };
 const TRACKER_URL = "https://punchlist.lancelotbiz.com/";
-const BUILD_VERSION = "v43 — Nov 24, 2026 (login diagnostics trail)";
+const BUILD_VERSION = "v44 — Nov 24, 2026 (Diagnostics link in footer)";
 
 function crumb(msg) {
   try {
@@ -900,6 +900,11 @@ document.addEventListener('DOMContentLoaded', () => {
     rb.href = '#'; rb.textContent = 'Refresh app'; rb.style.cssText = 'color:inherit;text-decoration:underline';
     rb.addEventListener('click', e => { e.preventDefault(); hardRefreshApp(); });
     footerLabel.appendChild(rb);
+    footerLabel.appendChild(document.createTextNode(' · '));
+    const db = document.createElement('a');
+    db.href = '#'; db.textContent = 'Diagnostics'; db.style.cssText = 'color:inherit;text-decoration:underline';
+    db.addEventListener('click', e => { e.preventDefault(); let t = ''; try { t = JSON.parse(localStorage.getItem('pl_crumbs') || '[]').join('\n'); } catch (x) {} alert('Diagnostics (screenshot this):\n\n' + (t || 'nothing recorded yet')); });
+    footerLabel.appendChild(db);
   }
 });
 </script>
