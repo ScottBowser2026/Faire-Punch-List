@@ -870,7 +870,7 @@ const emailjsConfig = {
   templateId: "template_ph5468d"
 };
 const TRACKER_URL = "https://punchlist.lancelotbiz.com/";
-const BUILD_VERSION = "v40 — Nov 24, 2026 (iPhone photo upload skips in-page resize)";
+const BUILD_VERSION = "v41 — Nov 24, 2026 (login no longer hangs while checking)";
 document.addEventListener('DOMContentLoaded', () => {
   const el = document.getElementById('build-version-label');
   if (el) el.textContent = `· Build ${BUILD_VERSION}`;
@@ -3779,20 +3779,37 @@ async function restoreLoginFromToken() {
 }
 
 let loginInFlight = false;
+function withTimeout(promise, ms, step) {
+  let t;
+  const timeout = new Promise((_, rej) => { t = setTimeout(() => { const e = new Error('stalled'); e.step = step; e.stalled = true; rej(e); }, ms); });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(t));
+}
+// If this browser's saved sign-in is wedged, clear it so the next try starts clean.
+async function resetStuckAuth() {
+  try { await withTimeout(firebase.auth().signOut(), 4000, 'signOut'); } catch (e) {}
+  try { indexedDB.deleteDatabase('firebaseLocalStorageDb'); } catch (e) {}
+  try { localStorage.removeItem('firebase:authUser'); } catch (e) {}
+}
 async function tryLogin(pin) {
   const errorEl = document.getElementById('pin-error');
   if (loginInFlight) return;
   loginInFlight = true;
   errorEl.textContent = 'Checking…';
+  let step = 'start';
   try {
-    if (!firebase.auth().currentUser) await firebase.auth().signInAnonymously();
-    const person = await callFn('plLogin', { pin: pin.trim() });
-    await firebase.auth().currentUser.getIdToken(true); // pick up the new role stamp before any read
+    if (!firebase.auth().currentUser) { step = 'sign-in service'; await withTimeout(firebase.auth().signInAnonymously(), 20000, step); }
+    step = 'PIN check'; const person = await withTimeout(callFn('plLogin', { pin: pin.trim() }), 25000, step);
+    step = 'security token'; await withTimeout(firebase.auth().currentUser.getIdToken(true), 20000, step); // pick up the new role stamp before any read
     errorEl.textContent = '';
     finishLogin(person);
   } catch (err) {
-    console.error('Login failed', err);
-    errorEl.textContent = (err && err.message) || "Couldn't log in — check your connection and try again.";
+    console.error('Login failed at ' + step, err);
+    if (err && err.stalled) {
+      errorEl.textContent = `Login stalled at the ${step} step (${BUILD_VERSION.split(' — ')[0]}). Cleaning up — tap the PIN box and try again, or tap Refresh app below.`;
+      await resetStuckAuth();
+    } else {
+      errorEl.textContent = (err && err.message) || "Couldn't log in — check your connection and try again.";
+    }
   } finally {
     loginInFlight = false;
   }
