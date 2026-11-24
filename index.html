@@ -870,7 +870,7 @@ const emailjsConfig = {
   templateId: "template_ph5468d"
 };
 const TRACKER_URL = "https://punchlist.lancelotbiz.com/";
-const BUILD_VERSION = "v44 — Nov 24, 2026 (Diagnostics link in footer)";
+const BUILD_VERSION = "v44 — Nov 24, 2026 (photo upload progress, smaller iPhone photos, Diagnostics link)";
 
 function crumb(msg) {
   try {
@@ -1181,17 +1181,15 @@ async function prepPhotoForUpload(file) {
   try {
     if (!file || !/^image\//.test(file.type || 'image/jpeg') || /gif|svg/.test(file.type)) return file;
     if (file.size < 400 * 1024) return file;
-    // iPhone Safari can run out of memory decoding full-size camera photos in the page; upload the original instead.
-    if (/iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) return file;
     const bmp = await createImageBitmap(file);
-    const MAX = 1800;
+    const MAX = 1600;
     const scale = Math.min(1, MAX / Math.max(bmp.width, bmp.height));
     const c = document.createElement('canvas');
     c.width = Math.round(bmp.width * scale);
     c.height = Math.round(bmp.height * scale);
     c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
     if (bmp.close) bmp.close();
-    const blob = await new Promise(res => c.toBlob(res, 'image/jpeg', 0.85));
+    const blob = await new Promise(res => c.toBlob(res, 'image/jpeg', 0.8));
     return (blob && blob.size < file.size) ? blob : file;
   } catch (e) { return file; }
 }
@@ -1218,10 +1216,25 @@ async function uploadOnePhoto(pathPrefix, file) {
   const body = await prepPhotoForUpload(file);
   const path = `${pathPrefix}/${Date.now()}_${Math.random().toString(36).slice(2, 7)}_${safePhotoName(file)}`;
   const ref = firebase.storage().ref().child(path);
+  crumb('uploading ' + Math.round((body.size || 0) / 1024) + 'KB');
   const task = ref.put(body, { contentType: (body.type && /^image\//.test(body.type)) ? body.type : 'image/jpeg' });
+  let lastProgress = Date.now(), firstProgressLogged = false;
+  task.on('state_changed', snap => {
+    lastProgress = Date.now();
+    if (!firstProgressLogged) { firstProgressLogged = true; crumb('first progress ' + snap.bytesTransferred + '/' + snap.totalBytes); }
+    const el = document.querySelector('.save-progress-msg');
+    if (el && snap.totalBytes) { el.style.color = 'var(--text-muted)'; el.textContent = 'Uploading photo… ' + Math.round(100 * snap.bytesTransferred / snap.totalBytes) + '%'; }
+  }, () => {});
   await new Promise((resolve, reject) => {
-    const timer = setTimeout(() => { try { task.cancel(); } catch (e) {} const e = new Error('upload timed out'); e.code = 'upload/timeout'; reject(e); }, 90000);
-    task.then(() => { clearTimeout(timer); resolve(); }, err => { clearTimeout(timer); reject(err); });
+    const timer = setInterval(() => {
+      if (Date.now() - lastProgress > 45000) {
+        clearInterval(timer);
+        try { task.cancel(); } catch (e) {}
+        crumb('upload stalled, no progress for 45s' + (firstProgressLogged ? '' : ' (never started)'));
+        const e = new Error('upload timed out'); e.code = 'upload/timeout'; reject(e);
+      }
+    }, 3000);
+    task.then(() => { clearInterval(timer); resolve(); }, err => { clearInterval(timer); reject(err); });
   });
   const url = await ref.getDownloadURL();
   return { url, path };
