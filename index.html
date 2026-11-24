@@ -870,7 +870,22 @@ const emailjsConfig = {
   templateId: "template_ph5468d"
 };
 const TRACKER_URL = "https://punchlist.lancelotbiz.com/";
-const BUILD_VERSION = "v42 — Nov 24, 2026 (explains why a saved login was not restored)";
+const BUILD_VERSION = "v43 — Nov 24, 2026 (login diagnostics trail)";
+
+function crumb(msg) {
+  try {
+    const a = JSON.parse(localStorage.getItem('pl_crumbs') || '[]');
+    a.push(new Date().toLocaleTimeString('en-US') + ' ' + msg);
+    localStorage.setItem('pl_crumbs', JSON.stringify(a.slice(-14)));
+  } catch (e) {}
+}
+try {
+  const nav = (performance.getEntriesByType('navigation')[0] || {}).type || '?';
+  crumb('page load (' + nav + ') ' + BUILD_VERSION.split(' — ')[0]);
+  window.addEventListener('pagehide', () => crumb('pagehide'));
+  window.addEventListener('error', e => crumb('JS error: ' + (e.message || '').slice(0, 80)));
+  window.addEventListener('unhandledrejection', e => crumb('promise error: ' + String((e.reason && (e.reason.code || e.reason.message)) || e.reason).slice(0, 80)));
+} catch (e) {}
 document.addEventListener('DOMContentLoaded', () => {
   const el = document.getElementById('build-version-label');
   if (el) el.textContent = `· Build ${BUILD_VERSION}`;
@@ -1224,14 +1239,17 @@ async function uploadPhotos(task, files, changeText) {
   const newUrls = [];
   let failCount = 0;
   let lastErr = null;
+  crumb('upload start, ' + files.length + ' file(s), ' + files.map(f => Math.round(f.size / 1024) + 'KB ' + (f.type || '?')).join(','));
   for (const file of files) {
     try {
       const { url, path } = await uploadOnePhoto(`punch-list-photos/${task.id}`, file);
+      crumb('upload ok');
       if (!task.photos) task.photos = [];
       task.photos.push({ url, path });
       newUrls.push(url);
     } catch (err) {
       console.error('Photo upload failed', err);
+      crumb('upload FAILED ' + ((err && (err.code || err.message)) || ''));
       failCount++;
       lastErr = err;
     }
@@ -4502,6 +4520,7 @@ function init() {
   let started = false;
   firebase.auth().onAuthStateChanged(async user => {
     if (!user) {
+      crumb('auth: signed out');
       firebase.auth().signInAnonymously().catch(err => console.error('Anonymous sign-in failed', err));
       return;
     }
@@ -4512,7 +4531,11 @@ function init() {
     if (!(await restoreLoginFromToken())) {
       showPinGate();
       const pe = document.getElementById('pin-error');
-      if (pe && restoreFailReason && restoreFailReason !== 'no saved sign-in on this device') pe.textContent = 'Please log in again (' + restoreFailReason + ').';
+      if (pe && restoreFailReason) pe.textContent = 'Please log in again (' + restoreFailReason + ').';
+      try {
+        const cr = JSON.parse(localStorage.getItem('pl_crumbs') || '[]');
+        if (pe && cr.length) { const d = document.createElement('div'); d.style.cssText = 'font-size:10px;color:var(--text-muted);margin-top:8px;text-align:left;white-space:pre-wrap'; d.textContent = 'Diagnostics (send a screenshot to Scott):\n' + cr.join('\n'); pe.parentNode.appendChild(d); }
+      } catch (e) {}
     }
   });
 }
@@ -4535,6 +4558,7 @@ function startPreLoginListeners() {
       return;
     }
     if (v !== forceReloadBaseline) {
+      crumb('reload-everyone signal received');
       // "Reload everyone" also signs everyone out, as before.
       Promise.resolve(currentUser ? callFn('plLogout').catch(() => {}) : null)
         .then(() => firebase.auth().signOut().catch(() => {}))
@@ -4834,6 +4858,7 @@ if ("serviceWorker" in navigator) {
     if (hasReloadedForUpdate) return;
     if (!isSafeToAutoReload()) { reloadPendingForUpdate = true; return; }
     hasReloadedForUpdate = true;
+    crumb('auto-reload for update');
     window.location.reload();
   }
 
@@ -4848,6 +4873,7 @@ if ("serviceWorker" in navigator) {
 
 // ---- Keep every phone on the newest version ----
 async function hardRefreshApp() {
+  crumb('hardRefreshApp');
   try {
     if ('serviceWorker' in navigator) {
       const regs = await navigator.serviceWorker.getRegistrations();
