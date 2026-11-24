@@ -870,7 +870,7 @@ const emailjsConfig = {
   templateId: "template_ph5468d"
 };
 const TRACKER_URL = "https://punchlist.lancelotbiz.com/";
-const BUILD_VERSION = "v41 — Nov 24, 2026 (login no longer hangs while checking)";
+const BUILD_VERSION = "v42 — Nov 24, 2026 (explains why a saved login was not restored)";
 document.addEventListener('DOMContentLoaded', () => {
   const el = document.getElementById('build-version-label');
   if (el) el.textContent = `· Build ${BUILD_VERSION}`;
@@ -3761,19 +3761,23 @@ function finishLogin(person) {
 }
 
 // After a reload: if this browser's sign-in still carries a login, use it.
+let restoreFailReason = '';
 async function restoreLoginFromToken() {
   const u = firebase.auth().currentUser;
-  if (!u) return false;
+  if (!u) { restoreFailReason = 'no saved sign-in on this device'; return false; }
   try {
     const c = (await u.getIdTokenResult()).claims;
-    if (!c.plId || !c.plRole || !(c.plUntil > Date.now())) return false;
+    if (!c.plId || !c.plRole) { restoreFailReason = 'saved sign-in has no login stamp'; return false; }
+    if (!(c.plUntil > Date.now())) { restoreFailReason = 'saved login expired'; return false; }
     const snap = await firebase.database().ref('faire-punch-list-people/' + c.plId).once('value');
     const person = snap.val();
-    if (!person || person.role !== c.plRole) return false;
+    if (!person) { restoreFailReason = 'your person record could not be read'; return false; }
+    if (person.role !== c.plRole) { restoreFailReason = 'your role changed since you logged in'; return false; }
     finishLogin({ id: c.plId, ...person });
     return true;
   } catch (e) {
     console.warn('Saved login no longer valid', e);
+    restoreFailReason = (e && (e.code || e.message)) || 'unknown error';
     return false;
   }
 }
@@ -4505,7 +4509,11 @@ function init() {
     started = true;
     startPreLoginListeners();
     // Nothing else is readable until someone logs in.
-    if (!(await restoreLoginFromToken())) showPinGate();
+    if (!(await restoreLoginFromToken())) {
+      showPinGate();
+      const pe = document.getElementById('pin-error');
+      if (pe && restoreFailReason && restoreFailReason !== 'no saved sign-in on this device') pe.textContent = 'Please log in again (' + restoreFailReason + ').';
+    }
   });
 }
 
